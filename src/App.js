@@ -1,24 +1,81 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+import "./App.css";
+import Login from "./Login";
+import Dashboard from "./components/Dashboard";
+import Header from "./components/Header";
+import Sidebar from "./components/Sidebar";
+import Product from "./components/Product";
+import Bill from "./components/Bill";
+import VisitBillPage from "./components/VisitPage";
+import SupplierPage from "./components/Supplier";
+import SupplierDuplicatePage from "./components/SupplierList";
+import ItemsPage from "./components/SuppliedItemLIst";
+import Type from "./components/Type";
+import LowStock from "./components/Lowstock";
+import StockOut from "./components/StockOut";
+
+function Layout() {
+  const location = useLocation();
+
+  // Hide layout on login page
+  const hideLayout = location.pathname === "/";
+
+  const [isOpen, setIsOpen] = useState(true);
+
+  const toggleSidebar = () => {
+    setIsOpen((prev) => !prev);
+  };
+
+  const contentStyle = {
+    marginLeft: hideLayout ? "0" : isOpen ? "220px" : "70px",
+    padding: hideLayout ? "0" : "80px 20px 20px 20px",
+    minHeight: "100vh",
+    background: "#0f172a", // Solid dark background (no white)
+    transition: "all 0.3s ease",
+  };
+
+  return (
+    <>
+      {!hideLayout && <Sidebar isOpen={isOpen} />}
+
+      <div style={contentStyle}>
+        {!hideLayout && (
+          <Header
+            toggleSidebar={toggleSidebar}
+            isOpen={isOpen}
+          />
+        )}
+
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/product" element={<Product />} />
+          <Route path="/Bill" element={<Bill />} />
+          <Route path="/billreport" element={<VisitBillPage />} />
+          <Route path="/supplier" element={<SupplierPage />} />
+          <Route path="/supplierList" element={<SupplierDuplicatePage />} />
+          <Route path="/itemlist" element={<ItemsPage />} />
+          <Route path="/type" element={<Type />} />
+          <Route path="/lowstock" element={<LowStock />} />
+          <Route path="/stockout" element={<StockOut />} />
+
+        </Routes>
+      </div>
+    </>
+  );
+}
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <Layout />
+    </Router>
   );
 }
 
