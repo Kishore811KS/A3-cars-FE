@@ -649,14 +649,14 @@ const SupplierPage = () => {
       <head>
         <title>Suppliers Report</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
+          body { font-family: Arial, sans-serif; margin: 20px; background-color: #0f172a; color: #e2e8f0; }
           h1 { color: #4f46e5; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th { background-color: #4f46e5; color: white; padding: 10px; text-align: left; }
-          td { padding: 8px; border-bottom: 1px solid #ddd; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
+          th { background-color: #2563eb; color: white; padding: 10px; text-align: left; }
+          td { padding: 8px; border-bottom: 1px solid #334155; }
+          tr:nth-child(even) { background-color: #1e293b; }
           .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-          .date { color: #666; }
+          .date { color: #94a3b8; }
         </style>
       </head>
       <body>
@@ -705,37 +705,35 @@ const SupplierPage = () => {
     printWindow.print();
   };
 
-  // ================= DARK STYLES =================
+  // ================= DARK STYLES (Matching Dashboard) =================
   const styles = {
     container: {
-      padding: "40px",
-      backgroundColor: "#0a0c10",
+      padding: "24px",
+      backgroundColor: "#0f172a",  // Dark navy background like dashboard
       minHeight: "100vh",
-      color: "#e5e7eb",
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      color: "#e2e8f0",
+      fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     },
     header: {
+      marginBottom: "32px",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: "30px",
-      paddingBottom: "15px",
-      borderBottom: "1px solid #2d2d2d",
+      flexWrap: "wrap",
+      gap: "16px",
     },
     headerTitle: {
       display: "flex",
       alignItems: "center",
       gap: "20px",
+      flexWrap: "wrap",
     },
     title: {
       fontSize: "28px",
-      fontWeight: "700",
+      fontWeight: "600",
       margin: 0,
       color: "#ffffff",
       letterSpacing: "-0.5px",
-      background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)",
-      WebkitBackgroundClip: "text",
-      WebkitTextFillColor: "transparent",
     },
     stepIndicator: {
       display: "flex",
@@ -743,22 +741,22 @@ const SupplierPage = () => {
     },
     step: {
       padding: "6px 16px",
-      backgroundColor: "#1a1d24",
+      backgroundColor: "#1e293b",
       borderRadius: "20px",
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "13px",
       fontWeight: "600",
-      border: "1px solid #2d313a",
+      border: "1px solid #334155",
     },
     stepActive: {
       padding: "6px 16px",
-      backgroundColor: "#4f46e5",
+      backgroundColor: "#2563eb",
       borderRadius: "20px",
       color: "#fff",
       fontSize: "13px",
       fontWeight: "600",
-      border: "1px solid #6366f1",
-      boxShadow: "0 4px 10px rgba(79, 70, 229, 0.3)",
+      border: "1px solid #3b82f6",
+      boxShadow: "0 4px 10px rgba(37, 99, 235, 0.3)",
     },
     buttonGroup: {
       display: "flex",
@@ -770,19 +768,19 @@ const SupplierPage = () => {
       gap: "8px",
       padding: "10px 20px",
       borderRadius: "8px",
-      backgroundColor: "#1a1d24",
-      color: "#e5e7eb",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      color: "#e2e8f0",
+      border: "1px solid #334155",
       cursor: "pointer",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "500",
       transition: "all 0.2s ease",
     },
     primaryButton: {
-      backgroundColor: "#4f46e5",
+      backgroundColor: "#2563eb",
       color: "#fff",
       border: "none",
-      boxShadow: "0 4px 10px rgba(79, 70, 229, 0.3)",
+      boxShadow: "0 4px 10px rgba(37, 99, 235, 0.3)",
     },
     successButton: {
       backgroundColor: "#059669",
@@ -806,38 +804,39 @@ const SupplierPage = () => {
     },
     tableContainer: {
       overflowX: "auto",
-      borderRadius: "12px",
-      border: "1px solid #2d313a",
+      borderRadius: "16px",
+      border: "1px solid #334155",
       marginTop: "20px",
-      backgroundColor: "#1a1d24",
+      backgroundColor: "#1e293b",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
     },
     table: {
       width: "100%",
       borderCollapse: "collapse",
-      backgroundColor: "#1a1d24",
+      backgroundColor: "#1e293b",
       minWidth: "1200px",
     },
     th: {
-      backgroundColor: "#0f1217",
+      backgroundColor: "#0f172a",
       padding: "16px",
       textAlign: "left",
-      color: "#e5e7eb",
-      fontWeight: "600",
+      color: "#94a3b8",
+      fontWeight: "500",
       fontSize: "13px",
       letterSpacing: "0.3px",
       textTransform: "uppercase",
-      borderBottom: "2px solid #2d313a",
+      borderBottom: "2px solid #334155",
     },
     td: {
       padding: "14px 16px",
-      borderBottom: "1px solid #2d313a",
-      color: "#d1d5db",
+      borderBottom: "1px solid #334155",
+      color: "#e2e8f0",
       fontSize: "14px",
     },
     emptyState: {
       textAlign: "center",
       padding: "50px",
-      color: "#6b7280",
+      color: "#94a3b8",
       fontStyle: "italic",
       fontSize: "15px",
     },
@@ -858,25 +857,24 @@ const SupplierPage = () => {
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      padding: "12px 28px",
-      borderRadius: "10px",
-      backgroundColor: "#059669",
+      padding: "10px 20px",
+      borderRadius: "8px",
+      backgroundColor: "#2563eb",
       color: "#fff",
       border: "none",
       cursor: "pointer",
-      fontSize: "15px",
-      fontWeight: "600",
-      margin: "25px auto 0",
+      fontSize: "14px",
+      fontWeight: "500",
       transition: "all 0.2s ease",
-      boxShadow: "0 4px 12px rgba(5, 150, 105, 0.3)",
+      boxShadow: "0 4px 10px rgba(37, 99, 235, 0.3)",
     },
     selectedSupplierInfo: {
-      backgroundColor: "#1a1d24",
-      padding: "16px 20px",
-      borderRadius: "12px",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      padding: "20px",
+      borderRadius: "16px",
+      border: "1px solid #334155",
       marginBottom: "25px",
-      color: "#e5e7eb",
+      color: "#e2e8f0",
       fontSize: "14px",
       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
     },
@@ -898,32 +896,32 @@ const SupplierPage = () => {
       backdropFilter: "blur(8px)",
     },
     popup: {
-      backgroundColor: "#1a1d24",
+      backgroundColor: "#1e293b",
       padding: "35px",
       borderRadius: "16px",
       width: "750px",
       maxWidth: "90%",
       maxHeight: "85vh",
       overflowY: "auto",
-      border: "1px solid #2d313a",
+      border: "1px solid #334155",
       position: "relative",
       marginTop: "60px",
       boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
     },
     popupHeader: {
       marginBottom: "30px",
-      borderBottom: "2px solid #2d313a",
+      borderBottom: "2px solid #334155",
       paddingBottom: "20px",
     },
     popupTitle: {
       color: "#fff",
       fontSize: "24px",
-      fontWeight: "700",
+      fontWeight: "600",
       margin: 0,
       letterSpacing: "-0.5px",
     },
     popupSubtitle: {
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "13px",
       marginTop: "5px",
     },
@@ -931,9 +929,9 @@ const SupplierPage = () => {
       position: "absolute",
       top: "25px",
       right: "25px",
-      background: "#2d313a",
+      background: "#334155",
       border: "none",
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "20px",
       cursor: "pointer",
       width: "36px",
@@ -959,19 +957,19 @@ const SupplierPage = () => {
     label: {
       display: "block",
       marginBottom: "8px",
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "13px",
-      fontWeight: "600",
+      fontWeight: "500",
       letterSpacing: "0.3px",
       textTransform: "uppercase",
     },
     input: {
       width: "100%",
       padding: "12px 16px",
-      backgroundColor: "#0f1217",
-      border: "1px solid #2d313a",
+      backgroundColor: "#0f172a",
+      border: "1px solid #334155",
       color: "#fff",
-      borderRadius: "10px",
+      borderRadius: "8px",
       fontSize: "14px",
       transition: "all 0.2s",
       boxSizing: "border-box",
@@ -979,10 +977,10 @@ const SupplierPage = () => {
     select: {
       width: "100%",
       padding: "12px 16px",
-      backgroundColor: "#0f1217",
-      border: "1px solid #2d313a",
+      backgroundColor: "#0f172a",
+      border: "1px solid #334155",
       color: "#fff",
-      borderRadius: "10px",
+      borderRadius: "8px",
       fontSize: "14px",
       transition: "all 0.2s",
       boxSizing: "border-box",
@@ -991,10 +989,10 @@ const SupplierPage = () => {
     textarea: {
       width: "100%",
       padding: "12px 16px",
-      backgroundColor: "#0f1217",
-      border: "1px solid #2d313a",
+      backgroundColor: "#0f172a",
+      border: "1px solid #334155",
       color: "#fff",
-      borderRadius: "10px",
+      borderRadius: "8px",
       fontSize: "14px",
       fontFamily: "inherit",
       resize: "vertical",
@@ -1004,19 +1002,19 @@ const SupplierPage = () => {
     fileInput: {
       width: "100%",
       padding: "8px",
-      backgroundColor: "#0f1217",
-      border: "1px solid #2d313a",
+      backgroundColor: "#0f172a",
+      border: "1px solid #334155",
       color: "#fff",
-      borderRadius: "10px",
+      borderRadius: "8px",
       fontSize: "14px",
       cursor: "pointer",
     },
     fileInfo: {
       marginTop: "10px",
       padding: "10px",
-      backgroundColor: "#0f1217",
+      backgroundColor: "#0f172a",
       borderRadius: "8px",
-      border: "1px solid #2d313a",
+      border: "1px solid #334155",
       display: "flex",
       alignItems: "center",
       gap: "10px",
@@ -1037,67 +1035,64 @@ const SupplierPage = () => {
       gap: "12px",
       marginTop: "30px",
       paddingTop: "20px",
-      borderTop: "1px solid #2d313a",
+      borderTop: "1px solid #334155",
     },
     cancelButton: {
       padding: "12px 24px",
-      borderRadius: "10px",
-      backgroundColor: "#1a1d24",
-      color: "#9ca3af",
-      border: "1px solid #2d313a",
+      borderRadius: "8px",
+      backgroundColor: "transparent",
+      color: "#94a3b8",
+      border: "1px solid #334155",
       cursor: "pointer",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "500",
       transition: "all 0.2s",
     },
     submitButton: {
       padding: "12px 28px",
-      borderRadius: "10px",
-      backgroundColor: "#4f46e5",
+      borderRadius: "8px",
+      backgroundColor: "#2563eb",
       color: "#fff",
       border: "none",
       cursor: "pointer",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "500",
       transition: "all 0.2s",
-      boxShadow: "0 4px 12px rgba(79, 70, 229, 0.3)",
+      boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
     },
     noData: {
       textAlign: "center",
-      color: "#6b7280",
+      color: "#94a3b8",
       padding: "50px",
       fontStyle: "italic",
       fontSize: "15px",
     },
     itemBadge: {
-      background: "#2d313a",
+      background: "#334155",
       padding: "4px 8px",
       borderRadius: "12px",
       fontSize: "12px",
-      color: "#9ca3af",
+      color: "#94a3b8",
       marginLeft: "10px",
     },
     statusBadge: {
       padding: "4px 8px",
       borderRadius: "12px",
       fontSize: "12px",
-      fontWeight: "600",
+      fontWeight: "500",
       display: "inline-block",
     },
     statusPending: {
-      backgroundColor: "#f59e0b20",
+      backgroundColor: "rgba(245, 158, 11, 0.2)",
       color: "#f59e0b",
-      border: "1px solid #f59e0b40",
     },
     statusActive: {
-      backgroundColor: "#10b98120",
+      backgroundColor: "rgba(16, 185, 129, 0.2)",
       color: "#10b981",
-      border: "1px solid #10b98140",
     },
     statusInactive: {
-      backgroundColor: "#ef444420",
+      backgroundColor: "rgba(239, 68, 68, 0.2)",
       color: "#ef4444",
-      border: "1px solid #ef444440",
     },
     attachmentLink: {
       color: "#3b82f6",
@@ -1108,7 +1103,7 @@ const SupplierPage = () => {
       gap: "4px",
       cursor: "pointer",
       padding: "4px 8px",
-      backgroundColor: "#2d313a",
+      backgroundColor: "#334155",
       borderRadius: "4px",
       width: "fit-content",
     },
@@ -1125,8 +1120,8 @@ const SupplierPage = () => {
       zIndex: 2000,
     },
     loadingSpinner: {
-      border: "4px solid #2d313a",
-      borderTop: "4px solid #4f46e5",
+      border: "4px solid #334155",
+      borderTop: "4px solid #2563eb",
       borderRadius: "50%",
       width: "40px",
       height: "40px",
@@ -1144,18 +1139,18 @@ const SupplierPage = () => {
       flex: "1",
       minWidth: "300px",
       padding: "12px 16px",
-      backgroundColor: "#1a1d24",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      border: "1px solid #334155",
       color: "#fff",
-      borderRadius: "10px",
+      borderRadius: "8px",
       fontSize: "14px",
     },
     searchSelect: {
       padding: "12px 16px",
-      backgroundColor: "#1a1d24",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      border: "1px solid #334155",
       color: "#fff",
-      borderRadius: "10px",
+      borderRadius: "8px",
       fontSize: "14px",
       minWidth: "150px",
     },
@@ -1167,12 +1162,12 @@ const SupplierPage = () => {
     exportButton: {
       padding: "10px 20px",
       borderRadius: "8px",
-      backgroundColor: "#1a1d24",
-      color: "#e5e7eb",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      color: "#e2e8f0",
+      border: "1px solid #334155",
       cursor: "pointer",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "500",
       display: "flex",
       alignItems: "center",
       gap: "8px",
@@ -1197,24 +1192,25 @@ const SupplierPage = () => {
     pageButton: {
       padding: "8px 12px",
       borderRadius: "6px",
-      backgroundColor: "#1a1d24",
-      color: "#e5e7eb",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      color: "#e2e8f0",
+      border: "1px solid #334155",
       cursor: "pointer",
       fontSize: "14px",
       minWidth: "40px",
+      transition: "all 0.2s",
     },
     pageButtonActive: {
-      backgroundColor: "#4f46e5",
+      backgroundColor: "#2563eb",
       color: "#fff",
-      border: "1px solid #6366f1",
+      border: "1px solid #3b82f6",
     },
     pageButtonDisabled: {
       opacity: 0.5,
       cursor: "not-allowed",
     },
     resultsInfo: {
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "14px",
       marginTop: "10px",
     },
@@ -1239,6 +1235,13 @@ const SupplierPage = () => {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+      .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      }
+      button:hover {
+        transform: translateY(-2px);
+      }
     `;
     document.head.appendChild(style);
     return () => {
@@ -1260,14 +1263,6 @@ const SupplierPage = () => {
             <button 
               onClick={startNewSupplier}
               style={styles.addNewButton}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#047857';
-                e.target.style.transform = 'scale(1.02)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#059669';
-                e.target.style.transform = 'scale(1)';
-              }}
             >
               + Add New Supplier
             </button>
@@ -1304,23 +1299,19 @@ const SupplierPage = () => {
             <button 
               style={{...styles.exportButton, ...styles.excelButton}}
               onClick={exportToExcel}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
             >
               📊 Export Excel
             </button>
             <button 
               style={{...styles.exportButton, ...styles.pdfButton}}
               onClick={exportToPDF}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#dc2626'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#ef4444'}
             >
               📄 Export PDF
             </button>
           </div>
         </div>
 
-        <div style={{ backgroundColor: "#1a1d24", padding: "30px", borderRadius: "16px", border: "1px solid #2d313a" }}>
+        <div style={{ backgroundColor: "#1e293b", padding: "30px", borderRadius: "16px", border: "1px solid #334155" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
             <h2 style={{ color: "#fff", fontSize: "20px", fontWeight: "600", margin: 0 }}>
               Supplier List
@@ -1356,7 +1347,7 @@ const SupplierPage = () => {
                           onClick={() => selectSupplier(supplier)}
                           style={{ cursor: 'pointer' }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#2d313a';
+                            e.currentTarget.style.backgroundColor = '#334155';
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = 'transparent';
@@ -1366,7 +1357,7 @@ const SupplierPage = () => {
                             <span style={{ fontWeight: '500', color: '#fff' }}>{supplier.name}</span>
                           </td>
                           <td style={styles.td}>
-                            <span style={{ background: '#4f46e5', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                            <span style={{ background: '#2563eb', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', color: '#fff' }}>
                               {supplier.company}
                             </span>
                           </td>
@@ -1384,14 +1375,6 @@ const SupplierPage = () => {
                                 style={styles.viewButton}
                                 onClick={(e) => viewSupplierItems(supplier, e)}
                                 title="View Items"
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = '#2d313a';
-                                  e.currentTarget.style.color = '#60a5fa';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = 'transparent';
-                                  e.currentTarget.style.color = '#3b82f6';
-                                }}
                               >
                                 👁️
                               </button>
@@ -1402,14 +1385,6 @@ const SupplierPage = () => {
                                   deleteSupplier(supplier.id);
                                 }}
                                 title="Delete Supplier"
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = '#2d313a';
-                                  e.currentTarget.style.color = '#ef4444';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = 'transparent';
-                                  e.currentTarget.style.color = '#ef4444';
-                                }}
                               >
                                 🗑️
                               </button>
@@ -1503,28 +1478,12 @@ const SupplierPage = () => {
             <button 
               style={{ ...styles.button, ...styles.primaryButton }}
               onClick={openItemPopup}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#4338ca';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#4f46e5';
-                e.target.style.transform = 'translateY(0)';
-              }}
             >
               + Add Item
             </button>
             <button 
               style={{ ...styles.button, ...styles.successButton }}
               onClick={finishAndReset}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#047857';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#059669';
-                e.target.style.transform = 'translateY(0)';
-              }}
             >
               Finish
             </button>
@@ -1533,17 +1492,17 @@ const SupplierPage = () => {
 
         {selectedSupplier && (
           <div style={styles.selectedSupplierInfo}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ background: '#4f46e5', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{ background: '#2563eb', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', color: '#fff' }}>
                 SELECTED
               </span>
               <strong style={{ color: "#fff", fontSize: "16px" }}>{selectedSupplier.company}</strong>
-              <span style={{ color: "#9ca3af" }}>({selectedSupplier.name})</span>
+              <span style={{ color: "#94a3b8" }}>({selectedSupplier.name})</span>
               <span style={styles.itemBadge}>
                 {supplierItems.length} {supplierItems.length === 1 ? 'item' : 'items'}
               </span>
             </div>
-            <div style={{ color: "#9ca3af", marginTop: "8px", fontSize: "13px", display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            <div style={{ color: "#94a3b8", marginTop: "8px", fontSize: "13px", display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
               <span>📧 {selectedSupplier.email || 'No email'}</span>
               <span>📞 {selectedSupplier.phone || 'No phone'}</span>
               <span>📍 {selectedSupplier.address || 'No address'}</span>
@@ -1579,7 +1538,7 @@ const SupplierPage = () => {
                       <span style={{ fontWeight: '500', color: '#fff' }}>{item.name}</span>
                     </td>
                     <td style={styles.td}>
-                      <span style={{ background: '#2d313a', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                      <span style={{ background: '#334155', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
                         {item.type || '—'}
                       </span>
                     </td>
@@ -1621,14 +1580,6 @@ const SupplierPage = () => {
                         style={styles.deleteButton}
                         onClick={() => deleteItem(item.id)}
                         title="Delete"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#2d313a';
-                          e.currentTarget.style.color = '#ef4444';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = '#ef4444';
-                        }}
                       >
                         🗑️
                       </button>
@@ -1655,14 +1606,6 @@ const SupplierPage = () => {
           <button 
             style={styles.closeButton}
             onClick={closePopup}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#4f46e5';
-              e.target.style.color = '#fff';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#2d313a';
-              e.target.style.color = '#9ca3af';
-            }}
           >
             ✕
           </button>
@@ -1695,7 +1638,7 @@ const SupplierPage = () => {
                         <span style={{ fontWeight: '500', color: '#fff' }}>{item.name}</span>
                       </td>
                       <td style={styles.td}>
-                        <span style={{ background: '#2d313a', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                        <span style={{ background: '#334155', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
                           {item.type || '—'}
                         </span>
                       </td>
@@ -1744,14 +1687,6 @@ const SupplierPage = () => {
             <button 
               onClick={closePopup}
               style={styles.submitButton}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#4338ca';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#4f46e5';
-                e.target.style.transform = 'translateY(0)';
-              }}
             >
               Close
             </button>
@@ -1771,14 +1706,6 @@ const SupplierPage = () => {
           <button 
             style={styles.closeButton}
             onClick={closePopup}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#4f46e5';
-              e.target.style.color = '#fff';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#2d313a';
-              e.target.style.color = '#9ca3af';
-            }}
           >
             ✕
           </button>
@@ -1801,8 +1728,6 @@ const SupplierPage = () => {
                   required
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -1817,8 +1742,6 @@ const SupplierPage = () => {
                   required
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -1832,8 +1755,6 @@ const SupplierPage = () => {
                   placeholder="e.g., john@company.com"
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -1847,8 +1768,6 @@ const SupplierPage = () => {
                   placeholder="e.g., +91 98765 43210"
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -1862,8 +1781,6 @@ const SupplierPage = () => {
                   rows="2"
                   style={styles.textarea}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
             </div>
@@ -1874,16 +1791,6 @@ const SupplierPage = () => {
                 onClick={closePopup}
                 style={styles.cancelButton}
                 disabled={loading}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.target.style.backgroundColor = '#2d313a';
-                    e.target.style.color = '#fff';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#1a1d24';
-                  e.target.style.color = '#9ca3af';
-                }}
               >
                 Cancel
               </button>
@@ -1891,16 +1798,6 @@ const SupplierPage = () => {
                 type="submit" 
                 style={styles.submitButton}
                 disabled={loading}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.target.style.backgroundColor = '#4338ca';
-                    e.target.style.transform = 'translateY(-2px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#4f46e5';
-                  e.target.style.transform = 'translateY(0)';
-                }}
               >
                 {loading ? 'Saving...' : 'Next → Add Items'}
               </button>
@@ -1921,14 +1818,6 @@ const SupplierPage = () => {
           <button 
             style={styles.closeButton}
             onClick={closePopup}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#4f46e5';
-              e.target.style.color = '#fff';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#2d313a';
-              e.target.style.color = '#9ca3af';
-            }}
           >
             ✕
           </button>
@@ -1951,8 +1840,6 @@ const SupplierPage = () => {
                   required
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -1966,8 +1853,6 @@ const SupplierPage = () => {
                   placeholder="e.g., Electronics"
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -1982,8 +1867,6 @@ const SupplierPage = () => {
                   required
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -1999,8 +1882,6 @@ const SupplierPage = () => {
                   step="1"
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -2017,8 +1898,6 @@ const SupplierPage = () => {
                   required
                   style={styles.input}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 />
               </div>
 
@@ -2030,8 +1909,6 @@ const SupplierPage = () => {
                   onChange={handleItemChange}
                   style={styles.select}
                   disabled={loading}
-                  onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
-                  onBlur={(e) => e.target.style.borderColor = '#2d313a'}
                 >
                   <option value="Pending">Pending</option>
                   <option value="Active">Active</option>
@@ -2057,14 +1934,14 @@ const SupplierPage = () => {
                     )}
                     <div>
                       <div style={styles.fileName}>{selectedFile.name}</div>
-                      <div style={{ color: '#6b7280', fontSize: '11px', marginTop: '4px' }}>
+                      <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '4px' }}>
                         {(selectedFile.size / 1024).toFixed(2)} KB
                       </div>
                     </div>
                   </div>
                 )}
                 {uploadingFile && (
-                  <div style={{ marginTop: '10px', color: '#4f46e5', fontSize: '12px' }}>
+                  <div style={{ marginTop: '10px', color: '#2563eb', fontSize: '12px' }}>
                     Uploading file...
                   </div>
                 )}
@@ -2077,16 +1954,6 @@ const SupplierPage = () => {
                 onClick={closePopup}
                 style={styles.cancelButton}
                 disabled={loading}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.target.style.backgroundColor = '#2d313a';
-                    e.target.style.color = '#fff';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#1a1d24';
-                  e.target.style.color = '#9ca3af';
-                }}
               >
                 Cancel
               </button>
@@ -2094,16 +1961,6 @@ const SupplierPage = () => {
                 type="submit" 
                 style={styles.submitButton}
                 disabled={loading || uploadingFile}
-                onMouseEnter={(e) => {
-                  if (!loading && !uploadingFile) {
-                    e.target.style.backgroundColor = '#4338ca';
-                    e.target.style.transform = 'translateY(-2px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#4f46e5';
-                  e.target.style.transform = 'translateY(0)';
-                }}
               >
                 {uploadingFile ? 'Uploading...' : (loading ? 'Adding...' : 'Add Item')}
               </button>

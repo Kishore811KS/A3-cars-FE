@@ -99,7 +99,6 @@ const Header = ({ toggleSidebar }) => {
       </div>
 
       <div style={styles.right}>
-        <FaBell style={styles.icon} />
 
         <div style={styles.userSection}>
           <FaUserCircle />

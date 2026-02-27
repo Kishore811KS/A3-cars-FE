@@ -224,7 +224,7 @@ const ItemsListPage = () => {
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
     
-    // Generate HTML content for PDF
+    // Generate HTML content for PDF with dark theme
     let htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -234,7 +234,8 @@ const ItemsListPage = () => {
           body { 
             font-family: Arial, sans-serif; 
             margin: 30px; 
-            color: #333;
+            background-color: #0f172a;
+            color: #e2e8f0;
           }
           .header { 
             text-align: center; 
@@ -243,17 +244,17 @@ const ItemsListPage = () => {
             border-bottom: 3px solid #2563eb;
           }
           h1 { 
-            color: #2563eb; 
+            color: #ffffff; 
             margin: 0 0 10px 0;
             font-size: 28px;
           }
           .date { 
-            color: #666; 
+            color: #94a3b8; 
             font-size: 14px;
             margin-bottom: 10px;
           }
           .filters-applied {
-            background-color: #f0f9ff;
+            background-color: #1e293b;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -261,11 +262,12 @@ const ItemsListPage = () => {
           }
           .filters-applied h3 {
             margin: 0 0 10px 0;
-            color: #2563eb;
+            color: #ffffff;
             font-size: 16px;
           }
           .filter-tag {
-            background-color: #e2e8f0;
+            background-color: #334155;
+            color: #94a3b8;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 12px;
@@ -287,10 +289,11 @@ const ItemsListPage = () => {
           }
           td { 
             padding: 10px; 
-            border-bottom: 1px solid #ddd; 
+            border-bottom: 1px solid #334155; 
+            color: #e2e8f0;
           }
           tr:nth-child(even) { 
-            background-color: #f9f9f9; 
+            background-color: #1e293b; 
           }
           .status-badge {
             padding: 4px 8px;
@@ -300,29 +303,29 @@ const ItemsListPage = () => {
             display: inline-block;
           }
           .status-active {
-            background-color: #dcfce7;
-            color: #166534;
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
           }
           .status-pending {
-            background-color: #fef9c3;
-            color: #854d0e;
+            background-color: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
           }
           .status-inactive {
-            background-color: #fee2e2;
-            color: #991b1b;
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
           }
           .footer {
             margin-top: 30px;
             text-align: right;
             font-size: 11px;
-            color: #666;
-            border-top: 1px solid #ddd;
+            color: #94a3b8;
+            border-top: 1px solid #334155;
             padding-top: 10px;
           }
           .summary {
             display: flex;
             justify-content: space-between;
-            background-color: #f0f9ff;
+            background-color: #1e293b;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -332,7 +335,7 @@ const ItemsListPage = () => {
           }
           .summary-label {
             font-size: 12px;
-            color: #64748b;
+            color: #94a3b8;
           }
           .summary-value {
             font-size: 20px;
@@ -475,284 +478,284 @@ const ItemsListPage = () => {
     setDateRangeEnd('');
   };
 
-  // Enhanced blue theme styles
+  // Dark theme styles matching Dashboard
   const styles = {
     container: {
-      padding: '30px',
-      background: 'linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%)',
+      padding: '24px',
+      backgroundColor: '#0f172a',
       minHeight: '100vh',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      color: '#e2e8f0',
+      fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     },
     header: {
-      marginBottom: '30px',
+      marginBottom: '32px',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
       flexWrap: 'wrap',
-      gap: '20px'
+      gap: '16px',
     },
     titleSection: {
-      flex: 1
+      flex: 1,
     },
     title: {
-      fontSize: '32px',
-      fontWeight: '700',
-      color: '#1e40af',
+      fontSize: '28px',
+      fontWeight: '600',
       margin: '0 0 8px 0',
+      color: '#ffffff',
       display: 'flex',
       alignItems: 'center',
-      gap: '10px'
+      gap: '10px',
     },
     titleIcon: {
-      fontSize: '36px'
+      fontSize: '32px',
     },
     subtitle: {
-      color: '#3b82f6',
+      color: '#94a3b8',
       fontSize: '14px',
       margin: 0,
-      fontWeight: '500'
     },
     exportButton: {
-      padding: '12px 24px',
+      padding: '10px 20px',
       backgroundColor: '#2563eb',
       color: 'white',
       border: 'none',
-      borderRadius: '12px',
+      borderRadius: '8px',
       fontSize: '14px',
-      fontWeight: '600',
+      fontWeight: '500',
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
-      boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)',
-      transition: 'all 0.2s ease'
+      boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)',
+      transition: 'all 0.2s ease',
     },
     filtersCard: {
-      backgroundColor: 'white',
-      borderRadius: '20px',
-      padding: '25px',
-      marginBottom: '25px',
-      boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.1)',
-      border: '1px solid rgba(37, 99, 235, 0.1)'
+      backgroundColor: '#1e293b',
+      borderRadius: '16px',
+      padding: '24px',
+      marginBottom: '24px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+      border: '1px solid #334155',
     },
     filtersTitle: {
       fontSize: '16px',
       fontWeight: '600',
-      color: '#1e40af',
+      color: '#ffffff',
       margin: '0 0 20px 0',
       display: 'flex',
       alignItems: 'center',
-      gap: '8px'
+      gap: '8px',
     },
     filterRow: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
       gap: '20px',
-      marginBottom: '20px'
+      marginBottom: '20px',
     },
     filterGroup: {
       display: 'flex',
       flexDirection: 'column',
-      gap: '6px'
+      gap: '6px',
     },
     label: {
       fontSize: '13px',
-      fontWeight: '600',
-      color: '#3b82f6',
+      fontWeight: '500',
+      color: '#94a3b8',
       textTransform: 'uppercase',
-      letterSpacing: '0.5px'
+      letterSpacing: '0.5px',
     },
     select: {
-      padding: '12px 16px',
-      border: '2px solid #e2e8f0',
-      borderRadius: '12px',
+      padding: '10px 12px',
+      border: '1px solid #334155',
+      borderRadius: '8px',
       fontSize: '14px',
-      color: '#1e293b',
-      backgroundColor: 'white',
+      color: '#fff',
+      backgroundColor: '#0f172a',
       cursor: 'pointer',
       transition: 'all 0.2s ease',
-      outline: 'none'
+      outline: 'none',
     },
     input: {
-      padding: '12px 16px',
-      border: '2px solid #e2e8f0',
-      borderRadius: '12px',
+      padding: '10px 12px',
+      border: '1px solid #334155',
+      borderRadius: '8px',
       fontSize: '14px',
-      color: '#1e293b',
-      backgroundColor: 'white',
+      color: '#fff',
+      backgroundColor: '#0f172a',
       transition: 'all 0.2s ease',
-      outline: 'none'
+      outline: 'none',
     },
     dateFilterToggle: {
       display: 'flex',
       gap: '10px',
-      marginBottom: '15px',
-      flexWrap: 'wrap'
+      marginBottom: '20px',
+      flexWrap: 'wrap',
     },
     dateToggleButton: {
       padding: '8px 16px',
-      border: '2px solid #e2e8f0',
-      borderRadius: '30px',
+      border: '1px solid #334155',
+      borderRadius: '20px',
       fontSize: '13px',
       fontWeight: '500',
       cursor: 'pointer',
-      backgroundColor: 'white',
-      color: '#64748b',
-      transition: 'all 0.2s ease'
+      backgroundColor: 'transparent',
+      color: '#94a3b8',
+      transition: 'all 0.2s ease',
     },
     dateToggleButtonActive: {
       backgroundColor: '#2563eb',
       color: 'white',
-      borderColor: '#2563eb'
+      borderColor: '#2563eb',
     },
     clearFiltersButton: {
-      padding: '12px 24px',
-      backgroundColor: '#f1f5f9',
-      color: '#475569',
-      border: '2px solid #e2e8f0',
-      borderRadius: '12px',
+      padding: '10px 20px',
+      backgroundColor: 'transparent',
+      color: '#94a3b8',
+      border: '1px solid #334155',
+      borderRadius: '8px',
       fontSize: '14px',
-      fontWeight: '600',
+      fontWeight: '500',
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
-      transition: 'all 0.2s ease'
+      transition: 'all 0.2s ease',
     },
     statsGrid: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-      gap: '15px',
-      marginBottom: '25px'
+      gap: '20px',
+      marginBottom: '24px',
     },
     statCard: {
-      backgroundColor: 'white',
+      backgroundColor: '#1e293b',
       padding: '20px',
       borderRadius: '16px',
-      boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)',
-      border: '1px solid rgba(37, 99, 235, 0.1)',
-      textAlign: 'center'
+      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+      border: '1px solid #334155',
+      textAlign: 'center',
     },
     statLabel: {
       fontSize: '13px',
-      color: '#64748b',
+      color: '#94a3b8',
       marginBottom: '8px',
-      fontWeight: '500'
+      fontWeight: '500',
     },
     statValue: {
       fontSize: '24px',
-      fontWeight: '700',
-      color: '#2563eb'
+      fontWeight: '600',
+      color: '#ffffff',
     },
     statSubtext: {
       fontSize: '11px',
       color: '#94a3b8',
-      marginTop: '5px'
+      marginTop: '5px',
     },
     tableContainer: {
-      backgroundColor: 'white',
-      borderRadius: '20px',
+      backgroundColor: '#1e293b',
+      borderRadius: '16px',
       overflow: 'hidden',
-      boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.1)',
-      border: '1px solid rgba(37, 99, 235, 0.1)'
+      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+      border: '1px solid #334155',
     },
     table: {
       width: '100%',
-      borderCollapse: 'collapse'
+      borderCollapse: 'collapse',
     },
     th: {
       textAlign: 'left',
       padding: '16px',
-      backgroundColor: '#f8fafc',
-      color: '#1e40af',
+      backgroundColor: '#0f172a',
+      color: '#94a3b8',
       fontSize: '13px',
-      fontWeight: '600',
-      borderBottom: '2px solid #2563eb'
+      fontWeight: '500',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+      borderBottom: '2px solid #334155',
     },
     td: {
       padding: '16px',
-      borderBottom: '1px solid #e2e8f0',
-      color: '#1e293b',
-      fontSize: '14px'
+      borderBottom: '1px solid #334155',
+      color: '#e2e8f0',
+      fontSize: '14px',
     },
     tr: {
       cursor: 'pointer',
-      transition: 'background-color 0.2s'
+      transition: 'background-color 0.2s',
     },
     statusBadge: {
-      padding: '6px 12px',
-      borderRadius: '30px',
+      padding: '4px 8px',
+      borderRadius: '20px',
       fontSize: '12px',
-      fontWeight: '600',
-      display: 'inline-block'
+      fontWeight: '500',
+      display: 'inline-block',
     },
     statusActive: {
-      backgroundColor: '#dcfce7',
-      color: '#166534',
-      border: '1px solid #86efac'
+      backgroundColor: 'rgba(16, 185, 129, 0.2)',
+      color: '#10b981',
     },
     statusPending: {
-      backgroundColor: '#fef9c3',
-      color: '#854d0e',
-      border: '1px solid #fde047'
+      backgroundColor: 'rgba(245, 158, 11, 0.2)',
+      color: '#f59e0b',
     },
     statusInactive: {
-      backgroundColor: '#fee2e2',
-      color: '#991b1b',
-      border: '1px solid #fca5a5'
+      backgroundColor: 'rgba(239, 68, 68, 0.2)',
+      color: '#ef4444',
     },
     attachmentLink: {
-      color: '#2563eb',
+      color: '#3b82f6',
       textDecoration: 'none',
-      fontSize: '13px',
+      fontSize: '12px',
       display: 'flex',
       alignItems: 'center',
       gap: '4px',
       padding: '4px 8px',
-      backgroundColor: '#eff6ff',
-      borderRadius: '20px',
-      width: 'fit-content'
+      backgroundColor: '#334155',
+      borderRadius: '4px',
+      width: 'fit-content',
     },
     dateBadge: {
       fontSize: '11px',
-      color: '#64748b',
-      marginTop: '4px'
+      color: '#94a3b8',
+      marginTop: '4px',
     },
     pagination: {
       display: 'flex',
       justifyContent: 'center',
       gap: '8px',
-      marginTop: '25px',
-      flexWrap: 'wrap'
+      marginTop: '24px',
+      flexWrap: 'wrap',
     },
     pageButton: {
-      padding: '10px 16px',
-      border: '2px solid #e2e8f0',
-      backgroundColor: 'white',
-      borderRadius: '12px',
+      padding: '8px 12px',
+      border: '1px solid #334155',
+      backgroundColor: '#1e293b',
+      borderRadius: '6px',
       cursor: 'pointer',
       fontSize: '14px',
-      color: '#475569',
+      color: '#e2e8f0',
       fontWeight: '500',
       transition: 'all 0.2s ease',
-      minWidth: '45px'
+      minWidth: '40px',
     },
     pageButtonActive: {
       backgroundColor: '#2563eb',
       color: 'white',
-      borderColor: '#2563eb'
+      borderColor: '#2563eb',
     },
     pageButtonDisabled: {
       opacity: 0.5,
-      cursor: 'not-allowed'
+      cursor: 'not-allowed',
     },
     emptyState: {
       textAlign: 'center',
       padding: '60px',
-      color: '#64748b',
-      backgroundColor: 'white',
-      borderRadius: '20px',
-      boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.1)'
+      color: '#94a3b8',
+      backgroundColor: '#1e293b',
+      borderRadius: '16px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+      border: '1px solid #334155',
     },
     loadingOverlay: {
       position: 'fixed',
@@ -760,45 +763,45 @@ const ItemsListPage = () => {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(37, 99, 235, 0.1)',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       backdropFilter: 'blur(3px)',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 1000
+      zIndex: 1000,
     },
     loadingSpinner: {
       width: '50px',
       height: '50px',
-      border: '5px solid #e2e8f0',
+      border: '4px solid #334155',
       borderTopColor: '#2563eb',
       borderRadius: '50%',
-      animation: 'spin 1s linear infinite'
+      animation: 'spin 1s linear infinite',
     },
     supplierInfo: {
       fontSize: '12px',
-      color: '#64748b',
+      color: '#94a3b8',
       marginTop: '4px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '2px'
+      gap: '2px',
     },
     supplierName: {
       fontWeight: '500',
-      color: '#2563eb'
+      color: '#ffffff',
     },
     filterBadge: {
       display: 'inline-flex',
       alignItems: 'center',
       gap: '5px',
       padding: '4px 12px',
-      backgroundColor: '#eff6ff',
-      borderRadius: '30px',
+      backgroundColor: '#334155',
+      borderRadius: '20px',
       fontSize: '12px',
-      color: '#2563eb',
+      color: '#94a3b8',
       marginRight: '10px',
-      marginBottom: '10px'
-    }
+      marginBottom: '10px',
+    },
   };
 
   const filteredItems = getSortedItems();
@@ -827,7 +830,7 @@ const ItemsListPage = () => {
         <button 
           style={styles.exportButton}
           onClick={exportToPDF}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#1e40af'}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#1d4ed8'}
           onMouseLeave={(e) => e.target.style.backgroundColor = '#2563eb'}
         >
           <span>📄</span>
@@ -890,8 +893,8 @@ const ItemsListPage = () => {
               style={styles.select}
               value={selectedSupplier}
               onChange={(e) => setSelectedSupplier(e.target.value)}
-              onFocus={(e) => e.target.style.borderColor = '#2563eb'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+              onBlur={(e) => e.target.style.borderColor = '#334155'}
             >
               <option value="all">All Suppliers</option>
               {suppliers.map(supplier => (
@@ -908,8 +911,8 @@ const ItemsListPage = () => {
               style={styles.select}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              onFocus={(e) => e.target.style.borderColor = '#2563eb'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+              onBlur={(e) => e.target.style.borderColor = '#334155'}
             >
               <option value="all">All Status</option>
               <option value="Active">Active</option>
@@ -926,8 +929,8 @@ const ItemsListPage = () => {
               placeholder="Search items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={(e) => e.target.style.borderColor = '#2563eb'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+              onBlur={(e) => e.target.style.borderColor = '#334155'}
             />
           </div>
         </div>
@@ -1004,7 +1007,7 @@ const ItemsListPage = () => {
         )}
 
         {/* Active Filters Display */}
-        <div style={{ marginTop: '15px', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ marginTop: '20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
           {selectedSupplier !== 'all' && (
             <span style={styles.filterBadge}>
               Supplier: {suppliers.find(s => s.id === parseInt(selectedSupplier))?.company}
@@ -1040,12 +1043,12 @@ const ItemsListPage = () => {
               style={styles.clearFiltersButton}
               onClick={clearFilters}
               onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#e2e8f0';
-                e.target.style.borderColor = '#cbd5e1';
+                e.target.style.backgroundColor = '#334155';
+                e.target.style.color = '#fff';
               }}
               onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#f1f5f9';
-                e.target.style.borderColor = '#e2e8f0';
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#94a3b8';
               }}
             >
               ✕ Clear Filters
@@ -1101,11 +1104,11 @@ const ItemsListPage = () => {
                   <tr 
                     key={item.id} 
                     style={styles.tr}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#334155'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     <td style={styles.td}>
-                      <strong style={{ color: '#1e40af' }}>{item.name}</strong>
+                      <strong style={{ color: '#ffffff' }}>{item.name}</strong>
                       <div style={styles.dateBadge}>{item.type || 'No type'}</div>
                     </td>
                     <td style={styles.td}>
@@ -1113,7 +1116,7 @@ const ItemsListPage = () => {
                       <div style={styles.dateBadge}>{item.watts}W</div>
                     </td>
                     <td style={styles.td}>
-                      <strong style={{ color: '#2563eb', fontSize: '16px' }}>
+                      <strong style={{ color: '#10b981', fontSize: '16px' }}>
                         ₹{item.buy_price?.toFixed(2)}
                       </strong>
                     </td>
@@ -1167,10 +1170,10 @@ const ItemsListPage = () => {
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 onMouseEnter={(e) => {
-                  if (currentPage !== 1) e.target.style.backgroundColor = '#f8fafc';
+                  if (currentPage !== 1) e.target.style.backgroundColor = '#334155';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'white';
+                  e.target.style.backgroundColor = '#1e293b';
                 }}
               >
                 ←
@@ -1194,13 +1197,13 @@ const ItemsListPage = () => {
                       onClick={() => setCurrentPage(pageNumber)}
                       onMouseEnter={(e) => {
                         if (currentPage !== pageNumber) {
-                          e.target.style.backgroundColor = '#f8fafc';
-                          e.target.style.borderColor = '#2563eb';
+                          e.target.style.backgroundColor = '#334155';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = 'white';
-                        e.target.style.borderColor = '#e2e8f0';
+                        if (currentPage !== pageNumber) {
+                          e.target.style.backgroundColor = '#1e293b';
+                        }
                       }}
                     >
                       {pageNumber}
@@ -1223,10 +1226,10 @@ const ItemsListPage = () => {
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
                 onMouseEnter={(e) => {
-                  if (currentPage !== totalPages) e.target.style.backgroundColor = '#f8fafc';
+                  if (currentPage !== totalPages) e.target.style.backgroundColor = '#334155';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'white';
+                  e.target.style.backgroundColor = '#1e293b';
                 }}
               >
                 →
@@ -1235,15 +1238,15 @@ const ItemsListPage = () => {
           )}
 
           {/* Results info */}
-          <div style={{ textAlign: 'center', marginTop: '15px', color: '#64748b', fontSize: '13px' }}>
+          <div style={{ textAlign: 'center', marginTop: '20px', color: '#94a3b8', fontSize: '13px' }}>
             Showing {currentItems.length} of {filteredItems.length} items
           </div>
         </>
       ) : (
         <div style={styles.emptyState}>
           <div style={{ fontSize: '48px', marginBottom: '20px' }}>📭</div>
-          <h3 style={{ color: '#1e293b', marginBottom: '10px' }}>No Items Found</h3>
-          <p style={{ color: '#64748b' }}>
+          <h3 style={{ color: '#ffffff', marginBottom: '10px' }}>No Items Found</h3>
+          <p style={{ color: '#94a3b8' }}>
             {searchTerm || selectedSupplier !== 'all' || statusFilter !== 'all' || dateFilterType !== 'all'
               ? 'No items match your current filters. Try adjusting your search criteria.'
               : 'No items have been added yet. Add some items to get started.'}

@@ -216,37 +216,34 @@ const SupplierDuplicatePage = () => {
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
-  // Styles
+  // Styles - Updated to match Dashboard theme
   const styles = {
     container: {
-      padding: "40px",
-      backgroundColor: "#0a0c10",
+      padding: "24px",
+      backgroundColor: "#0f172a",  // Dark navy background like dashboard
       minHeight: "100vh",
-      color: "#e5e7eb",
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      color: "#e2e8f0",
+      fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     },
     header: {
+      marginBottom: "32px",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: "30px",
-      paddingBottom: "15px",
-      borderBottom: "1px solid #2d2d2d",
+      flexWrap: "wrap",
+      gap: "16px",
     },
     title: {
       fontSize: "28px",
-      fontWeight: "700",
+      fontWeight: "600",
       margin: 0,
       color: "#ffffff",
       letterSpacing: "-0.5px",
-      background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)",
-      WebkitBackgroundClip: "text",
-      WebkitTextFillColor: "transparent",
     },
     subtitle: {
-      fontSize: "16px",
-      color: "#9ca3af",
-      marginTop: "5px",
+      color: "#94a3b8",
+      marginTop: "4px",
+      fontSize: "14px",
     },
     statsContainer: {
       display: "grid",
@@ -255,30 +252,32 @@ const SupplierDuplicatePage = () => {
       marginBottom: "30px",
     },
     statCard: {
-      backgroundColor: "#1a1d24",
+      backgroundColor: "#1e293b",
       padding: "20px",
-      borderRadius: "12px",
-      border: "1px solid #2d313a",
+      borderRadius: "16px",
+      border: "1px solid #334155",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
     },
     statLabel: {
       fontSize: "14px",
-      color: "#9ca3af",
+      color: "#94a3b8",
       marginBottom: "8px",
     },
     statValue: {
       fontSize: "32px",
-      fontWeight: "700",
+      fontWeight: "600",
       color: "#fff",
     },
     statSubtext: {
       fontSize: "12px",
-      color: "#6b7280",
+      color: "#94a3b8",
       marginTop: "5px",
     },
     searchContainer: {
       display: "flex",
-      gap: "12px",
+      gap: "15px",
       marginBottom: "25px",
+      alignItems: "center",
       flexWrap: "wrap",
     },
     searchInputWrapper: {
@@ -290,8 +289,8 @@ const SupplierDuplicatePage = () => {
     searchInput: {
       flex: "1",
       padding: "12px 16px",
-      backgroundColor: "#1a1d24",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      border: "1px solid #334155",
       borderRadius: "8px",
       color: "#fff",
       fontSize: "14px",
@@ -300,8 +299,8 @@ const SupplierDuplicatePage = () => {
     },
     searchSelect: {
       padding: "12px 16px",
-      backgroundColor: "#1a1d24",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      border: "1px solid #334155",
       borderRadius: "8px",
       color: "#fff",
       fontSize: "14px",
@@ -311,54 +310,56 @@ const SupplierDuplicatePage = () => {
     },
     searchButton: {
       padding: "12px 24px",
-      backgroundColor: "#4f46e5",
+      backgroundColor: "#2563eb",
       color: "#fff",
       border: "none",
       borderRadius: "8px",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "500",
       cursor: "pointer",
       transition: "all 0.2s",
+      boxShadow: "0 4px 10px rgba(37, 99, 235, 0.3)",
     },
     clearButton: {
       padding: "12px 24px",
-      backgroundColor: "#2d313a",
+      backgroundColor: "#1e293b",
       color: "#fff",
-      border: "none",
+      border: "1px solid #334155",
       borderRadius: "8px",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "500",
       cursor: "pointer",
       transition: "all 0.2s",
     },
     tableContainer: {
       overflowX: "auto",
-      borderRadius: "12px",
-      border: "1px solid #2d313a",
+      borderRadius: "16px",
+      border: "1px solid #334155",
       marginTop: "20px",
-      backgroundColor: "#1a1d24",
+      backgroundColor: "#1e293b",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
     },
     table: {
       width: "100%",
       borderCollapse: "collapse",
-      backgroundColor: "#1a1d24",
+      backgroundColor: "#1e293b",
       minWidth: "1000px",
     },
     th: {
-      backgroundColor: "#0f1217",
+      backgroundColor: "#0f172a",
       padding: "16px",
       textAlign: "left",
-      color: "#e5e7eb",
-      fontWeight: "600",
+      color: "#94a3b8",
+      fontWeight: "500",
       fontSize: "13px",
       letterSpacing: "0.3px",
       textTransform: "uppercase",
-      borderBottom: "2px solid #2d313a",
+      borderBottom: "2px solid #334155",
     },
     td: {
       padding: "14px 16px",
-      borderBottom: "1px solid #2d313a",
-      color: "#d1d5db",
+      borderBottom: "1px solid #334155",
+      color: "#e2e8f0",
       fontSize: "14px",
     },
     badge: {
@@ -366,36 +367,36 @@ const SupplierDuplicatePage = () => {
       padding: "4px 10px",
       borderRadius: "20px",
       fontSize: "12px",
-      fontWeight: "600",
+      fontWeight: "500",
     },
     repeatBadge: {
-      backgroundColor: "#f59e0b",
-      color: "#fff",
+      backgroundColor: "rgba(245, 158, 11, 0.2)",
+      color: "#f59e0b",
     },
     countBadge: {
-      backgroundColor: "#4f46e5",
+      backgroundColor: "#2563eb",
       color: "#fff",
       padding: "4px 8px",
       borderRadius: "12px",
       fontSize: "12px",
-      fontWeight: "600",
+      fontWeight: "500",
       marginLeft: "5px",
     },
     viewButton: {
-      background: "#4f46e5",
+      background: "#2563eb",
       border: "none",
       color: "#fff",
       padding: "6px 12px",
       borderRadius: "6px",
       cursor: "pointer",
       fontSize: "12px",
-      fontWeight: "600",
+      fontWeight: "500",
       transition: "all 0.2s",
     },
     emptyState: {
       textAlign: "center",
       padding: "50px",
-      color: "#6b7280",
+      color: "#94a3b8",
       fontStyle: "italic",
       fontSize: "15px",
     },
@@ -408,7 +409,7 @@ const SupplierDuplicatePage = () => {
       padding: "15px 0",
     },
     paginationInfo: {
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "14px",
     },
     paginationControls: {
@@ -418,10 +419,10 @@ const SupplierDuplicatePage = () => {
     },
     paginationButton: {
       padding: "8px 14px",
-      backgroundColor: "#1a1d24",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      border: "1px solid #334155",
       borderRadius: "6px",
-      color: "#e5e7eb",
+      color: "#e2e8f0",
       fontSize: "13px",
       fontWeight: "500",
       cursor: "pointer",
@@ -429,8 +430,8 @@ const SupplierDuplicatePage = () => {
       minWidth: "40px",
     },
     activePageButton: {
-      backgroundColor: "#4f46e5",
-      borderColor: "#4f46e5",
+      backgroundColor: "#2563eb",
+      borderColor: "#2563eb",
       color: "#fff",
     },
     disabledButton: {
@@ -452,31 +453,31 @@ const SupplierDuplicatePage = () => {
       backdropFilter: "blur(8px)",
     },
     popup: {
-      backgroundColor: "#1a1d24",
+      backgroundColor: "#1e293b",
       padding: "35px",
       borderRadius: "16px",
       width: "800px",
       maxWidth: "90%",
       maxHeight: "85vh",
       overflowY: "auto",
-      border: "1px solid #2d313a",
+      border: "1px solid #334155",
       position: "relative",
       boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
     },
     popupHeader: {
       marginBottom: "30px",
-      borderBottom: "2px solid #2d313a",
+      borderBottom: "2px solid #334155",
       paddingBottom: "20px",
     },
     popupTitle: {
       color: "#fff",
       fontSize: "24px",
-      fontWeight: "700",
+      fontWeight: "600",
       margin: 0,
       letterSpacing: "-0.5px",
     },
     popupSubtitle: {
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "13px",
       marginTop: "5px",
     },
@@ -484,9 +485,9 @@ const SupplierDuplicatePage = () => {
       position: "absolute",
       top: "25px",
       right: "25px",
-      background: "#2d313a",
+      background: "#334155",
       border: "none",
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "20px",
       cursor: "pointer",
       width: "36px",
@@ -503,19 +504,19 @@ const SupplierDuplicatePage = () => {
       gap: "12px",
       marginTop: "30px",
       paddingTop: "20px",
-      borderTop: "1px solid #2d313a",
+      borderTop: "1px solid #334155",
     },
     submitButton: {
       padding: "12px 28px",
-      borderRadius: "10px",
-      backgroundColor: "#4f46e5",
+      borderRadius: "8px",
+      backgroundColor: "#2563eb",
       color: "#fff",
       border: "none",
       cursor: "pointer",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "500",
       transition: "all 0.2s",
-      boxShadow: "0 4px 12px rgba(79, 70, 229, 0.3)",
+      boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
     },
     infoGrid: {
       display: "grid",
@@ -523,14 +524,14 @@ const SupplierDuplicatePage = () => {
       gap: "20px",
       marginBottom: "20px",
       padding: "20px",
-      backgroundColor: "#0f1217",
+      backgroundColor: "#0f172a",
       borderRadius: "12px",
     },
     infoItem: {
       marginBottom: "10px",
     },
     infoLabel: {
-      color: "#9ca3af",
+      color: "#94a3b8",
       fontSize: "12px",
       textTransform: "uppercase",
       marginBottom: "4px",
@@ -553,8 +554,8 @@ const SupplierDuplicatePage = () => {
       zIndex: 2000,
     },
     loadingSpinner: {
-      border: "4px solid #2d313a",
-      borderTop: "4px solid #4f46e5",
+      border: "4px solid #334155",
+      borderTop: "4px solid #2563eb",
       borderRadius: "50%",
       width: "40px",
       height: "40px",
@@ -562,13 +563,13 @@ const SupplierDuplicatePage = () => {
     },
     refreshButton: {
       padding: "10px 20px",
-      backgroundColor: "#1a1d24",
-      color: "#e5e7eb",
-      border: "1px solid #2d313a",
+      backgroundColor: "#1e293b",
+      color: "#e2e8f0",
+      border: "1px solid #334155",
       borderRadius: "8px",
       cursor: "pointer",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "500",
       transition: "all 0.2s",
     },
   };
@@ -605,14 +606,6 @@ const SupplierDuplicatePage = () => {
           <button 
             style={styles.closeButton}
             onClick={closePopup}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#4f46e5';
-              e.target.style.color = '#fff';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#2d313a';
-              e.target.style.color = '#9ca3af';
-            }}
           >
             ✕
           </button>
@@ -664,7 +657,7 @@ const SupplierDuplicatePage = () => {
                 {selectedGroup.suppliers.map((supplier, index) => (
                   <tr key={supplier.id}>
                     <td style={styles.td}>
-                      <span style={{ color: '#9ca3af', fontSize: '12px' }}>#{index + 1}</span>
+                      <span style={{ color: '#94a3b8', fontSize: '12px' }}>#{index + 1}</span>
                     </td>
                     <td style={styles.td}>
                       <span style={{ fontWeight: '500', color: '#fff' }}>{supplier.name}</span>
@@ -688,14 +681,6 @@ const SupplierDuplicatePage = () => {
             <button 
               onClick={closePopup}
               style={styles.submitButton}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#4338ca';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#4f46e5';
-                e.target.style.transform = 'translateY(0)';
-              }}
             >
               Close
             </button>
@@ -723,12 +708,6 @@ const SupplierDuplicatePage = () => {
         <button 
           style={styles.refreshButton}
           onClick={fetchSuppliers}
-          onMouseEnter={(e) => {
-            e.target.style.backgroundColor = '#2d313a';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.backgroundColor = '#1a1d24';
-          }}
         >
           🔄 Refresh Data
         </button>
@@ -783,12 +762,6 @@ const SupplierDuplicatePage = () => {
         <button
           style={styles.searchButton}
           onClick={filterGroups}
-          onMouseEnter={(e) => {
-            e.target.style.backgroundColor = '#4338ca';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.backgroundColor = '#4f46e5';
-          }}
         >
           🔍 Search
         </button>
@@ -796,12 +769,6 @@ const SupplierDuplicatePage = () => {
           <button
             style={styles.clearButton}
             onClick={clearSearch}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#3f444e';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#2d313a';
-            }}
           >
             ✕ Clear
           </button>
@@ -809,13 +776,13 @@ const SupplierDuplicatePage = () => {
       </div>
 
       {/* Main Table */}
-      <div style={{ backgroundColor: "#1a1d24", padding: "30px", borderRadius: "16px", border: "1px solid #2d313a" }}>
+      <div style={{ backgroundColor: "#1e293b", padding: "30px", borderRadius: "16px", border: "1px solid #334155" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <h2 style={{ color: "#fff", fontSize: "20px", fontWeight: "600" }}>
             Suppliers Grouped by Name, Company, Address & Phone
           </h2>
           {searchTerm && (
-            <span style={{ color: "#9ca3af", fontSize: "14px" }}>
+            <span style={{ color: "#94a3b8", fontSize: "14px" }}>
               Found {showingResults} result{showingResults !== 1 ? 's' : ''}
             </span>
           )}
@@ -849,7 +816,7 @@ const SupplierDuplicatePage = () => {
                         <span style={{ fontWeight: '500', color: '#fff' }}>{group.name || '—'}</span>
                       </td>
                       <td style={styles.td}>
-                        <span style={{ background: '#4f46e5', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                        <span style={{ background: '#2563eb', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', color: '#fff' }}>
                           {group.company || '—'}
                         </span>
                       </td>
@@ -858,7 +825,7 @@ const SupplierDuplicatePage = () => {
                       <td style={styles.td}>
                         <span style={{
                           ...styles.badge,
-                          ...(group.count > 1 ? styles.repeatBadge : { backgroundColor: '#10b981', color: '#fff' })
+                          ...(group.count > 1 ? styles.repeatBadge : { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981' })
                         }}>
                           {group.count} {group.count === 1 ? 'entry' : 'entries'}
                         </span>
@@ -872,7 +839,7 @@ const SupplierDuplicatePage = () => {
                         {group.count > 1 ? (
                           <span style={{ ...styles.badge, ...styles.repeatBadge }}>🔄 Repeats</span>
                         ) : (
-                          <span style={{ ...styles.badge, backgroundColor: '#10b981', color: '#fff' }}>✓ Single</span>
+                          <span style={{ ...styles.badge, backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>✓ Single</span>
                         )}
                       </td>
                       <td style={styles.td}>
@@ -880,12 +847,6 @@ const SupplierDuplicatePage = () => {
                           <button
                             style={styles.viewButton}
                             onClick={() => viewGroupDetails(group)}
-                            onMouseEnter={(e) => {
-                              e.target.style.backgroundColor = '#4338ca';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.backgroundColor = '#4f46e5';
-                            }}
                           >
                             View Details
                           </button>
@@ -911,12 +872,6 @@ const SupplierDuplicatePage = () => {
                     }}
                     onClick={prevPage}
                     disabled={currentPage === 1}
-                    onMouseEnter={(e) => {
-                      if (currentPage !== 1) e.target.style.backgroundColor = '#2d313a';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (currentPage !== 1) e.target.style.backgroundColor = '#1a1d24';
-                    }}
                   >
                     ←
                   </button>
@@ -941,16 +896,6 @@ const SupplierDuplicatePage = () => {
                           ...(currentPage === pageNum ? styles.activePageButton : {})
                         }}
                         onClick={() => paginate(pageNum)}
-                        onMouseEnter={(e) => {
-                          if (currentPage !== pageNum) {
-                            e.target.style.backgroundColor = '#2d313a';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (currentPage !== pageNum) {
-                            e.target.style.backgroundColor = '#1a1d24';
-                          }
-                        }}
                       >
                         {pageNum}
                       </button>
@@ -964,12 +909,6 @@ const SupplierDuplicatePage = () => {
                     }}
                     onClick={nextPage}
                     disabled={currentPage === totalPages}
-                    onMouseEnter={(e) => {
-                      if (currentPage !== totalPages) e.target.style.backgroundColor = '#2d313a';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (currentPage !== totalPages) e.target.style.backgroundColor = '#1a1d24';
-                    }}
                   >
                     →
                   </button>
