@@ -1,70 +1,121 @@
-# Getting Started with Create React App
+Inventory Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern and responsive frontend application for the Inventory Management System built using React.js.
+This project connects with the Inventory Backend API to manage products, suppliers, billing and users through a clean UI.
 
-## Available Scripts
+🚀 Features
 
-In the project directory, you can run:
+✔ User Login & Authentication
+✔ Dashboard Overview
+✔ Supplier List & Management
+✔ Product List & Management
+✔ Billing Interface
+✔ Responsive UI
+✔ API Integration with Backend
+✔ Uses React Hooks & Functional Components
 
-### `npm start`
+🖥️ Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Frontend: React.js
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+State Management: React Hooks
 
-### `npm test`
+UI Library: Bootstrap / Tailwind / Material UI (modify based on your project)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+HTTP Client: Axios / Fetch API
 
-### `npm run build`
+Routing: React Router
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+📁 Project Structure
+inventory-frontend/
+│
+├── public/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   ├── services/
+│   ├── App.js
+│   ├── index.js
+├── .gitignore
+├── package.json
+├── README.md
+└── yarn.lock / package-lock.json
+⚙️ Installation & Setup
+1️⃣ Clone the Repository
+git clone https://github.com/mahalakshmi0606/InventoryFrontEnd.git
+cd InventoryFrontEnd
+2️⃣ Install Dependencies
+npm install
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+or if you use yarn:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+yarn install
+3️⃣ Configure Environment
 
-### `npm run eject`
+Create a .env file in the project root and set your backend API URL:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+REACT_APP_API_BASE_URL=http://127.0.0.1:5000/api
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+You can update the URL based on where your backend is hosted.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+4️⃣ Start the Application
+npm start
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+or
 
-## Learn More
+yarn start
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+The app should open in your browser at:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+http://localhost:3000
+🔗 API Integration
 
-### Code Splitting
+This frontend connects with your Inventory Backend API.
+Make sure your backend is running before testing features like login, product lists, billing, etc.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Example API Routes (used in frontend):
 
-### Analyzing the Bundle Size
+Feature	API Endpoint
+Login	/api/login
+Users	/api/users
+Products	/api/products
+Suppliers	/api/suppliers
+Billing	/api/bills
+🧪 Testing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+You can test the features of the frontend by:
 
-### Making a Progressive Web App
+Filling forms and validating submissions
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Checking product/supplier list rendering
 
-### Advanced Configuration
+Testing API integration using Developer Tools (Network tab)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+📌 Notes
 
-### Deployment
+✔ Make sure your backend CORS policy allows requests from the frontend
+✔ Update .env if deploying to production
+✔ Add authentication tokens to API requests
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+🔮 Future Enhancements
 
-### `npm run build` fails to minify
+Add Pagination & Search
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Implement User Roles & Permissions
+
+Add Charts & Dashboard Analytics
+
+Notifications (toasts & alerts)
+
+Dark/Light Theme Support
+
+👩‍💻 Author
+
+Mahalakshmi M
+Inventory Frontend Developer
+
+GitHub: https://github.com/mahalakshmi0606
+
+📄 License
+
+This project is open-source and available for personal and educational use.
