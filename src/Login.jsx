@@ -63,7 +63,7 @@ const Login = () => {
   return (
     <div style={styles.container}>
       <form style={styles.form} onSubmit={handleSubmit}>
-        <h2 style={styles.title}>Welcome Back 👋</h2>
+        <h2 style={styles.title}>Avva Inventory</h2>
         <p style={styles.subtitle}>Please login to continue</p>
 
         {error && <p style={styles.error}>{error}</p>}

@@ -1,8 +1,8 @@
 // ItemsByTypePage.jsx
 import React, { useEffect, useState } from "react";
 import { 
-  Plus, Download, Upload, Trash2, Save, Search, RefreshCw, 
-  ArrowLeft, Package, Grid, List, Edit2, X, CheckCircle,
+  Download, Upload, Trash2, Search, RefreshCw, 
+  ArrowLeft, Package, Grid, List, Edit2, X,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -55,17 +55,18 @@ export default function ItemsByTypePage() {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const res = await fetch(API_URL);
+      // Fetch all products (no pagination params to get all for type grouping)
+      const res = await fetch(`${API_URL}?page=1&per_page=1000`);
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       
       const data = await res.json();
       
-      // Handle different response formats
+      // Handle different response formats (based on ItemsPage.jsx)
       let productsArray = [];
-      if (Array.isArray(data)) {
-        productsArray = data;
-      } else if (data && Array.isArray(data.items)) {
+      if (data && data.items && Array.isArray(data.items)) {
         productsArray = data.items;
+      } else if (Array.isArray(data)) {
+        productsArray = data;
       } else if (data && data.data && Array.isArray(data.data)) {
         productsArray = data.data;
       } else {
@@ -73,22 +74,24 @@ export default function ItemsByTypePage() {
         productsArray = [];
       }
       
-      // Calculate values for each product
-      const processedItems = productsArray.map(item => 
-        calculateValues({ ...item, id: item.id })
-      );
+      // Calculate values for each product and ensure valid items
+      const processedItems = productsArray
+        .filter(item => item && item.id) // Filter out invalid items
+        .map(item => calculateValues(item));
       
       setItems(processedItems);
       
-      // Extract unique types
+      // Extract unique types safely
       const uniqueTypes = [...new Set(processedItems
-        .map(item => item.type)
+        .map(item => item.type || '')
         .filter(type => type && type.trim() !== '')
       )].sort();
       
       setTypes(uniqueTypes);
       
-      showMessage("success", "Products loaded successfully!");
+      if (processedItems.length > 0) {
+        showMessage("success", `Loaded ${processedItems.length} products successfully!`);
+      }
     } catch (err) {
       console.error("Error fetching products:", err);
       showMessage("error", "Failed to load products");
@@ -99,6 +102,7 @@ export default function ItemsByTypePage() {
 
   // ================= AUTO CALCULATION =================
   const calculateValues = (item) => {
+    // Safely parse values with defaults
     const buy = parseFloat(item.buyPrice) || 0;
     const sell = parseFloat(item.sellPrice) || 0;
     const qty = parseInt(item.quantity) || 0;
@@ -107,12 +111,17 @@ export default function ItemsByTypePage() {
     const amount = (sell * qty).toFixed(2);
 
     return { 
-      ...item, 
-      profitPercent, 
-      amount,
+      ...item,
+      id: item.id, // Explicitly preserve ID
+      name: item.name || '',
+      model: item.model || '',
+      type: item.type || '',
+      watts: item.watts || '',
       buyPrice: buy,
       sellPrice: sell,
-      quantity: qty
+      quantity: qty,
+      profitPercent, 
+      amount,
     };
   };
 
@@ -134,6 +143,7 @@ export default function ItemsByTypePage() {
 
   // ================= OPEN EDIT MODAL =================
   const handleEditItem = (item) => {
+    if (!item) return;
     setEditingItem({ ...item });
     setShowEditModal(true);
   };
@@ -141,6 +151,7 @@ export default function ItemsByTypePage() {
   // ================= HANDLE EDIT CHANGE =================
   const handleEditChange = (field, value) => {
     setEditingItem(prev => {
+      if (!prev) return prev;
       const updated = { ...prev, [field]: value };
       return calculateValues(updated);
     });
@@ -148,18 +159,18 @@ export default function ItemsByTypePage() {
 
   // ================= SAVE EDIT =================
   const handleSaveEdit = async () => {
-    if (!editingItem) return;
+    if (!editingItem || !editingItem.id) return;
 
     setSaving(true);
     try {
       const productData = {
-        name: editingItem.name,
-        model: editingItem.model || "",
-        type: editingItem.type || "",
-        watts: editingItem.watts || "",
-        buyPrice: editingItem.buyPrice || 0,
-        sellPrice: editingItem.sellPrice || 0,
-        quantity: editingItem.quantity || 0,
+        name: editingItem.name || '',
+        model: editingItem.model || '',
+        type: editingItem.type || '',
+        watts: editingItem.watts || '',
+        buyPrice: parseFloat(editingItem.buyPrice) || 0,
+        sellPrice: parseFloat(editingItem.sellPrice) || 0,
+        quantity: parseInt(editingItem.quantity) || 0,
       };
 
       const res = await fetch(`${API_URL}/${editingItem.id}`, {
@@ -168,11 +179,15 @@ export default function ItemsByTypePage() {
         body: JSON.stringify(productData),
       });
 
-      if (!res.ok) throw new Error(`Failed to update product`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to update product (${res.status})`);
+      }
 
       // Update local state
+      const updatedItem = calculateValues({ ...editingItem, ...productData });
       setItems(prev => prev.map(item => 
-        item.id === editingItem.id ? editingItem : item
+        item.id === editingItem.id ? updatedItem : item
       ));
 
       // Update types if type changed
@@ -183,6 +198,7 @@ export default function ItemsByTypePage() {
       setTypes(updatedTypes);
 
       setShowEditModal(false);
+      setEditingItem(null);
       showMessage("success", "Product updated successfully!");
     } catch (err) {
       console.error("Update error:", err);
@@ -194,6 +210,7 @@ export default function ItemsByTypePage() {
 
   // ================= DELETE ITEM =================
   const handleDelete = async (id) => {
+    if (!id) return;
     if (!window.confirm("Are you sure you want to delete this item?")) return;
 
     try {
@@ -201,7 +218,10 @@ export default function ItemsByTypePage() {
         method: "DELETE",
       });
       
-      if (!res.ok) throw new Error("Failed to delete product");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to delete product");
+      }
 
       // Remove from items
       const updatedItems = items.filter(item => item.id !== id);
@@ -209,7 +229,7 @@ export default function ItemsByTypePage() {
 
       // Update types
       const updatedTypes = [...new Set(updatedItems
-        .map(item => item.type)
+        .map(item => item.type || '')
         .filter(type => type && type.trim() !== '')
       )].sort();
       setTypes(updatedTypes);
@@ -233,7 +253,7 @@ export default function ItemsByTypePage() {
       showMessage("success", "Item deleted successfully");
     } catch (err) {
       console.error("Delete error:", err);
-      showMessage("error", "Failed to delete item");
+      showMessage("error", `Failed to delete: ${err.message}`);
     }
   };
 
@@ -243,6 +263,11 @@ export default function ItemsByTypePage() {
       const dataToExport = selectedType 
         ? items.filter(item => item.type === selectedType)
         : items;
+
+      if (dataToExport.length === 0) {
+        showMessage("info", "No data to export");
+        return;
+      }
 
       const exportData = dataToExport.map(item => ({
         'Name': item.name || '',
@@ -278,12 +303,12 @@ export default function ItemsByTypePage() {
 
       const date = new Date().toISOString().split('T')[0];
       const filename = selectedType 
-        ? `Products_${selectedType}_${date}.xlsx`
+        ? `Products_${selectedType.replace(/[^a-z0-9]/gi, '_')}_${date}.xlsx`
         : `All_Products_${date}.xlsx`;
       
       saveAs(file, filename);
       
-      showMessage("success", "Export successful!");
+      showMessage("success", `Exported ${exportData.length} items successfully!`);
     } catch (err) {
       console.error("Export error:", err);
       showMessage("error", "Failed to export");
@@ -299,10 +324,11 @@ export default function ItemsByTypePage() {
     }
     
     if (search) {
+      const searchLower = search.toLowerCase();
       filtered = filtered.filter(item =>
-        item.name?.toLowerCase().includes(search.toLowerCase()) ||
-        item.model?.toLowerCase().includes(search.toLowerCase()) ||
-        item.watts?.toString().includes(search)
+        (item.name || '').toLowerCase().includes(searchLower) ||
+        (item.model || '').toLowerCase().includes(searchLower) ||
+        (item.watts || '').toString().includes(search)
       );
     }
     
@@ -387,6 +413,11 @@ export default function ItemsByTypePage() {
       alignItems: "center",
       gap: "5px",
       fontSize: "14px",
+      transition: "all 0.2s",
+      ':hover': {
+        color: "#f9fafb",
+        backgroundColor: "#374151",
+      }
     },
     refreshButton: {
       background: "none",
@@ -398,6 +429,11 @@ export default function ItemsByTypePage() {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      transition: "all 0.2s",
+      ':hover': {
+        color: "#f9fafb",
+        backgroundColor: "#374151",
+      }
     },
     buttonGroup: {
       display: "flex",
@@ -416,6 +452,10 @@ export default function ItemsByTypePage() {
       cursor: "pointer",
       fontSize: "14px",
       fontWeight: "500",
+      transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "#374151",
+      }
     },
     viewToggle: {
       display: "flex",
@@ -429,6 +469,15 @@ export default function ItemsByTypePage() {
       border: "1px solid #374151",
       color: "#9ca3af",
       cursor: "pointer",
+      transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "#374151",
+        color: "#f9fafb",
+      },
+      ':disabled': {
+        opacity: 0.5,
+        cursor: "not-allowed",
+      }
     },
     activeViewButton: {
       backgroundColor: "#6366f1",
@@ -461,6 +510,12 @@ export default function ItemsByTypePage() {
       color: "#fff",
       borderRadius: "6px",
       fontSize: "14px",
+      outline: "none",
+      transition: "all 0.2s",
+      ':focus': {
+        borderColor: "#6366f1",
+        boxShadow: "0 0 0 2px rgba(99, 102, 241, 0.2)",
+      }
     },
     
     // Types Grid Styles
@@ -566,6 +621,7 @@ export default function ItemsByTypePage() {
     td: {
       padding: "12px",
       borderTop: "1px solid #374151",
+      color: "#f9fafb",
     },
     productInfo: {
       display: "flex",
@@ -626,6 +682,10 @@ export default function ItemsByTypePage() {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "#374151",
+      }
     },
     editButton: {
       color: "#6366f1",
@@ -663,6 +723,10 @@ export default function ItemsByTypePage() {
       cursor: "pointer",
       fontSize: "14px",
       minWidth: "36px",
+      transition: "all 0.2s",
+      ':hover:not(:disabled)': {
+        backgroundColor: "#374151",
+      }
     },
     paginationButtonDisabled: {
       opacity: 0.5,
@@ -697,6 +761,8 @@ export default function ItemsByTypePage() {
       width: '90%',
       maxWidth: '500px',
       border: '1px solid #374151',
+      maxHeight: '90vh',
+      overflow: 'auto',
     },
     modalHeader: {
       display: 'flex',
@@ -716,6 +782,11 @@ export default function ItemsByTypePage() {
       cursor: 'pointer',
       padding: '4px',
       borderRadius: '4px',
+      transition: 'all 0.2s',
+      ':hover': {
+        color: '#f9fafb',
+        backgroundColor: '#374151',
+      }
     },
     formGroup: {
       marginBottom: '16px',
@@ -734,6 +805,12 @@ export default function ItemsByTypePage() {
       color: '#fff',
       borderRadius: '6px',
       fontSize: '14px',
+      outline: 'none',
+      transition: 'all 0.2s',
+      ':focus': {
+        borderColor: '#6366f1',
+        boxShadow: '0 0 0 2px rgba(99, 102, 241, 0.2)',
+      }
     },
     modalFooter: {
       display: 'flex',
@@ -778,12 +855,14 @@ export default function ItemsByTypePage() {
     },
   };
 
-  // Edit Modal
+  // Edit Modal Component
   const EditModal = () => {
     if (!editingItem) return null;
 
     return (
-      <div style={styles.modalOverlay}>
+      <div style={styles.modalOverlay} onClick={(e) => {
+        if (e.target === e.currentTarget) setShowEditModal(false);
+      }}>
         <div style={styles.modalContent}>
           <div style={styles.modalHeader}>
             <h3 style={styles.modalTitle}>Edit Product</h3>
@@ -882,7 +961,7 @@ export default function ItemsByTypePage() {
               Cancel
             </button>
             <button 
-              style={{...styles.button, backgroundColor: '#6366f1', borderColor: '#6366f1'}}
+              style={{...styles.button, backgroundColor: '#6366f1', borderColor: '#6366f1', color: '#fff'}}
               onClick={handleSaveEdit}
               disabled={saving}
             >
@@ -898,6 +977,9 @@ export default function ItemsByTypePage() {
   const Pagination = () => {
     const totalPages = getTotalPages();
     const filteredItems = getFilteredItems();
+    
+    if (totalPages <= 1 || filteredItems.length === 0) return null;
+    
     const startItem = ((currentPage - 1) * ITEMS_PER_PAGE) + 1;
     const endItem = Math.min(currentPage * ITEMS_PER_PAGE, filteredItems.length);
 
@@ -930,8 +1012,6 @@ export default function ItemsByTypePage() {
       
       return pages;
     };
-
-    if (totalPages <= 1) return null;
 
     return (
       <div style={styles.paginationContainer}>
@@ -1019,14 +1099,14 @@ export default function ItemsByTypePage() {
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerTitle}>
-          {viewMode === "products" ? (
+          {viewMode === "products" && (
             <button style={styles.backButton} onClick={handleBackToTypes}>
               <ArrowLeft size={18} /> Back to Types
             </button>
-          ) : null}
+          )}
           <h1 style={styles.title}>
             <Package size={28} color="#6366f1" />
-            {viewMode === "products" ? `${selectedType} Products` : "Products by Type"}
+            {viewMode === "products" ? `${selectedType || ''} Products` : "Products by Type"}
           </h1>
           <button 
             style={styles.refreshButton}
@@ -1046,6 +1126,7 @@ export default function ItemsByTypePage() {
               }}
               onClick={handleBackToTypes}
               title="Grid View"
+              disabled={viewMode === "types"}
             >
               <Grid size={18} />
             </button>
@@ -1086,7 +1167,7 @@ export default function ItemsByTypePage() {
           <Search size={16} style={styles.searchIcon} />
           <input
             type="text"
-            placeholder={viewMode === "products" ? "Search in this type..." : "Search types..."}
+            placeholder={viewMode === "products" ? "Search by name, model, or watts..." : "Search types..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={styles.searchInput}
@@ -1164,7 +1245,7 @@ export default function ItemsByTypePage() {
               <div style={styles.emptyState}>
                 {search 
                   ? "No products match your search" 
-                  : `No products found in type "${selectedType}"`
+                  : `No products found in type "${selectedType || ''}"`
                 }
               </div>
             ) : (
@@ -1172,6 +1253,7 @@ export default function ItemsByTypePage() {
                 <thead>
                   <tr>
                     <th style={styles.th}>Product</th>
+                    <th style={styles.th}>Model</th>
                     <th style={styles.th}>Watts</th>
                     <th style={styles.th}>Buy Price</th>
                     <th style={styles.th}>Sell Price</th>
@@ -1186,11 +1268,12 @@ export default function ItemsByTypePage() {
                     <tr key={item.id}>
                       <td style={styles.td}>
                         <div style={styles.productInfo}>
-                          <span style={styles.productName}>{item.name}</span>
-                          {item.model && (
-                            <span style={styles.productModel}>Model: {item.model}</span>
-                          )}
+                          <span style={styles.productName}>{item.name || '-'}</span>
                         </div>
+                      </td>
+                      
+                      <td style={styles.td}>
+                        <span style={styles.productModel}>{item.model || '-'}</span>
                       </td>
                       
                       <td style={styles.td}>
@@ -1198,7 +1281,7 @@ export default function ItemsByTypePage() {
                       </td>
                       
                       <td style={styles.td}>
-                        <span>₹{item.buyPrice.toFixed(2)}</span>
+                        <span style={styles.buyPrice}>₹{item.buyPrice.toFixed(2)}</span>
                       </td>
                       
                       <td style={styles.td}>

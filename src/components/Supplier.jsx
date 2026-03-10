@@ -26,7 +26,7 @@ const SupplierPage = () => {
     model: '',
     watts: '',
     buyPrice: '',
-    status: 'Pending',
+    quantity: 0,
     attachment: ''     
   });
 
@@ -288,7 +288,7 @@ const SupplierPage = () => {
     }
   };
 
-  // Add new item
+  // Add new item - ALWAYS sets status to "Pending" for auto-processing
   const addItem = async (e) => {
     e.preventDefault();
     if (currentItem.name && currentItem.model && selectedSupplier) {
@@ -319,7 +319,8 @@ const SupplierPage = () => {
           model: currentItem.model,
           watts: parseFloat(currentItem.watts) || 0,
           buy_price: parseFloat(currentItem.buyPrice) || 0,
-          status: currentItem.status || 'Pending',
+          quantity: parseInt(currentItem.quantity) || 0,
+          status: "Pending", // Hardcoded as Pending for auto-processing
           attachment: attachmentPath
         };
 
@@ -369,7 +370,7 @@ const SupplierPage = () => {
             model: '',
             watts: '',
             buyPrice: '',
-            status: 'Pending',
+            quantity: 0,
             attachment: ''
           });
           
@@ -387,7 +388,7 @@ const SupplierPage = () => {
           setShowItemPopup(false);
           
           // Show success message
-          alert('Item added successfully!');
+          alert('Item added successfully! It will be automatically added to inventory.');
         }
       } catch (err) {
         setError(err.message);
@@ -541,7 +542,7 @@ const SupplierPage = () => {
       model: '',
       watts: '',
       buyPrice: '',
-      status: 'Pending',
+      quantity: 0,
       attachment: ''
     });
     setSelectedFile(null);
@@ -608,17 +609,19 @@ const SupplierPage = () => {
     const filteredSuppliers = getFilteredSuppliers();
     
     // Create CSV content
-    let csvContent = "Name,Company,Email,Phone,Address,Items Count\n";
+    let csvContent = "Name,Company,Email,Phone,Address,Items Count,Total Quantity\n";
     
     filteredSuppliers.forEach(supplier => {
       const supplierItems = items.filter(item => item.supplier_id === supplier.id);
+      const totalQuantity = supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
       const row = [
         `"${supplier.name || ''}"`,
         `"${supplier.company || ''}"`,
         `"${supplier.email || ''}"`,
         `"${supplier.phone || ''}"`,
         `"${supplier.address || ''}"`,
-        supplierItems.length
+        supplierItems.length,
+        totalQuantity
       ].join(',');
       csvContent += row + '\n';
     });
@@ -673,6 +676,7 @@ const SupplierPage = () => {
               <th>Phone</th>
               <th>Address</th>
               <th>Items Count</th>
+              <th>Total Quantity</th>
             </tr>
           </thead>
           <tbody>
@@ -680,6 +684,7 @@ const SupplierPage = () => {
     
     filteredSuppliers.forEach(supplier => {
       const supplierItems = items.filter(item => item.supplier_id === supplier.id);
+      const totalQuantity = supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
       htmlContent += `
         <tr>
           <td>${supplier.name || ''}</td>
@@ -688,6 +693,7 @@ const SupplierPage = () => {
           <td>${supplier.phone || ''}</td>
           <td>${supplier.address || ''}</td>
           <td>${supplierItems.length}</td>
+          <td>${totalQuantity}</td>
         </tr>
       `;
     });
@@ -1075,24 +1081,13 @@ const SupplierPage = () => {
       color: "#94a3b8",
       marginLeft: "10px",
     },
-    statusBadge: {
+    quantityBadge: {
+      background: "#2563eb",
       padding: "4px 8px",
       borderRadius: "12px",
       fontSize: "12px",
+      color: "#fff",
       fontWeight: "500",
-      display: "inline-block",
-    },
-    statusPending: {
-      backgroundColor: "rgba(245, 158, 11, 0.2)",
-      color: "#f59e0b",
-    },
-    statusActive: {
-      backgroundColor: "rgba(16, 185, 129, 0.2)",
-      color: "#10b981",
-    },
-    statusInactive: {
-      backgroundColor: "rgba(239, 68, 68, 0.2)",
-      color: "#ef4444",
     },
     attachmentLink: {
       color: "#3b82f6",
@@ -1341,6 +1336,8 @@ const SupplierPage = () => {
                   <tbody>
                     {currentSuppliers.map(supplier => {
                       const supplierItems = items.filter(item => item.supplier_id === supplier.id);
+                      const totalQuantity = supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                      const pendingCount = supplierItems.filter(item => item.status === 'Pending').length;
                       return (
                         <tr 
                           key={supplier.id}
@@ -1365,9 +1362,21 @@ const SupplierPage = () => {
                           <td style={styles.td}>{supplier.phone || '—'}</td>
                           <td style={styles.td}>{supplier.address || '—'}</td>
                           <td style={styles.td}>
-                            <span style={styles.itemBadge}>
-                              {supplierItems.length} {supplierItems.length === 1 ? 'item' : 'items'}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={styles.itemBadge}>
+                                {supplierItems.length} {supplierItems.length === 1 ? 'item' : 'items'}
+                              </span>
+                              {pendingCount > 0 && (
+                                <span style={{ background: '#f59e0b', padding: '2px 6px', borderRadius: '12px', fontSize: '11px', color: '#000' }}>
+                                  {pendingCount} pending
+                                </span>
+                              )}
+                              {totalQuantity > 0 && (
+                                <span style={styles.quantityBadge}>
+                                  Qty: {totalQuantity}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td style={styles.td}>
                             <div style={styles.actionButtons}>
@@ -1463,7 +1472,7 @@ const SupplierPage = () => {
     );
   };
 
-  // Render step 2: Add Items (Table format) - Updated with Status and Attachment columns
+  // Render step 2: Add Items (Table format) - Status is hidden but exists in data
   const renderItemsStep = () => {
     const supplierItems = items.filter(item => item.supplier_id === selectedSupplier?.id);
 
@@ -1501,6 +1510,11 @@ const SupplierPage = () => {
               <span style={styles.itemBadge}>
                 {supplierItems.length} {supplierItems.length === 1 ? 'item' : 'items'}
               </span>
+              {supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0) > 0 && (
+                <span style={styles.quantityBadge}>
+                  Total Qty: {supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0)}
+                </span>
+              )}
             </div>
             <div style={{ color: "#94a3b8", marginTop: "8px", fontSize: "13px", display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
               <span>📧 {selectedSupplier.email || 'No email'}</span>
@@ -1519,7 +1533,7 @@ const SupplierPage = () => {
                 <th style={styles.th}>Model</th>
                 <th style={styles.th}>Watts</th>
                 <th style={styles.th}>Buy Price (₹)</th>
-                <th style={styles.th}>Status</th>
+                <th style={styles.th}>Quantity</th>
                 <th style={styles.th}>Attachment</th>
                 <th style={styles.th}>Actions</th>
               </tr>
@@ -1536,6 +1550,11 @@ const SupplierPage = () => {
                   <tr key={item.id}>
                     <td style={styles.td}>
                       <span style={{ fontWeight: '500', color: '#fff' }}>{item.name}</span>
+                      {item.status === 'Pending' && (
+                        <span style={{ background: '#f59e0b', padding: '2px 6px', borderRadius: '12px', fontSize: '10px', marginLeft: '8px', color: '#000' }}>
+                          Pending
+                        </span>
+                      )}
                     </td>
                     <td style={styles.td}>
                       <span style={{ background: '#334155', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
@@ -1552,12 +1571,8 @@ const SupplierPage = () => {
                       <span style={{ fontWeight: '600', color: '#10b981' }}>₹{item.buy_price?.toFixed(2)}</span>
                     </td>
                     <td style={styles.td}>
-                      <span style={{
-                        ...styles.statusBadge,
-                        ...(item.status === 'Active' ? styles.statusActive : 
-                           item.status === 'Pending' ? styles.statusPending : styles.statusInactive)
-                      }}>
-                        {item.status || 'Pending'}
+                      <span style={styles.quantityBadge}>
+                        {item.quantity || 0}
                       </span>
                     </td>
                     <td style={styles.td}>
@@ -1594,7 +1609,7 @@ const SupplierPage = () => {
     );
   };
 
-  // View Items Popup - Updated with Status and Attachment columns
+  // View Items Popup - Status is hidden but exists in data
   const renderViewItemsPopup = () => {
     if (!showViewItemsPopup || !viewingSupplier) return null;
 
@@ -1613,7 +1628,8 @@ const SupplierPage = () => {
           <div style={styles.popupHeader}>
             <h2 style={styles.popupTitle}>Items for {viewingSupplier.company}</h2>
             <div style={styles.popupSubtitle}>
-              Supplier: {viewingSupplier.name} | Total Items: {supplierItems.length}
+              Supplier: {viewingSupplier.name} | Total Items: {supplierItems.length} | 
+              Total Quantity: {supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0)}
             </div>
           </div>
           
@@ -1627,7 +1643,7 @@ const SupplierPage = () => {
                     <th style={styles.th}>Model</th>
                     <th style={styles.th}>Watts</th>
                     <th style={styles.th}>Buy Price (₹)</th>
-                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>Quantity</th>
                     <th style={styles.th}>Attachment</th>
                   </tr>
                 </thead>
@@ -1636,6 +1652,11 @@ const SupplierPage = () => {
                     <tr key={item.id}>
                       <td style={styles.td}>
                         <span style={{ fontWeight: '500', color: '#fff' }}>{item.name}</span>
+                        {item.status === 'Pending' && (
+                          <span style={{ background: '#f59e0b', padding: '2px 6px', borderRadius: '12px', fontSize: '10px', marginLeft: '8px', color: '#000' }}>
+                            Pending
+                          </span>
+                        )}
                       </td>
                       <td style={styles.td}>
                         <span style={{ background: '#334155', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
@@ -1652,12 +1673,8 @@ const SupplierPage = () => {
                         <span style={{ fontWeight: '600', color: '#10b981' }}>₹{item.buy_price?.toFixed(2)}</span>
                       </td>
                       <td style={styles.td}>
-                        <span style={{
-                          ...styles.statusBadge,
-                          ...(item.status === 'Active' ? styles.statusActive : 
-                             item.status === 'Pending' ? styles.statusPending : styles.statusInactive)
-                        }}>
-                          {item.status || 'Pending'}
+                        <span style={styles.quantityBadge}>
+                          {item.quantity || 0}
                         </span>
                       </td>
                       <td style={styles.td}>
@@ -1808,7 +1825,7 @@ const SupplierPage = () => {
     );
   };
 
-  // Item Popup with Two Columns - Updated with Status and Attachment fields
+  // Item Popup with Two Columns - Status is hidden from UI but will be sent as "Pending"
   const renderItemPopup = () => {
     if (!showItemPopup) return null;
 
@@ -1902,18 +1919,19 @@ const SupplierPage = () => {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Status</label>
-                <select
-                  name="status"
-                  value={currentItem.status}
+                <label style={styles.label}>Quantity *</label>
+                <input
+                  type="number"
+                  name="quantity"
+                  value={currentItem.quantity}
                   onChange={handleItemChange}
-                  style={styles.select}
+                  placeholder="e.g., 100"
+                  min="0"
+                  step="1"
+                  required
+                  style={styles.input}
                   disabled={loading}
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                />
               </div>
 
               <div style={{ ...styles.formGroup, ...styles.fullWidth }}>

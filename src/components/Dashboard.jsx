@@ -7,19 +7,22 @@ import {
   FaBoxes,
   FaExclamationTriangle,
   FaSpinner,
+  FaArrowRight,
+  FaEye,
 } from "react-icons/fa";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     products: {
       total: 0,
       totalQuantity: 0,
-      totalValue: 0,
       lowStock: 0,
     },
     billing: {
@@ -38,7 +41,6 @@ const Dashboard = () => {
       },
       pendingItems: 0,
     },
-    recentBills: [],
     lowStockProducts: [],
     paymentMethods: [],
   });
@@ -76,13 +78,18 @@ const Dashboard = () => {
       const lowStockProducts = allProducts
         .filter(product => product.quantity < 10)
         .sort((a, b) => a.quantity - b.quantity)
-        .slice(0, 5); // Top 5 lowest stock
+        .slice(0, 10); // Show top 10 lowest stock
+      
+      // Calculate total payments from payment methods
+      const totalPayments = (billingStats.paymentMethods || []).reduce(
+        (sum, method) => sum + (method.total || 0), 
+        0
+      );
       
       setStats({
         products: {
           total: productStats.total_products || 0,
           totalQuantity: productStats.total_quantity || 0,
-          totalValue: productStats.total_inventory_value || 0,
           lowStock: lowStockProducts.length,
         },
         billing: {
@@ -90,8 +97,8 @@ const Dashboard = () => {
           thisWeek: billingStats.thisWeek || { bills: 0, sales: 0 },
           thisMonth: billingStats.thisMonth || { bills: 0, sales: 0 },
           pendingItems: billingStats.pendingItems || 0,
+          totalPayments: totalPayments,
         },
-        recentBills: billingStats.recentBills || [],
         lowStockProducts: lowStockProducts,
         paymentMethods: billingStats.paymentMethods || [],
       });
@@ -111,6 +118,10 @@ const Dashboard = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const handleViewAllLowStock = () => {
+    navigate('/lowstock'); // Updated to match your NavLink path
   };
 
   const styles = {
@@ -153,10 +164,13 @@ const Dashboard = () => {
       alignItems: "center",
       gap: "8px",
       transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "#1d4ed8",
+      }
     },
     cards: {
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+      gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
       gap: "20px",
       marginBottom: "30px",
     },
@@ -171,10 +185,6 @@ const Dashboard = () => {
       transition: "transform 0.2s, box-shadow 0.2s",
       cursor: "pointer",
       border: "1px solid #334155",
-    },
-    cardHover: {
-      transform: "translateY(-4px)",
-      boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
     },
     icon: {
       fontSize: "36px",
@@ -225,12 +235,25 @@ const Dashboard = () => {
       fontWeight: "600",
       color: "#ffffff",
       margin: 0,
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
     },
     viewAllLink: {
       color: "#3b82f6",
       fontSize: "14px",
       cursor: "pointer",
       textDecoration: "none",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      padding: "6px 12px",
+      backgroundColor: "rgba(59, 130, 246, 0.1)",
+      borderRadius: "20px",
+      transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "rgba(59, 130, 246, 0.2)",
+      }
     },
     table: {
       width: "100%",
@@ -259,17 +282,14 @@ const Dashboard = () => {
       fontWeight: "500",
       display: "inline-block",
     },
-    completed: {
-      backgroundColor: "rgba(34, 197, 94, 0.2)",
-      color: "#22c55e",
-    },
-    pending: {
-      backgroundColor: "rgba(245, 158, 11, 0.2)",
-      color: "#f59e0b",
-    },
     lowStock: {
       backgroundColor: "rgba(239, 68, 68, 0.2)",
       color: "#ef4444",
+    },
+    criticalStock: {
+      backgroundColor: "rgba(127, 29, 29, 0.4)",
+      color: "#fca5a5",
+      border: "1px solid #7f1d1d",
     },
     loadingContainer: {
       display: "flex",
@@ -289,6 +309,49 @@ const Dashboard = () => {
     },
     spinner: {
       animation: "spin 1s linear infinite",
+    },
+    paymentGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+      gap: "16px",
+      marginTop: "16px",
+    },
+    paymentCard: {
+      backgroundColor: "#0f172a",
+      padding: "16px",
+      borderRadius: "12px",
+      border: "1px solid #334155",
+    },
+    paymentMethod: {
+      color: "#94a3b8",
+      fontSize: "14px",
+      textTransform: "capitalize",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    paymentAmount: {
+      fontSize: "20px",
+      fontWeight: "600",
+      color: "#ffffff",
+      marginTop: "8px",
+    },
+    paymentCount: {
+      color: "#94a3b8",
+      fontSize: "13px",
+      marginTop: "4px",
+    },
+    viewAllText: {
+      color: "#3b82f6", 
+      cursor: "pointer",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px",
+      fontSize: "13px",
+      transition: "all 0.2s",
+      ':hover': {
+        color: "#60a5fa",
+      }
     },
   };
 
@@ -314,6 +377,12 @@ const Dashboard = () => {
           .card:hover {
             transform: translateY(-4px);
             box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+          }
+          .view-all:hover {
+            background-color: rgba(59, 130, 246, 0.2) !important;
+          }
+          .view-all-text:hover {
+            color: #60a5fa !important;
           }
         `}
       </style>
@@ -376,12 +445,12 @@ const Dashboard = () => {
         <div className="card" style={styles.card}>
           <FaMoneyBillWave style={{ ...styles.icon, color: "#10b981" }} />
           <div style={styles.cardContent}>
-            <div style={styles.cardLabel}>Inventory Value</div>
+            <div style={styles.cardLabel}>Total Payments</div>
             <div style={styles.cardValue}>
-              {formatCurrency(stats.products.totalValue)}
+              {formatCurrency(stats.billing.totalPayments || 0)}
             </div>
             <div style={styles.cardSmallValue}>
-              {stats.products.lowStock} products low in stock
+              All time payments received
             </div>
           </div>
         </div>
@@ -402,81 +471,55 @@ const Dashboard = () => {
 
       {/* Main Content Grid */}
       <div style={styles.grid2}>
-        {/* Recent Bills Table */}
-        <div style={styles.tableContainer}>
-          <div style={styles.tableHeader}>
-            <h3 style={styles.tableTitle}>Recent Bills</h3>
-            <span style={styles.viewAllLink}>View All →</span>
-          </div>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>Bill No.</th>
-                <th style={styles.th}>Customer</th>
-                <th style={styles.th}>Amount</th>
-                <th style={styles.th}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.recentBills.length > 0 ? (
-                stats.recentBills.map((bill) => (
-                  <tr key={bill.id}>
-                    <td style={styles.td}>{bill.billNumber}</td>
-                    <td style={styles.td}>{bill.customerName}</td>
-                    <td style={styles.td}>{formatCurrency(bill.total)}</td>
-                    <td style={styles.td}>
-                      <span
-                        style={{
-                          ...styles.statusBadge,
-                          ...(bill.paymentStatus === "paid"
-                            ? styles.completed
-                            : styles.pending),
-                        }}
-                      >
-                        {bill.paymentStatus || "Pending"}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" style={{ ...styles.td, textAlign: "center" }}>
-                    No recent bills found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
         {/* Low Stock Products */}
         <div style={styles.tableContainer}>
           <div style={styles.tableHeader}>
-            <h3 style={styles.tableTitle}>Low Stock Alert</h3>
-            <span style={styles.viewAllLink}>View All →</span>
+            <h3 style={styles.tableTitle}>
+              <FaExclamationTriangle color="#ef4444" />
+              Low Stock Alert ({stats.lowStockProducts.length} items)
+            </h3>
+            <span 
+              style={styles.viewAllLink}
+              onClick={handleViewAllLowStock}
+              className="view-all"
+            >
+              View All <FaArrowRight size={12} />
+            </span>
           </div>
           <table style={styles.table}>
             <thead>
               <tr>
                 <th style={styles.th}>Product</th>
+                <th style={styles.th}>Model</th>
                 <th style={styles.th}>Stock</th>
                 <th style={styles.th}>Status</th>
               </tr>
             </thead>
             <tbody>
               {stats.lowStockProducts.length > 0 ? (
-                stats.lowStockProducts.map((product) => (
+                stats.lowStockProducts.slice(0, 5).map((product) => (
                   <tr key={product.id}>
                     <td style={styles.td}>
-                      <div>{product.name}</div>
-                      <small style={{ color: "#94a3b8" }}>{product.model}</small>
+                      <div style={{ fontWeight: "500" }}>{product.name}</div>
                     </td>
-                    <td style={styles.td}>{product.quantity}</td>
+                    <td style={styles.td}>
+                      <span style={{ color: "#94a3b8" }}>{product.model || '-'}</span>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={{ 
+                        fontWeight: "600",
+                        color: product.quantity === 0 ? "#ef4444" : "#f59e0b"
+                      }}>
+                        {product.quantity}
+                      </span>
+                    </td>
                     <td style={styles.td}>
                       <span
                         style={{
                           ...styles.statusBadge,
-                          ...styles.lowStock,
+                          ...(product.quantity === 0 
+                            ? styles.criticalStock 
+                            : styles.lowStock),
                         }}
                       >
                         {product.quantity === 0 ? "Out of Stock" : "Low Stock"}
@@ -486,36 +529,93 @@ const Dashboard = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="3" style={{ ...styles.td, textAlign: "center" }}>
-                    All products are well stocked ✓
+                  <td colSpan="4" style={{ ...styles.td, textAlign: "center", padding: "40px" }}>
+                    <FaBoxes size={32} style={{ opacity: 0.5, marginBottom: "12px" }} />
+                    <div>All products are well stocked ✓</div>
+                    <div style={{ fontSize: "13px", color: "#6b7280", marginTop: "8px" }}>
+                      No items with quantity less than 10
+                    </div>
+                  </td>
+                </tr>
+              )}
+              
+              {stats.lowStockProducts.length > 5 && (
+                <tr>
+                  <td colSpan="4" style={{ ...styles.td, textAlign: "center", backgroundColor: "#0f172a" }}>
+                    <span 
+                      onClick={handleViewAllLowStock}
+                      style={styles.viewAllText}
+                      className="view-all-text"
+                    >
+                      <FaEye size={12} /> View all {stats.lowStockProducts.length} low stock items
+                    </span>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Payment Methods Summary */}
-      <div style={{ ...styles.tableContainer, marginTop: "24px" }}>
-        <h3 style={styles.tableTitle}>Payment Methods Summary</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginTop: "16px" }}>
+        {/* Payment Methods Summary */}
+        <div style={styles.tableContainer}>
+          <div style={styles.tableHeader}>
+            <h3 style={styles.tableTitle}>
+              <FaMoneyBillWave color="#10b981" />
+              Payment Methods
+            </h3>
+          </div>
+          
           {stats.paymentMethods.length > 0 ? (
-            stats.paymentMethods.map((method, index) => (
-              <div key={index} style={{ backgroundColor: "#0f172a", padding: "16px", borderRadius: "12px" }}>
-                <div style={{ color: "#94a3b8", fontSize: "14px", textTransform: "capitalize" }}>
-                  {method.method}
+            <div style={styles.paymentGrid}>
+              {stats.paymentMethods.map((method, index) => (
+                <div key={index} style={styles.paymentCard}>
+                  <div style={styles.paymentMethod}>
+                    <span style={{ 
+                      width: "8px", 
+                      height: "8px", 
+                      borderRadius: "50%",
+                      backgroundColor: 
+                        method.method === 'cash' ? '#10b981' :
+                        method.method === 'card' ? '#3b82f6' :
+                        method.method === 'upi' ? '#8b5cf6' : '#f59e0b'
+                    }} />
+                    {method.method}
+                  </div>
+                  <div style={styles.paymentAmount}>
+                    {formatCurrency(method.total)}
+                  </div>
+                  <div style={styles.paymentCount}>
+                    {method.count} {method.count === 1 ? 'transaction' : 'transactions'}
+                  </div>
                 </div>
-                <div style={{ fontSize: "20px", fontWeight: "600", color: "#ffffff", marginTop: "8px" }}>
-                  {formatCurrency(method.total)}
-                </div>
-                <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "4px" }}>
-                  {method.count} transactions
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
-            <p style={{ color: "#94a3b8" }}>No payment data available</p>
+            <div style={{ textAlign: "center", padding: "40px 20px" }}>
+              <FaMoneyBillWave size={32} style={{ opacity: 0.5, marginBottom: "12px" }} />
+              <p style={{ color: "#94a3b8" }}>No payment data available</p>
+            </div>
+          )}
+          
+          {/* Total Payments Summary */}
+          {stats.paymentMethods.length > 0 && (
+            <div style={{ 
+              marginTop: "20px", 
+              padding: "16px", 
+              backgroundColor: "#0f172a",
+              borderRadius: "12px",
+              border: "1px solid #334155"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "#94a3b8" }}>Total Payments</span>
+                <span style={{ fontSize: "20px", fontWeight: "600", color: "#10b981" }}>
+                  {formatCurrency(stats.billing.totalPayments || 0)}
+                </span>
+              </div>
+              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+                All time total
+              </div>
+            </div>
           )}
         </div>
       </div>

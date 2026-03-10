@@ -117,7 +117,7 @@ const Sidebar = ({ isOpen }) => {
 
         <NavLink to="/supplierList" style={getLinkStyle}>
           <FaList style={styles.icon} />
-          <span style={styles.text}>Supplier List</span>
+          <span style={styles.text}>Supplier Details</span>
         </NavLink>
 
         <NavLink to="/itemlist" style={getLinkStyle}>

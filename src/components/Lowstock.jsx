@@ -2,14 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { 
   Download, RefreshCw, ArrowLeft, AlertTriangle, Truck,
-  ChevronLeft, ChevronRight, Plus, Save, Search
+  ChevronLeft, ChevronRight, Search, X
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useNavigate } from "react-router-dom";
 
 const API_URL = "http://127.0.0.1:5000/api/products";
-const SUPPLIER_API_URL = "http://127.0.0.1:5000/api";
 
 export default function LowStockPage() {
   const navigate = useNavigate();
@@ -23,6 +22,8 @@ export default function LowStockPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   
   // Order modal state
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -31,24 +32,29 @@ export default function LowStockPage() {
   const [processingOrder, setProcessingOrder] = useState(false);
 
   useEffect(() => {
-    loadProducts();
+    loadProducts(1);
   }, []);
 
-  // Filter items based on search term
+  // Filter items based on search term (client-side filtering)
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredItems(items);
+      setTotalItems(items.length);
+      setTotalPages(Math.max(1, Math.ceil(items.length / itemsPerPage)));
     } else {
       const term = searchTerm.toLowerCase();
       const filtered = items.filter(item => 
+        (item.id && item.id.toString().includes(term)) ||
         (item.name && item.name.toLowerCase().includes(term)) ||
         (item.model && item.model.toLowerCase().includes(term)) ||
         (item.type && item.type.toLowerCase().includes(term))
       );
       setFilteredItems(filtered);
+      setTotalItems(filtered.length);
+      setTotalPages(Math.max(1, Math.ceil(filtered.length / itemsPerPage)));
       setCurrentPage(1); // Reset to first page when searching
     }
-  }, [searchTerm, items]);
+  }, [searchTerm, items, itemsPerPage]);
 
   // Auto-hide message after 3 seconds
   useEffect(() => {
@@ -64,37 +70,46 @@ export default function LowStockPage() {
     setMessage({ type, text });
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(API_URL);
+      // Fetch all products first (since we need to filter by quantity)
+      const res = await fetch(`${API_URL}?page=${page}&per_page=100`); // Get more items per page
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       
       const data = await res.json();
       
       // Handle different response formats
       let productsArray = [];
+      let totalCount = 0;
+      
       if (Array.isArray(data)) {
         productsArray = data;
+        totalCount = data.length;
       } else if (data && Array.isArray(data.items)) {
         productsArray = data.items;
+        totalCount = data.total || data.items.length;
       } else if (data && data.data && Array.isArray(data.data)) {
         productsArray = data.data;
+        totalCount = data.total || data.data.length;
       } else {
         console.warn('Unexpected API response format:', data);
         productsArray = [];
+        totalCount = 0;
       }
       
-      // Calculate values and filter low stock items
+      // Calculate values and filter low stock items (quantity < 5)
       const processedItems = productsArray
         .map(item => calculateValues({ ...item, id: item.id }))
-        .filter(item => item.quantity < lowStockThreshold && item.quantity > 0);
+        .filter(item => item.quantity < lowStockThreshold); // Changed to < 5 (strictly less than)
       
       setItems(processedItems);
       setFilteredItems(processedItems);
+      setTotalItems(processedItems.length);
+      setTotalPages(Math.max(1, Math.ceil(processedItems.length / itemsPerPage)));
       
       if (processedItems.length === 0) {
-        showMessage("info", "No low stock items found");
+        showMessage("info", "No items with quantity less than 5 found");
       }
     } catch (err) {
       console.error("Error fetching products:", err);
@@ -109,12 +124,10 @@ export default function LowStockPage() {
     const sell = parseFloat(item.sellPrice) || 0;
     const qty = parseInt(item.quantity) || 0;
 
-    const profitPercent = buy > 0 ? (((sell - buy) / buy) * 100).toFixed(2) : "0.00";
     const amount = (sell * qty).toFixed(2);
 
     return { 
       ...item, 
-      profitPercent, 
       amount,
       buyPrice: buy,
       sellPrice: sell,
@@ -168,8 +181,6 @@ export default function LowStockPage() {
 
     setProcessingOrder(true);
     try {
-      // Here you would integrate with your supplier API
-      // For now, we'll just update the inventory
       let updatedItems = [...items];
       
       for (const orderItem of selectedItems) {
@@ -199,10 +210,12 @@ export default function LowStockPage() {
         );
       }
 
-      // Re-filter low stock items
-      const newLowStockItems = updatedItems.filter(i => i.quantity < lowStockThreshold && i.quantity > 0);
+      // Re-filter low stock items (quantity < 5)
+      const newLowStockItems = updatedItems.filter(i => i.quantity < lowStockThreshold);
       setItems(newLowStockItems);
       setFilteredItems(newLowStockItems);
+      setTotalItems(newLowStockItems.length);
+      setTotalPages(Math.max(1, Math.ceil(newLowStockItems.length / itemsPerPage)));
       
       setShowOrderModal(false);
       showMessage("success", `Order placed successfully for ${selectedItems.length} items!`);
@@ -223,15 +236,16 @@ export default function LowStockPage() {
     try {
       // Prepare data for export (use filtered items for export)
       const exportData = filteredItems.map(item => ({
+        'ID': item.id || '',
         'Name': item.name || '',
         'Model': item.model || '',
         'Type': item.type || '',
         'Watts': item.watts || '',
         'Current Stock': item.quantity || 0,
-        'Recommended Order': (lowStockThreshold - item.quantity) || 0,
-        'Buy Price': item.buyPrice || 0,
-        'Sell Price': item.sellPrice || 0,
-        'Profit %': item.profitPercent || '0.00',
+        'Status': item.quantity === 0 ? 'OUT OF STOCK' : 'LOW STOCK',
+        'Required to reach 5': item.quantity === 0 ? lowStockThreshold : (lowStockThreshold - item.quantity) || 0,
+        'Buy Price (₹)': item.buyPrice || 0,
+        'Sell Price (₹)': item.sellPrice || 0,
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -240,15 +254,16 @@ export default function LowStockPage() {
 
       // Auto-size columns
       const wscols = [
+        { wch: 8 },  // ID
         { wch: 20 }, // Name
         { wch: 15 }, // Model
         { wch: 15 }, // Type
         { wch: 10 }, // Watts
         { wch: 12 }, // Current Stock
-        { wch: 15 }, // Recommended Order
+        { wch: 12 }, // Status
+        { wch: 18 }, // Required to reach 5
         { wch: 12 }, // Buy Price
         { wch: 12 }, // Sell Price
-        { wch: 10 }, // Profit %
       ];
       worksheet['!cols'] = wscols;
 
@@ -278,7 +293,6 @@ export default function LowStockPage() {
     return filteredItems.slice(indexOfFirstItem, indexOfLastItem);
   };
 
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const currentItems = getCurrentPageItems();
 
   const goToNextPage = () => {
@@ -290,7 +304,9 @@ export default function LowStockPage() {
   };
 
   const goToPage = (pageNumber) => {
-    setCurrentPage(pageNumber);
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
   };
 
   const getPageNumbers = () => {
@@ -356,6 +372,10 @@ export default function LowStockPage() {
       alignItems: "center",
       justifyContent: "center",
       transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "#374151",
+        color: "#f9fafb",
+      }
     },
     refreshButton: {
       background: "none",
@@ -368,6 +388,10 @@ export default function LowStockPage() {
       alignItems: "center",
       justifyContent: "center",
       transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "#374151",
+        color: "#f9fafb",
+      }
     },
     buttonGroup: {
       display: "flex",
@@ -386,11 +410,17 @@ export default function LowStockPage() {
       fontSize: "14px",
       fontWeight: "500",
       transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "#374151",
+      }
     },
     primaryButton: {
       backgroundColor: "#dc2626",
       color: "#fff",
       border: "none",
+      ':hover': {
+        backgroundColor: "#b91c1c",
+      }
     },
     searchContainer: {
       display: "flex",
@@ -440,33 +470,6 @@ export default function LowStockPage() {
       color: "#60a5fa",
       border: "1px solid #3b82f6",
     },
-    statsContainer: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-      gap: "20px",
-      marginBottom: "30px",
-    },
-    statCard: {
-      backgroundColor: "#1f2937",
-      padding: "20px",
-      borderRadius: "8px",
-      border: "1px solid #374151",
-    },
-    statLabel: {
-      fontSize: "14px",
-      color: "#9ca3af",
-      marginBottom: "8px",
-    },
-    statValue: {
-      fontSize: "32px",
-      fontWeight: "600",
-      color: "#f9fafb",
-    },
-    statSubtext: {
-      fontSize: "12px",
-      color: "#6b7280",
-      marginTop: "8px",
-    },
     tableContainer: {
       overflowX: "auto",
       borderRadius: "8px",
@@ -501,11 +504,26 @@ export default function LowStockPage() {
       fontWeight: "500",
       display: "inline-block",
     },
+    outOfStockIndicator: {
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      color: "#ffffff",
+      padding: "4px 8px",
+      borderRadius: "4px",
+      fontSize: "12px",
+      fontWeight: "600",
+      display: "inline-block",
+      border: "1px solid #6b7280",
+    },
     quantityCell: {
       fontWeight: "600",
       color: "#f87171",
     },
-    recommendedCell: {
+    zeroQuantityCell: {
+      fontWeight: "700",
+      color: "#ffffff",
+      backgroundColor: "rgba(0, 0, 0, 0.3)",
+    },
+    requiredCell: {
       color: "#4ade80",
       fontWeight: "500",
     },
@@ -528,6 +546,7 @@ export default function LowStockPage() {
       alignItems: "center",
       gap: "8px",
       marginTop: "20px",
+      flexWrap: "wrap",
     },
     paginationButton: {
       display: "flex",
@@ -542,14 +561,21 @@ export default function LowStockPage() {
       fontSize: "14px",
       minWidth: "40px",
       transition: "all 0.2s",
+      ':hover': {
+        backgroundColor: "#374151",
+      }
     },
     paginationButtonDisabled: {
       opacity: 0.5,
       cursor: "not-allowed",
+      pointerEvents: "none",
     },
     paginationButtonActive: {
       backgroundColor: "#dc2626",
       borderColor: "#dc2626",
+      ':hover': {
+        backgroundColor: "#b91c1c",
+      }
     },
     paginationInfo: {
       color: "#9ca3af",
@@ -589,6 +615,8 @@ export default function LowStockPage() {
       fontSize: '20px',
       fontWeight: '600',
       color: '#f9fafb',
+      display: 'flex',
+      alignItems: 'center',
     },
     closeButton: {
       background: 'none',
@@ -597,6 +625,13 @@ export default function LowStockPage() {
       cursor: 'pointer',
       padding: '4px',
       borderRadius: '4px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      ':hover': {
+        backgroundColor: '#374151',
+        color: '#f9fafb',
+      }
     },
     modalTable: {
       width: '100%',
@@ -641,67 +676,84 @@ export default function LowStockPage() {
     },
   };
 
-  // Calculate statistics (based on filtered items)
-  const totalLowStock = filteredItems.length;
-  const totalRecommendedOrder = filteredItems.reduce((sum, item) => sum + (lowStockThreshold - item.quantity), 0);
-  const estimatedCost = filteredItems.reduce((sum, item) => sum + (item.buyPrice * (lowStockThreshold - item.quantity)), 0);
-
   return (
     <div style={styles.container}>
       {/* Order Modal */}
       {showOrderModal && (
-        <div style={styles.modalOverlay}>
+        <div style={styles.modalOverlay} onClick={(e) => {
+          if (e.target === e.currentTarget) setShowOrderModal(false);
+        }}>
           <div style={styles.modalContent}>
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
-                <Truck size={20} style={{ marginRight: '8px', display: 'inline' }} />
+                <Truck size={20} style={{ marginRight: '8px' }} />
                 Place Order for Low Stock Items
               </h2>
               <button 
                 style={styles.closeButton}
                 onClick={() => setShowOrderModal(false)}
               >
-                <ArrowLeft size={20} />
+                <X size={20} />
               </button>
             </div>
 
-            <table style={styles.modalTable}>
-              <thead>
-                <tr>
-                  <th style={styles.modalTh}>Product</th>
-                  <th style={styles.modalTh}>Model</th>
-                  <th style={styles.modalTh}>Current Stock</th>
-                  <th style={styles.modalTh}>Recommended</th>
-                  <th style={styles.modalTh}>Buy Price</th>
-                  <th style={styles.modalTh}>Order Quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orderItems.map((item) => (
-                  <tr key={item.id}>
-                    <td style={styles.modalTd}>{item.name}</td>
-                    <td style={styles.modalTd}>{item.model}</td>
-                    <td style={styles.modalTd}>
-                      <span style={{ color: '#f87171', fontWeight: '600' }}>{item.quantity}</span>
-                    </td>
-                    <td style={styles.modalTd}>
-                      <span style={{ color: '#4ade80' }}>{lowStockThreshold - item.quantity}</span>
-                    </td>
-                    <td style={styles.modalTd}>₹{item.buyPrice}</td>
-                    <td style={styles.modalTd}>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        style={styles.orderInput}
-                        value={orderQuantities[item.id] || 0}
-                        onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                      />
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={styles.modalTable}>
+                <thead>
+                  <tr>
+                    <th style={styles.modalTh}>ID</th>
+                    <th style={styles.modalTh}>Product</th>
+                    <th style={styles.modalTh}>Model</th>
+                    <th style={styles.modalTh}>Current Stock</th>
+                    <th style={styles.modalTh}>Status</th>
+                    <th style={styles.modalTh}>Required</th>
+                    <th style={styles.modalTh}>Buy Price</th>
+                    <th style={styles.modalTh}>Order Quantity</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {orderItems.map((item) => (
+                    <tr key={item.id}>
+                      <td style={styles.modalTd}>{item.id}</td>
+                      <td style={styles.modalTd}>{item.name}</td>
+                      <td style={styles.modalTd}>{item.model || '-'}</td>
+                      <td style={styles.modalTd}>
+                        <span style={{ 
+                          color: item.quantity === 0 ? '#ffffff' : '#f87171', 
+                          fontWeight: '600',
+                          backgroundColor: item.quantity === 0 ? 'rgba(0,0,0,0.5)' : 'transparent',
+                          padding: item.quantity === 0 ? '2px 6px' : '0',
+                          borderRadius: item.quantity === 0 ? '4px' : '0'
+                        }}>
+                          {item.quantity}
+                        </span>
+                      </td>
+                      <td style={styles.modalTd}>
+                        <span style={item.quantity === 0 ? styles.outOfStockIndicator : styles.lowStockIndicator}>
+                          {item.quantity === 0 ? 'OUT OF STOCK' : 'LOW STOCK'}
+                        </span>
+                      </td>
+                      <td style={styles.modalTd}>
+                        <span style={{ color: '#4ade80', fontWeight: '500' }}>
+                          {item.quantity === 0 ? lowStockThreshold : (lowStockThreshold - item.quantity)}
+                        </span>
+                      </td>
+                      <td style={styles.modalTd}>₹{item.buyPrice.toFixed(2)}</td>
+                      <td style={styles.modalTd}>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          style={styles.orderInput}
+                          value={orderQuantities[item.id] || 0}
+                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div style={styles.modalFooter}>
               <div>
@@ -716,7 +768,7 @@ export default function LowStockPage() {
                   Cancel
                 </button>
                 <button 
-                  style={{...styles.button, backgroundColor: "#059669", color: "#fff", border: "none"}}
+                  style={{...styles.button, ...styles.primaryButton}}
                   onClick={handlePlaceOrder}
                   disabled={processingOrder}
                 >
@@ -736,14 +788,15 @@ export default function LowStockPage() {
             onClick={() => navigate('/items')}
             title="Back to Inventory"
           >
+            <ArrowLeft size={20} />
           </button>
           <h1 style={styles.title}>
             <AlertTriangle color="#f87171" size={28} />
-            Low Stock Alert
+            Low Stock Alert (Quantity &lt; 5)
           </h1>
           <button 
             style={styles.refreshButton}
-            onClick={loadProducts}
+            onClick={() => loadProducts(1)}
             title="Refresh"
           >
             <RefreshCw size={18} />
@@ -751,6 +804,9 @@ export default function LowStockPage() {
         </div>
 
         <div style={styles.buttonGroup}>
+          <button style={styles.button} onClick={handleOpenOrderModal}>
+            <Truck size={16} /> Place Order
+          </button>
           <button style={styles.button} onClick={handleExport}>
             <Download size={16} /> Export List
           </button>
@@ -768,31 +824,12 @@ export default function LowStockPage() {
         </div>
       )}
 
-      {/* Statistics Cards */}
-      <div style={styles.statsContainer}>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Items Below Threshold</div>
-          <div style={styles.statValue}>{totalLowStock}</div>
-          <div style={styles.statSubtext}>Threshold: {lowStockThreshold} units</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Total Units to Order</div>
-          <div style={styles.statValue}>{totalRecommendedOrder}</div>
-          <div style={styles.statSubtext}>To reach minimum stock level</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Estimated Cost</div>
-          <div style={styles.statValue}>₹{estimatedCost.toFixed(2)}</div>
-          <div style={styles.statSubtext}>Based on current buy prices</div>
-        </div>
-      </div>
-
       {/* Search Bar */}
       <div style={styles.searchContainer}>
         <Search size={18} style={styles.searchIcon} />
         <input
           type="text"
-          placeholder="Search by name, model, or type..."
+          placeholder="Search by ID, name, model, or type..."
           style={styles.searchInput}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -814,49 +851,54 @@ export default function LowStockPage() {
             <div>
               {searchTerm 
                 ? "No items match your search" 
-                : "No low stock items found"}
+                : "No items with quantity less than 5 found"}
             </div>
             <div style={{ fontSize: '14px', marginTop: '10px', color: '#6b7280' }}>
               {searchTerm 
                 ? "Try adjusting your search terms" 
-                : `All items are above the minimum threshold of ${lowStockThreshold} units`}
+                : "All items have sufficient stock (quantity ≥ 5)"}
             </div>
           </div>
         ) : (
           <table style={styles.table}>
             <thead>
               <tr>
+                <th style={styles.th}>ID</th>
                 <th style={styles.th}>Name</th>
                 <th style={styles.th}>Model</th>
                 <th style={styles.th}>Type</th>
                 <th style={styles.th}>Watts</th>
                 <th style={styles.th}>Current Stock</th>
-                <th style={styles.th}>Recommended Order</th>
+                <th style={styles.th}>Status</th>
+                <th style={styles.th}>Required to reach 5</th>
                 <th style={styles.th}>Buy Price (₹)</th>
                 <th style={styles.th}>Sell Price (₹)</th>
-                <th style={styles.th}>Profit %</th>
-                <th style={styles.th}>Status</th>
               </tr>
             </thead>
             <tbody>
               {currentItems.map((item) => {
-                const recommended = lowStockThreshold - item.quantity;
+                const required = item.quantity === 0 ? lowStockThreshold : (lowStockThreshold - item.quantity);
                 return (
                   <tr key={item.id}>
+                    <td style={styles.td}>{item.id}</td>
                     <td style={styles.td}>{item.name}</td>
                     <td style={styles.td}>{item.model || '-'}</td>
                     <td style={styles.td}>{item.type || '-'}</td>
                     <td style={styles.td}>{item.watts || 0}</td>
-                    <td style={{...styles.td, ...styles.quantityCell}}>{item.quantity}</td>
-                    <td style={{...styles.td, ...styles.recommendedCell}}>{recommended}</td>
-                    <td style={styles.td}>₹{item.buyPrice}</td>
-                    <td style={styles.td}>₹{item.sellPrice}</td>
-                    <td style={styles.td}>{item.profitPercent}%</td>
+                    <td style={{
+                      ...styles.td, 
+                      ...(item.quantity === 0 ? styles.zeroQuantityCell : styles.quantityCell)
+                    }}>
+                      {item.quantity}
+                    </td>
                     <td style={styles.td}>
-                      <span style={styles.lowStockIndicator}>
+                      <span style={item.quantity === 0 ? styles.outOfStockIndicator : styles.lowStockIndicator}>
                         {item.quantity === 0 ? 'OUT OF STOCK' : 'LOW STOCK'}
                       </span>
                     </td>
+                    <td style={{...styles.td, ...styles.requiredCell}}>{required}</td>
+                    <td style={styles.td}>₹{item.buyPrice.toFixed(2)}</td>
+                    <td style={styles.td}>₹{item.sellPrice.toFixed(2)}</td>
                   </tr>
                 );
               })}
@@ -865,7 +907,7 @@ export default function LowStockPage() {
         )}
       </div>
 
-      {/* Pagination */}
+      {/* Pagination - Only show if there are items */}
       {filteredItems.length > 0 && (
         <div style={styles.pagination}>
           <button
@@ -904,7 +946,10 @@ export default function LowStockPage() {
           </button>
           
           <span style={styles.paginationInfo}>
-            Page {currentPage} of {totalPages} (Showing {currentItems.length} of {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'})
+            Page {currentPage} of {totalPages} 
+            {filteredItems.length > 0 && (
+              <> (Showing {currentItems.length} of {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'})</>
+            )}
           </span>
         </div>
       )}

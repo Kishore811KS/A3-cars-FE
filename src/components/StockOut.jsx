@@ -13,15 +13,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  CreditCard,
-  DollarSign,
-  Smartphone,
-  TrendingUp,
-  Users,
-  Package,
-  Clock,
-  CheckCircle,
-  AlertCircle
+  Package
 } from 'lucide-react';
 
 const BillItemsPage = () => {
@@ -39,31 +31,11 @@ const BillItemsPage = () => {
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [dateRange, setDateRange] = useState({
-    start: '',
-    end: ''
-  });
   
-  // Statistics
-  const [statistics, setStatistics] = useState({
-    totalItems: 0,
-    pendingItems: 0,
-    completedItems: 0,
-    totalValue: 0,
-    uniqueBills: 0,
-    averageItemValue: 0
-  });
+  // Simple statistics - just count
+  const [totalItems, setTotalItems] = useState(0);
 
   const API_BASE_URL = 'http://localhost:5000/api';
-
-  // Status color mapping for dark theme
-  const statusColorMap = {
-    completed: { background: '#059669', color: '#fff' },
-    pending: { background: '#b45309', color: '#fff' },
-    cancelled: { background: '#dc2626', color: '#fff' },
-    default: { background: '#4b5563', color: '#fff' }
-  };
 
   // Load items on component mount
   useEffect(() => {
@@ -73,11 +45,11 @@ const BillItemsPage = () => {
   // Apply filters whenever filter criteria change
   useEffect(() => {
     applyFilters();
-  }, [items, searchTerm, filterStatus, dateRange]);
+  }, [items, searchTerm]);
 
-  // Calculate statistics whenever items change
+  // Update total items count
   useEffect(() => {
-    calculateStatistics();
+    setTotalItems(items.length);
   }, [items]);
 
   // Auto-hide message after 3 seconds
@@ -109,19 +81,16 @@ const BillItemsPage = () => {
         billsData = response.data;
       }
       
-      // Extract all items from bills with proper field mapping
+      // Extract all items from bills
       let allItems = [];
       
-      // For each bill, we need to fetch detailed bill info to get items
       for (const bill of billsData) {
         try {
-          // Fetch detailed bill information to get items
           const detailResponse = await axios.get(`${API_BASE_URL}/billing/bills/${bill.id}`);
           const detailedBill = detailResponse.data;
           
           if (detailedBill.items && Array.isArray(detailedBill.items)) {
             const itemsWithBillInfo = detailedBill.items.map(item => ({
-              // Use snake_case field names as they come from backend
               id: item.id,
               product_id: item.product_id,
               product_name: item.product_name,
@@ -130,15 +99,9 @@ const BillItemsPage = () => {
               sell_price: item.sell_price,
               quantity: item.quantity,
               total: item.total,
-              item_status: item.item_status,
-              // Add bill information
               billNumber: detailedBill.billNumber,
               billId: detailedBill.id,
-              billDate: detailedBill.createdAt,
-              customerName: detailedBill.customerName || 'Walk-in',
-              customerPhone: detailedBill.customerPhone,
-              paymentMethod: detailedBill.paymentMethod,
-              paymentStatus: detailedBill.paymentStatus
+              billDate: detailedBill.createdAt
             }));
             allItems = [...allItems, ...itemsWithBillInfo];
           }
@@ -161,21 +124,15 @@ const BillItemsPage = () => {
 
   const fetchItemDetails = async (itemId, billId) => {
     try {
-      // Get bill details
       const response = await axios.get(`${API_BASE_URL}/billing/bills/${billId}`);
       const bill = response.data;
       
-      // Find the specific item in the bill
       const item = bill.items?.find(i => i.id === itemId);
       if (item) {
         setSelectedItem({
           ...item,
           billNumber: bill.billNumber,
-          billDate: bill.createdAt,
-          customerName: bill.customerName || 'Walk-in',
-          customerPhone: bill.customerPhone,
-          paymentMethod: bill.paymentMethod,
-          paymentStatus: bill.paymentStatus
+          billDate: bill.createdAt
         });
         setShowItemModal(true);
       } else {
@@ -190,42 +147,20 @@ const BillItemsPage = () => {
   const applyFilters = () => {
     let filtered = [...items];
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(item => {
         const productName = item.product_name || '';
         const productModel = item.product_model || '';
         const productType = item.product_type || '';
-        const billNumber = item.billNumber || '';
-        const customerName = item.customerName || '';
+        const itemId = item.id ? item.id.toString() : '';
         
         const searchLower = searchTerm.toLowerCase();
         return (
           productName.toLowerCase().includes(searchLower) ||
           productModel.toLowerCase().includes(searchLower) ||
           productType.toLowerCase().includes(searchLower) ||
-          billNumber.toLowerCase().includes(searchLower) ||
-          customerName.toLowerCase().includes(searchLower)
+          itemId.includes(searchLower)
         );
-      });
-    }
-
-    // Status filter
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(item => {
-        const status = item.item_status || '';
-        return status === filterStatus;
-      });
-    }
-
-    // Date range filter
-    if (dateRange.start && dateRange.end) {
-      const start = new Date(dateRange.start).setHours(0, 0, 0, 0);
-      const end = new Date(dateRange.end).setHours(23, 59, 59, 999);
-      
-      filtered = filtered.filter(item => {
-        const itemDate = new Date(item.billDate || '').getTime();
-        return itemDate >= start && itemDate <= end;
       });
     }
 
@@ -233,28 +168,8 @@ const BillItemsPage = () => {
     setCurrentPage(1);
   };
 
-  const calculateStatistics = () => {
-    const totalItems = items.length;
-    const pendingItems = items.filter(item => item.item_status === 'pending').length;
-    const completedItems = items.filter(item => item.item_status === 'completed').length;
-    const totalValue = items.reduce((sum, item) => sum + (item.total || 0), 0);
-    const uniqueBills = new Set(items.map(item => item.billNumber)).size;
-    const averageItemValue = totalItems > 0 ? totalValue / totalItems : 0;
-
-    setStatistics({
-      totalItems,
-      pendingItems,
-      completedItems,
-      totalValue,
-      uniqueBills,
-      averageItemValue
-    });
-  };
-
   const resetFilters = () => {
     setSearchTerm('');
-    setFilterStatus('all');
-    setDateRange({ start: '', end: '' });
     setFilteredItems(items);
     setCurrentPage(1);
   };
@@ -263,17 +178,14 @@ const BillItemsPage = () => {
   const handleExportExcel = () => {
     try {
       const exportData = filteredItems.map(item => ({
-        'Bill Number': item.billNumber || '',
+        'ID': item.id || '',
         'Date': item.billDate ? new Date(item.billDate).toLocaleDateString() : '',
-        'Customer': item.customerName || '',
         'Product Name': item.product_name || '',
         'Model': item.product_model || '',
         'Type': item.product_type || '',
         'Price (₹)': item.sell_price || 0,
         'Quantity': item.quantity || 0,
-        'Total (₹)': item.total || 0,
-        'Status': item.item_status || 'pending',
-        'Payment Method': item.paymentMethod || ''
+        'Total (₹)': item.total || 0
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -281,9 +193,9 @@ const BillItemsPage = () => {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Bill Items");
 
       const wscols = [
-        { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 25 }, 
-        { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, 
-        { wch: 12 }, { wch: 12 }, { wch: 15 }
+        { wch: 10 }, { wch: 12 }, { wch: 25 }, 
+        { wch: 15 }, { wch: 15 }, { wch: 12 }, 
+        { wch: 10 }, { wch: 12 }
       ];
       worksheet['!cols'] = wscols;
 
@@ -297,7 +209,7 @@ const BillItemsPage = () => {
       });
 
       const date = new Date().toISOString().split('T')[0];
-      saveAs(file, `Bill_Items_${date}.xlsx`);
+      saveAs(file, `Items_List_${date}.xlsx`);
       showMessage("success", "Excel export successful!");
     } catch (err) {
       console.error("Export error:", err);
@@ -314,7 +226,7 @@ const BillItemsPage = () => {
       
       doc.setFontSize(18);
       doc.setTextColor(0, 0, 0);
-      doc.text('Bill Items Report', 14, 22);
+      doc.text('Items List', 14, 22);
       
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
@@ -322,39 +234,34 @@ const BillItemsPage = () => {
       
       doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
-      doc.text(`Total Items: ${statistics.totalItems}`, 14, 40);
-      doc.text(`Total Value: ₹${statistics.totalValue.toFixed(2)}`, 14, 47);
-      doc.text(`Pending: ${statistics.pendingItems} | Completed: ${statistics.completedItems}`, 14, 54);
-      doc.text(`Unique Bills: ${statistics.uniqueBills}`, 14, 61);
+      doc.text(`Total Items: ${filteredItems.length}`, 14, 40);
       
       const tableColumn = [
-        'Bill No', 'Date', 'Customer', 'Product', 'Model', 
-        'Price', 'Qty', 'Total', 'Status'
+        'ID', 'Date', 'Product', 'Model', 'Type', 'Price', 'Qty', 'Total'
       ];
       
       const tableRows = filteredItems.map(item => [
-        item.billNumber || '',
+        item.id || '',
         item.billDate ? new Date(item.billDate).toLocaleDateString() : '',
-        item.customerName || 'Walk-in',
         item.product_name || '',
         item.product_model || '',
+        item.product_type || '',
         `₹${item.sell_price || 0}`,
         item.quantity || 0,
-        `₹${item.total || 0}`,
-        (item.item_status || 'pending').toUpperCase()
+        `₹${item.total || 0}`
       ]);
       
       doc.autoTable({
         head: [tableColumn],
         body: tableRows,
-        startY: 70,
+        startY: 50,
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255] },
         alternateRowStyles: { fillColor: [240, 240, 240] },
       });
       
       const date = new Date().toISOString().split('T')[0];
-      doc.save(`Bill_Items_${date}.pdf`);
+      doc.save(`Items_List_${date}.pdf`);
       showMessage("success", "PDF export successful!");
     } catch (err) {
       console.error("PDF export error:", err);
@@ -383,18 +290,6 @@ const BillItemsPage = () => {
   const goToNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    return statusColorMap[status] || statusColorMap.default;
-  };
-
-  const getStatusIcon = (status) => {
-    switch(status) {
-      case 'completed': return <CheckCircle size={14} />;
-      case 'pending': return <Clock size={14} />;
-      default: return <Package size={14} />;
     }
   };
 
@@ -458,8 +353,8 @@ const BillItemsPage = () => {
       fontWeight: "500",
       transition: "all 0.2s",
     },
-    primaryButton: {
-      backgroundColor: "#6366f1",
+    infoButton: {
+      backgroundColor: "#3b82f6",
       color: "#fff",
       border: "none",
     },
@@ -468,52 +363,32 @@ const BillItemsPage = () => {
       color: "#fff",
       border: "none",
     },
-    infoButton: {
-      backgroundColor: "#3b82f6",
-      color: "#fff",
-      border: "none",
-    },
     statsContainer: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-      gap: "20px",
-      marginBottom: "25px",
-    },
-    statCard: {
       backgroundColor: "#1f2937",
-      padding: "20px",
-      borderRadius: "10px",
+      padding: "15px 20px",
+      borderRadius: "8px",
       border: "1px solid #374151",
+      marginBottom: "20px",
       display: "flex",
       alignItems: "center",
       gap: "15px",
     },
-    statIcon: {
-      width: "50px",
-      height: "50px",
-      borderRadius: "10px",
+    statBadge: {
       display: "flex",
       alignItems: "center",
-      justifyContent: "center",
-      fontSize: "24px",
+      gap: "8px",
+      padding: "6px 12px",
+      backgroundColor: "#374151",
+      borderRadius: "20px",
     },
-    statInfo: {
-      flex: 1,
+    statValue: {
+      fontSize: "18px",
+      fontWeight: "600",
+      color: "#6366f1",
     },
     statLabel: {
       fontSize: "14px",
       color: "#9ca3af",
-      marginBottom: "5px",
-    },
-    statValue: {
-      fontSize: "24px",
-      fontWeight: "600",
-      color: "#f9fafb",
-    },
-    statSubValue: {
-      fontSize: "12px",
-      color: "#6b7280",
-      marginTop: "3px",
     },
     filterBar: {
       backgroundColor: "#1f2937",
@@ -528,7 +403,7 @@ const BillItemsPage = () => {
     },
     searchBox: {
       flex: 1,
-      minWidth: "250px",
+      minWidth: "300px",
       position: "relative",
     },
     searchIcon: {
@@ -541,25 +416,6 @@ const BillItemsPage = () => {
     searchInput: {
       width: "100%",
       padding: "10px 10px 10px 40px",
-      backgroundColor: "#111827",
-      border: "1px solid #374151",
-      color: "#fff",
-      borderRadius: "6px",
-      fontSize: "14px",
-      outline: "none",
-    },
-    filterSelect: {
-      padding: "10px",
-      backgroundColor: "#111827",
-      border: "1px solid #374151",
-      color: "#fff",
-      borderRadius: "6px",
-      fontSize: "14px",
-      minWidth: "150px",
-      outline: "none",
-    },
-    dateInput: {
-      padding: "10px",
       backgroundColor: "#111827",
       border: "1px solid #374151",
       color: "#fff",
@@ -589,7 +445,7 @@ const BillItemsPage = () => {
     table: {
       width: "100%",
       borderCollapse: "collapse",
-      minWidth: "1400px",
+      minWidth: "1000px",
     },
     th: {
       backgroundColor: "#374151",
@@ -606,15 +462,6 @@ const BillItemsPage = () => {
       fontSize: "13px",
       color: "#f9fafb",
     },
-    statusBadge: {
-      padding: "4px 10px",
-      borderRadius: "15px",
-      fontSize: "11px",
-      fontWeight: "500",
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "4px",
-    },
     actionButton: {
       padding: "6px 10px",
       border: "none",
@@ -624,6 +471,8 @@ const BillItemsPage = () => {
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
+      backgroundColor: "#3b82f6",
+      color: "white",
     },
     message: {
       padding: "12px 20px",
@@ -712,7 +561,7 @@ const BillItemsPage = () => {
       backgroundColor: "#1f2937",
       padding: "25px",
       borderRadius: "8px",
-      maxWidth: "500px",
+      maxWidth: "400px",
       width: "90%",
       maxHeight: "80vh",
       overflow: "auto",
@@ -760,7 +609,7 @@ const BillItemsPage = () => {
   if (loading && items.length === 0) {
     return (
       <div style={styles.container}>
-        <div style={styles.loadingSpinner}>Loading bill items...</div>
+        <div style={styles.loadingSpinner}>Loading items...</div>
       </div>
     );
   }
@@ -771,9 +620,7 @@ const BillItemsPage = () => {
       {message.text && (
         <div style={{
           ...styles.message,
-          ...(message.type === "success" ? styles.successMessage : 
-             message.type === "error" ? styles.errorMessage : 
-             styles.infoMessage)
+          ...(message.type === "success" ? styles.successMessage : styles.errorMessage)
         }}>
           {message.text.split('\n').map((line, i) => (
             <div key={i}>{line}</div>
@@ -786,7 +633,7 @@ const BillItemsPage = () => {
         <div style={styles.headerTitle}>
           <h1 style={styles.title}>
             <Package size={32} color="#6366f1" />
-            Bill Items
+            Items List
           </h1>
           <button 
             style={styles.refreshButton}
@@ -813,59 +660,18 @@ const BillItemsPage = () => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Simple Statistics - Just Total Count */}
       <div style={styles.statsContainer}>
-        <div style={styles.statCard}>
-          <div style={{...styles.statIcon, background: 'rgba(99, 102, 241, 0.2)', color: '#6366f1'}}>
-            <Package size={24} />
-          </div>
-          <div style={styles.statInfo}>
-            <div style={styles.statLabel}>Total Items</div>
-            <div style={styles.statValue}>{statistics.totalItems}</div>
-            <div style={styles.statSubValue}>Across {statistics.uniqueBills} bills</div>
-          </div>
+        <div style={styles.statBadge}>
+          <Package size={18} color="#6366f1" />
+          <span style={styles.statLabel}>Total Items:</span>
+          <span style={styles.statValue}>{filteredItems.length}</span>
         </div>
-
-        <div style={styles.statCard}>
-          <div style={{...styles.statIcon, background: 'rgba(5, 150, 105, 0.2)', color: '#059669'}}>
-            <CheckCircle size={24} />
+        {filteredItems.length !== items.length && (
+          <div style={styles.statBadge}>
+            <span style={styles.statLabel}>(Filtered from {items.length})</span>
           </div>
-          <div style={styles.statInfo}>
-            <div style={styles.statLabel}>Completed</div>
-            <div style={styles.statValue}>{statistics.completedItems}</div>
-            <div style={styles.statSubValue}>
-              {statistics.totalItems > 0 
-                ? `${((statistics.completedItems / statistics.totalItems) * 100).toFixed(1)}%` 
-                : '0%'}
-            </div>
-          </div>
-        </div>
-
-        <div style={styles.statCard}>
-          <div style={{...styles.statIcon, background: 'rgba(180, 83, 9, 0.2)', color: '#b45309'}}>
-            <Clock size={24} />
-          </div>
-          <div style={styles.statInfo}>
-            <div style={styles.statLabel}>Pending</div>
-            <div style={styles.statValue}>{statistics.pendingItems}</div>
-            <div style={styles.statSubValue}>
-              {statistics.totalItems > 0 
-                ? `${((statistics.pendingItems / statistics.totalItems) * 100).toFixed(1)}%` 
-                : '0%'}
-            </div>
-          </div>
-        </div>
-
-        <div style={styles.statCard}>
-          <div style={{...styles.statIcon, background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6'}}>
-            <TrendingUp size={24} />
-          </div>
-          <div style={styles.statInfo}>
-            <div style={styles.statLabel}>Total Value</div>
-            <div style={styles.statValue}>₹{statistics.totalValue.toFixed(2)}</div>
-            <div style={styles.statSubValue}>Avg: ₹{statistics.averageItemValue.toFixed(2)}</div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -875,37 +681,11 @@ const BillItemsPage = () => {
           <input
             type="text"
             style={styles.searchInput}
-            placeholder="Search by product, model, bill number, customer..."
+            placeholder="Search by ID, product, model, or type..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
-        <select
-          style={styles.filterSelect}
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-        >
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-        </select>
-
-        <input
-          type="date"
-          style={styles.dateInput}
-          value={dateRange.start}
-          onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-          placeholder="Start Date"
-        />
-
-        <input
-          type="date"
-          style={styles.dateInput}
-          value={dateRange.end}
-          onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-          placeholder="End Date"
-        />
 
         <button 
           style={styles.filterButton}
@@ -922,39 +702,32 @@ const BillItemsPage = () => {
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Bill No.</th>
+              <th style={styles.th}>ID</th>
               <th style={styles.th}>Date</th>
-              <th style={styles.th}>Customer</th>
               <th style={styles.th}>Product</th>
               <th style={styles.th}>Model</th>
               <th style={styles.th}>Type</th>
               <th style={styles.th}>Price</th>
               <th style={styles.th}>Qty</th>
               <th style={styles.th}>Total</th>
-              <th style={styles.th}>Status</th>
               <th style={styles.th}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {currentItems.length === 0 ? (
               <tr>
-                <td colSpan="11" style={styles.noData}>
-                  {searchTerm || filterStatus !== 'all' || dateRange.start 
-                    ? 'No items match your filters' 
-                    : 'No items found'}
+                <td colSpan="9" style={styles.noData}>
+                  {searchTerm ? 'No items match your search' : 'No items found'}
                 </td>
               </tr>
             ) : (
               currentItems.map((item, index) => (
                 <tr key={`${item.billId}-${item.id}-${index}`}>
                   <td style={styles.td}>
-                    <strong>{item.billNumber}</strong>
+                    <strong>{item.id}</strong>
                   </td>
                   <td style={styles.td}>
                     {item.billDate ? new Date(item.billDate).toLocaleDateString() : '-'}
-                  </td>
-                  <td style={styles.td}>
-                    {item.customerName || 'Walk-in'}
                   </td>
                   <td style={styles.td}>
                     {item.product_name || '-'}
@@ -975,18 +748,8 @@ const BillItemsPage = () => {
                     <strong>₹{item.total || 0}</strong>
                   </td>
                   <td style={styles.td}>
-                    <span style={{
-                      ...styles.statusBadge,
-                      backgroundColor: getStatusColor(item.item_status).background,
-                      color: getStatusColor(item.item_status).color
-                    }}>
-                      {getStatusIcon(item.item_status)}
-                      {item.item_status}
-                    </span>
-                  </td>
-                  <td style={styles.td}>
                     <button
-                      style={{...styles.actionButton, backgroundColor: '#3b82f6', color: 'white'}}
+                      style={styles.actionButton}
                       onClick={() => fetchItemDetails(item.id, item.billId)}
                       title="View Details"
                     >
@@ -1074,27 +837,17 @@ const BillItemsPage = () => {
             <h2 style={styles.modalTitle}>Item Details</h2>
             
             <div style={styles.modalSection}>
-              <div style={styles.modalLabel}>Bill Number</div>
-              <div style={styles.modalValue}>{selectedItem.billNumber}</div>
+              <div style={styles.modalLabel}>Item ID</div>
+              <div style={styles.modalValue}>{selectedItem.id}</div>
               
               <div style={styles.modalLabel}>Date</div>
               <div style={styles.modalValue}>{new Date(selectedItem.billDate).toLocaleString()}</div>
-              
-              <div style={styles.modalLabel}>Customer</div>
-              <div style={styles.modalValue}>{selectedItem.customerName || 'Walk-in'}</div>
-              
-              {selectedItem.customerPhone && (
-                <>
-                  <div style={styles.modalLabel}>Phone</div>
-                  <div style={styles.modalValue}>{selectedItem.customerPhone}</div>
-                </>
-              )}
             </div>
 
             <div style={styles.divider} />
 
             <div style={styles.modalSection}>
-              <div style={styles.modalLabel}>Product</div>
+              <div style={styles.modalLabel}>Product Name</div>
               <div style={styles.modalValue}>{selectedItem.product_name}</div>
               
               {selectedItem.product_model && (
@@ -1111,37 +864,14 @@ const BillItemsPage = () => {
                 </>
               )}
               
-              <div style={styles.modalLabel}>Price</div>
+              <div style={styles.modalLabel}>Price per Unit</div>
               <div style={styles.modalValue}>₹{selectedItem.sell_price}</div>
               
               <div style={styles.modalLabel}>Quantity</div>
               <div style={styles.modalValue}>{selectedItem.quantity}</div>
               
-              <div style={styles.modalLabel}>Total</div>
+              <div style={styles.modalLabel}>Total Amount</div>
               <div style={styles.modalValue}><strong>₹{selectedItem.total}</strong></div>
-            </div>
-
-            <div style={styles.divider} />
-
-            <div style={styles.modalSection}>
-              <div style={styles.modalLabel}>Status</div>
-              <div>
-                <span style={{
-                  ...styles.statusBadge,
-                  backgroundColor: getStatusColor(selectedItem.item_status).background,
-                  color: getStatusColor(selectedItem.item_status).color,
-                  display: 'inline-flex'
-                }}>
-                  {getStatusIcon(selectedItem.item_status)}
-                  {selectedItem.item_status}
-                </span>
-              </div>
-              
-              <div style={styles.modalLabel}>Payment Method</div>
-              <div style={styles.modalValue}>{selectedItem.paymentMethod || 'N/A'}</div>
-              
-              <div style={styles.modalLabel}>Payment Status</div>
-              <div style={styles.modalValue}>{selectedItem.paymentStatus || 'N/A'}</div>
             </div>
           </div>
         </div>

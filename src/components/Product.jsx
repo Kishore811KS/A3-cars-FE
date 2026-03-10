@@ -1,8 +1,9 @@
 // ItemsPage.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { 
   Plus, Download, Upload, Trash2, Save, Search, RefreshCw, 
-  Truck, FileText, X, CheckCircle, Clock, ChevronLeft, ChevronRight 
+  X, CheckCircle, Clock, ChevronLeft, ChevronRight,
+  Edit, Hash
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -18,15 +19,15 @@ export default function ItemsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  // Supply modal state
-  const [showSupplyModal, setShowSupplyModal] = useState(false);
-  const [supplyItems, setSupplyItems] = useState([]);
-  const [loadingSupply, setLoadingSupply] = useState(false);
-  const [selectedSupplyItems, setSelectedSupplyItems] = useState(new Set());
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Pending bills modal state
   const [showPendingBillsModal, setShowPendingBillsModal] = useState(false);
@@ -36,9 +37,13 @@ export default function ItemsPage() {
   const [billItems, setBillItems] = useState([]);
   const [processingBill, setProcessingBill] = useState(false);
 
+  // Track processed supply items to prevent duplicates
+  const processedItemIds = useRef(new Set());
+  const isProcessing = useRef(false);
+
   // ================= LOAD FROM BACKEND =================
   useEffect(() => {
-    loadProducts();
+    loadProducts(1);
   }, []);
 
   // Reset to first page when search changes
@@ -56,39 +61,61 @@ export default function ItemsPage() {
     }
   }, [message]);
 
+  // Check for pending supply items on component mount and periodically
+  useEffect(() => {
+    // Initial check with a small delay to ensure component is ready
+    const initialCheck = setTimeout(() => {
+      checkAndProcessPendingSupplies();
+    }, 1000);
+    
+    // Check every 30 seconds for new pending supplies
+    const interval = setInterval(checkAndProcessPendingSupplies, 30000);
+    
+    return () => {
+      clearTimeout(initialCheck);
+      clearInterval(interval);
+    };
+  }, []);
+
   const showMessage = (type, text) => {
     setMessage({ type, text });
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(API_URL);
+      const res = await fetch(`${API_URL}?page=${page}&per_page=${itemsPerPage}`);
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       
       const data = await res.json();
       
-      // Handle different response formats
       let productsArray = [];
-      if (Array.isArray(data)) {
-        productsArray = data;
-      } else if (data && Array.isArray(data.items)) {
+      if (data && data.items && Array.isArray(data.items)) {
         productsArray = data.items;
+        setTotalItems(data.total || 0);
+        setTotalPages(data.pages || 1);
+        setCurrentPage(data.current_page || page);
+      } else if (Array.isArray(data)) {
+        productsArray = data;
+        setTotalItems(productsArray.length);
+        setTotalPages(Math.ceil(productsArray.length / itemsPerPage));
       } else if (data && data.data && Array.isArray(data.data)) {
         productsArray = data.data;
+        setTotalItems(productsArray.length);
+        setTotalPages(Math.ceil(productsArray.length / itemsPerPage));
       } else {
         console.warn('Unexpected API response format:', data);
         productsArray = [];
+        setTotalItems(0);
+        setTotalPages(1);
       }
       
-      // Calculate values for each product
+      // Calculate amount for each product
       const processedItems = productsArray.map(item => 
-        calculateValues({ ...item, id: item.id })
+        calculateAmount({ ...item, id: item.id })
       );
       
       setItems(processedItems);
-      setCurrentPage(1); // Reset to first page on new load
-      showMessage("success", "Products loaded successfully!");
     } catch (err) {
       console.error("Error fetching products:", err);
       showMessage("error", "Failed to load products");
@@ -97,10 +124,18 @@ export default function ItemsPage() {
     }
   };
 
-  // ================= LOAD SUPPLY ITEMS (PENDING STATUS) =================
-  const loadSupplyItems = async () => {
-    setLoadingSupply(true);
+  // ================= AUTO-PROCESS PENDING SUPPLIES =================
+  const checkAndProcessPendingSupplies = async () => {
+    // Prevent concurrent processing
+    if (isProcessing.current) {
+      console.log("Already processing supplies, skipping...");
+      return;
+    }
+
     try {
+      isProcessing.current = true;
+      console.log("Checking for pending supply items...");
+      
       // Fetch all suppliers with their items
       const res = await fetch(`${SUPPLIER_API_URL}/suppliers-with-items`, {
         credentials: 'include'
@@ -111,38 +146,169 @@ export default function ItemsPage() {
       const data = await res.json();
       
       if (data.success && data.suppliers) {
-        // Extract all items with status "Pending" from all suppliers
+        // Find all items with status "Pending" that haven't been processed yet
         const pendingItems = [];
         
         data.suppliers.forEach(supplier => {
           if (supplier.items && supplier.items.length > 0) {
             supplier.items.forEach(item => {
-              if (item.status === "Pending") {
+              // Only process if status is "Pending" and we haven't processed it in this session
+              if (item.status === "Pending" && !processedItemIds.current.has(item.id)) {
                 pendingItems.push({
                   ...item,
                   supplierName: supplier.name,
                   supplierCompany: supplier.company,
-                  supplierId: supplier.id,
-                  // Add a unique key for selection
-                  selectionKey: `${item.id}-${supplier.id}`
+                  supplierId: supplier.id
                 });
               }
             });
           }
         });
         
-        setSupplyItems(pendingItems);
-        setSelectedSupplyItems(new Set());
-        
-        if (pendingItems.length === 0) {
-          showMessage("info", "No pending supply items found");
+        if (pendingItems.length > 0) {
+          console.log(`Found ${pendingItems.length} new pending supply items, auto-processing...`);
+          await processPendingSupplies(pendingItems);
+        } else {
+          console.log("No new pending supply items found");
         }
       }
     } catch (err) {
-      console.error("Error loading supply items:", err);
-      showMessage("error", "Failed to load supply items");
+      console.error("Error checking pending supplies:", err);
     } finally {
-      setLoadingSupply(false);
+      isProcessing.current = false;
+    }
+  };
+
+  const processPendingSupplies = async (pendingItems) => {
+    try {
+      // Fetch all products to check for duplicates
+      const allProductsRes = await fetch(`${API_URL}?page=1&per_page=1000`);
+      const allProductsData = await allProductsRes.json();
+      let allProducts = [];
+      
+      if (allProductsData && allProductsData.items && Array.isArray(allProductsData.items)) {
+        allProducts = allProductsData.items;
+      }
+
+      let addedCount = 0;
+      let updatedCount = 0;
+      const successfullyProcessed = [];
+
+      for (const supplyItem of pendingItems) {
+        try {
+          // Double-check if this item hasn't been processed by another instance
+          if (processedItemIds.current.has(supplyItem.id)) {
+            console.log(`Item ${supplyItem.id} already processed, skipping...`);
+            continue;
+          }
+
+          // Check if product already exists in inventory
+          const existingItem = allProducts.find(item => 
+            isSameProduct(item, supplyItem)
+          );
+
+          if (existingItem) {
+            // Update quantity of existing item
+            const supplyQty = parseInt(supplyItem.quantity) || 1;
+            const currentQty = parseInt(existingItem.quantity) || 0;
+            const newQty = currentQty + supplyQty;
+            
+            console.log(`Updating ${existingItem.name}: ${currentQty} + ${supplyQty} = ${newQty}`);
+            
+            // Update in backend
+            const updateRes = await fetch(`${API_URL}/${existingItem.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: existingItem.name,
+                model: existingItem.model || "",
+                type: existingItem.type || "",
+                watts: existingItem.watts || "",
+                buyPrice: existingItem.buyPrice || 0,
+                sellPrice: existingItem.sellPrice || 0,
+                quantity: newQty,
+              }),
+            });
+
+            if (updateRes.ok) {
+              updatedCount++;
+              successfullyProcessed.push(supplyItem.id);
+            }
+          } else {
+            // Create new product
+            const supplyQty = parseInt(supplyItem.quantity) || 1;
+            
+            const newItem = {
+              name: supplyItem.name,
+              model: supplyItem.model || "",
+              type: supplyItem.type || "",
+              watts: supplyItem.watts || "",
+              buyPrice: parseFloat(supplyItem.buy_price || supplyItem.buyPrice || 0),
+              sellPrice: parseFloat(supplyItem.sell_price || supplyItem.sellPrice || 0),
+              quantity: supplyQty,
+            };
+
+            console.log('Creating new product:', newItem);
+
+            const createRes = await fetch(API_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newItem),
+            });
+
+            if (createRes.ok) {
+              addedCount++;
+              successfullyProcessed.push(supplyItem.id);
+            } else {
+              const errorData = await createRes.json();
+              console.error('Failed to create product:', errorData);
+            }
+          }
+
+          // Only update status if the product operation was successful
+          if (successfullyProcessed.includes(supplyItem.id)) {
+            // Mark as processed in our local set
+            processedItemIds.current.add(supplyItem.id);
+            
+            // Update the supply item status to "In Inventory"
+            await updateSupplyItemStatus(supplyItem.id, "In Inventory");
+          }
+        } catch (itemError) {
+          console.error(`Error processing supply item ${supplyItem.id}:`, itemError);
+        }
+      }
+
+      if (addedCount > 0 || updatedCount > 0) {
+        // Refresh products to get latest data
+        await loadProducts(currentPage);
+        
+        showMessage("success", 
+          `Auto-processed ${successfullyProcessed.length} supply item(s):\n` +
+          `📦 ${addedCount} new product(s) added\n` +
+          `📈 ${updatedCount} existing product(s) updated`
+        );
+      }
+      
+    } catch (err) {
+      console.error("Error processing pending supplies:", err);
+    }
+  };
+
+  // ================= UPDATE SUPPLY ITEM STATUS =================
+  const updateSupplyItemStatus = async (itemId, newStatus) => {
+    try {
+      const response = await fetch(`${SUPPLIER_API_URL}/items/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      
+      if (!response.ok) {
+        console.error(`Failed to update status for item ${itemId}`);
+      }
+    } catch (err) {
+      console.error(`Error updating status for item ${itemId}:`, err);
     }
   };
 
@@ -150,7 +316,6 @@ export default function ItemsPage() {
   const loadPendingBills = async () => {
     setLoadingPendingBills(true);
     try {
-      // Fetch bills with pending items
       const res = await fetch(`${BILLING_API_URL}/bills/pending-items`, {
         credentials: 'include'
       });
@@ -190,6 +355,12 @@ export default function ItemsPage() {
     }
   };
 
+  // ================= SELECT BILL TO VIEW ITEMS =================
+  const handleSelectBill = (bill) => {
+    setSelectedBill(bill);
+    loadBillItems(bill.id);
+  };
+
   // ================= PROCESS BILL ITEM (COMPLETE) =================
   const handleProcessBillItem = async (itemId, billId) => {
     try {
@@ -206,17 +377,14 @@ export default function ItemsPage() {
       if (data.success) {
         showMessage("success", "Item completed successfully!");
         
-        // Update the item status in the local state
         setBillItems(prevItems =>
           prevItems.map(item =>
             item.id === itemId ? { ...item, item_status: 'completed' } : item
           )
         );
 
-        // Reload products to get updated quantities
-        await loadProducts();
+        await loadProducts(currentPage);
         
-        // Check if all items in the bill are completed
         const updatedItems = billItems.map(item =>
           item.id === itemId ? { ...item, item_status: 'completed' } : item
         );
@@ -224,7 +392,6 @@ export default function ItemsPage() {
         const allCompleted = updatedItems.every(item => item.item_status === 'completed');
         
         if (allCompleted) {
-          // Refresh pending bills list
           await loadPendingBills();
           setSelectedBill(null);
           setBillItems([]);
@@ -255,8 +422,7 @@ export default function ItemsPage() {
       if (data.success) {
         showMessage("success", `Successfully completed ${data.completedCount} items!`);
         
-        // Refresh data
-        await loadProducts();
+        await loadProducts(currentPage);
         await loadPendingBills();
         setSelectedBill(null);
         setBillItems([]);
@@ -269,20 +435,16 @@ export default function ItemsPage() {
     }
   };
 
-  // ================= AUTO CALCULATION =================
-  const calculateValues = (item) => {
-    const buy = parseFloat(item.buyPrice) || 0;
+  // ================= CALCULATE AMOUNT =================
+  const calculateAmount = (item) => {
     const sell = parseFloat(item.sellPrice) || 0;
     const qty = parseInt(item.quantity) || 0;
-
-    const profitPercent = buy > 0 ? (((sell - buy) / buy) * 100).toFixed(2) : "0.00";
     const amount = (sell * qty).toFixed(2);
 
     return { 
       ...item, 
-      profitPercent, 
       amount,
-      buyPrice: buy,
+      buyPrice: parseFloat(item.buyPrice) || 0,
       sellPrice: sell,
       quantity: qty
     };
@@ -290,7 +452,6 @@ export default function ItemsPage() {
 
   // ================= DUPLICATE CHECK =================
   const isSameProduct = (a, b) => {
-    // Handle both naming conventions (buyPrice vs buy_price)
     const aBuyPrice = parseFloat(a.buyPrice || a.buy_price || 0);
     const bBuyPrice = parseFloat(b.buyPrice || b.buy_price || 0);
     
@@ -303,376 +464,108 @@ export default function ItemsPage() {
     );
   };
 
-  // ================= ADD SUPPLY ITEMS TO INVENTORY =================
-  const handleAddSupplyItems = async () => {
-    if (selectedSupplyItems.size === 0) {
-      showMessage("error", "Please select at least one item");
+  // ================= EDIT ITEM FUNCTIONS =================
+  const handleEditClick = (item) => {
+    setEditingItem({ ...item });
+    setShowEditModal(true);
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditingItem(prev => {
+      const updated = { ...prev, [field]: value };
+      return calculateAmount(updated);
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editingItem) return;
+
+    // Validate required fields
+    if (!editingItem.name || editingItem.name.trim() === '') {
+      showMessage("error", "Product name is required");
       return;
     }
 
     setSaving(true);
-    
     try {
-      const selectedItems = Array.from(selectedSupplyItems).map(key => 
-        supplyItems.find(item => item.selectionKey === key)
-      );
+      // Prepare the data for API - ensure all fields are properly formatted
+      const productData = {
+        name: editingItem.name.trim(),
+        model: editingItem.model?.trim() || "",
+        type: editingItem.type?.trim() || "",
+        watts: editingItem.watts?.toString() || "",
+        buyPrice: parseFloat(editingItem.buyPrice) || 0,
+        sellPrice: parseFloat(editingItem.sellPrice) || 0,
+        quantity: parseInt(editingItem.quantity) || 0,
+      };
 
-      let updatedItems = [...items];
-      const processedItems = [];
+      console.log('Saving product data:', productData);
 
-      for (const supplyItem of selectedItems) {
-        // Check if product already exists in inventory
-        const existingItem = updatedItems.find(item => 
-          isSameProduct(item, supplyItem)
-        );
-
-        if (existingItem) {
-          // Update quantity of existing item
-          const supplyQty = parseInt(supplyItem.quantity) || 1;
-          const currentQty = parseInt(existingItem.quantity) || 0;
-          const newQty = currentQty + supplyQty;
-          
-          console.log(`Updating ${existingItem.name}: ${currentQty} + ${supplyQty} = ${newQty}`);
-          
-          // Update in backend
-          const updatedProduct = calculateValues({
-            ...existingItem,
-            quantity: newQty
-          });
-
-          const res = await fetch(`${API_URL}/${existingItem.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: updatedProduct.name,
-              model: updatedProduct.model || "",
-              type: updatedProduct.type || "",
-              watts: updatedProduct.watts || "",
-              buyPrice: updatedProduct.buyPrice || 0,
-              sellPrice: updatedProduct.sellPrice || 0,
-              quantity: updatedProduct.quantity || 0,
-            }),
-          });
-
-          if (!res.ok) throw new Error(`Failed to update product ${existingItem.name}`);
-
-          // Update in local array
-          updatedItems = updatedItems.map(item =>
-            item.id === existingItem.id ? updatedProduct : item
-          );
-
-          processedItems.push({
-            ...supplyItem,
-            action: 'updated',
-            oldQuantity: currentQty,
-            addedQuantity: supplyQty,
-            newQuantity: newQty
-          });
-        } else {
-          // Create new product
-          const supplyQty = parseInt(supplyItem.quantity) || 1;
-          
-          const newItem = {
-            name: supplyItem.name,
-            model: supplyItem.model || "",
-            type: supplyItem.type || "",
-            watts: supplyItem.watts || "",
-            buyPrice: parseFloat(supplyItem.buy_price || supplyItem.buyPrice || 0),
-            sellPrice: parseFloat(supplyItem.sell_price || supplyItem.sellPrice || 0),
-            quantity: supplyQty,
-          };
-
-          console.log('Creating new product:', newItem);
-
-          const res = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newItem),
-          });
-
-          if (!res.ok) throw new Error(`Failed to create product ${supplyItem.name}`);
-
-          const savedItem = await res.json();
-          const processedItem = calculateValues({ ...savedItem, isNew: false });
-          
-          updatedItems.push(processedItem);
-          
-          processedItems.push({
-            ...supplyItem,
-            action: 'created',
-            quantity: supplyQty,
-            newId: savedItem.id
-          });
-        }
-
-        // Update the supply item status to "In Inventory"
-        await updateSupplyItemStatus(supplyItem.id, "In Inventory");
-      }
-
-      setItems(updatedItems);
-      setCurrentPage(1); // Reset to first page after adding items
-      setShowSupplyModal(false);
-      
-      // Show success message with summary
-      const summary = processedItems.map(item => {
-        if (item.action === 'updated') {
-          return `${item.name}: Added ${item.addedQuantity} to existing stock (was ${item.oldQuantity}, now ${item.newQuantity})`;
-        } else {
-          return `${item.name}: Added as new product with quantity ${item.quantity}`;
-        }
-      }).join('\n');
-      
-      showMessage("success", `Successfully added ${processedItems.length} item(s) to inventory!\n${summary}`);
-      
-      // Refresh products to get latest data
-      await loadProducts();
-      
-    } catch (err) {
-      console.error("Error adding supply items:", err);
-      showMessage("error", `Failed to add items: ${err.message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ================= UPDATE SUPPLY ITEM STATUS =================
-  const updateSupplyItemStatus = async (itemId, newStatus) => {
-    try {
-      const res = await fetch(`${SUPPLIER_API_URL}/items/${itemId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!res.ok) {
-        console.warn(`Failed to update status for item ${itemId}`);
-      }
-    } catch (err) {
-      console.error(`Error updating status for item ${itemId}:`, err);
-    }
-  };
-
-  // ================= TOGGLE SUPPLY ITEM SELECTION =================
-  const toggleSupplyItem = (selectionKey) => {
-    setSelectedSupplyItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(selectionKey)) {
-        newSet.delete(selectionKey);
+      let response;
+      if (editingItem.isNew) {
+        // Create new product
+        response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(productData),
+        });
       } else {
-        newSet.add(selectionKey);
-      }
-      return newSet;
-    });
-  };
-
-  // ================= SELECT ALL SUPPLY ITEMS =================
-  const toggleSelectAllSupply = () => {
-    if (selectedSupplyItems.size === supplyItems.length) {
-      setSelectedSupplyItems(new Set());
-    } else {
-      setSelectedSupplyItems(new Set(supplyItems.map(item => item.selectionKey)));
-    }
-  };
-
-  // ================= OPEN SUPPLY MODAL =================
-  const handleOpenSupplyModal = () => {
-    setShowSupplyModal(true);
-    loadSupplyItems();
-  };
-
-  // ================= OPEN PENDING BILLS MODAL =================
-  const handleOpenPendingBillsModal = () => {
-    setShowPendingBillsModal(true);
-    loadPendingBills();
-  };
-
-  // ================= SELECT BILL TO VIEW ITEMS =================
-  const handleSelectBill = (bill) => {
-    setSelectedBill(bill);
-    loadBillItems(bill.id);
-  };
-
-  // ================= ADD EMPTY ROW =================
-  const handleAddRows = () => {
-    const input = prompt("How many rows you want to add?", "1");
-    if (!input) return;
-    
-    const count = parseInt(input) || 0;
-    if (count <= 0) return;
-
-    const newRows = Array.from({ length: count }, (_, i) => {
-      const newId = `new-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`;
-      return calculateValues({
-        id: newId,
-        name: "",
-        model: "",
-        type: "",
-        watts: "",
-        buyPrice: "",
-        sellPrice: "",
-        quantity: "",
-        profitPercent: "0.00",
-        amount: "0.00",
-        isNew: true,
-      });
-    });
-
-    setItems((prev) => [...prev, ...newRows]);
-    // Go to last page to show new rows
-    const newTotalItems = items.length + newRows.length;
-    const lastPage = Math.ceil(newTotalItems / itemsPerPage);
-    setCurrentPage(lastPage);
-    showMessage("success", `${count} row(s) added`);
-  };
-
-  // ================= HANDLE INPUT CHANGE =================
-  const handleChange = (id, field, value) => {
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === id
-          ? calculateValues({ ...item, [field]: value })
-          : item
-      )
-    );
-  };
-
-  // ================= VALIDATE ITEM =================
-  const validateItem = (item) => {
-    const errors = [];
-    
-    if (!item.name?.trim()) errors.push("Name is required");
-    if (item.sellPrice <= 0) errors.push("Sell price must be greater than 0");
-    if (item.quantity < 0) errors.push("Quantity cannot be negative");
-    
-    return errors;
-  };
-
-  // ================= SAVE TO BACKEND =================
-  const handleSave = async () => {
-    setSaving(true);
-    
-    try {
-      let updatedItems = [...items];
-      const errors = [];
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        
-        // Skip empty rows
-        if (!item.name?.trim()) continue;
-
-        // Validate item
-        const itemErrors = validateItem(item);
-        if (itemErrors.length > 0) {
-          errors.push(`Row ${i + 1}: ${itemErrors.join(", ")}`);
-          continue;
-        }
-
-        if (item.isNew) {
-          // Check if duplicate exists in database (not in new items)
-          const existingInDB = updatedItems.find(
-            (dbItem) => !dbItem.isNew && isSameProduct(dbItem, item)
-          );
-
-          if (existingInDB) {
-            // Update quantity of existing product
-            const newQty = (existingInDB.quantity || 0) + (item.quantity || 0);
-            
-            const updatedProduct = calculateValues({
-              ...existingInDB,
-              quantity: newQty,
-            });
-
-            // Update in backend
-            const res = await fetch(`${API_URL}/${existingInDB.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: updatedProduct.name,
-                model: updatedProduct.model || "",
-                type: updatedProduct.type || "",
-                watts: updatedProduct.watts || "",
-                buyPrice: updatedProduct.buyPrice || 0,
-                sellPrice: updatedProduct.sellPrice || 0,
-                quantity: updatedProduct.quantity || 0,
-              }),
-            });
-
-            if (!res.ok) throw new Error(`Failed to update product ${existingInDB.name}`);
-
-            // Remove the new row
-            updatedItems = updatedItems.filter((itm) => itm.id !== item.id);
-            
-            // Update the existing row
-            updatedItems = updatedItems.map((itm) =>
-              itm.id === existingInDB.id ? updatedProduct : itm
-            );
-          } else {
-            // Create new product
-            const productData = {
-              name: item.name,
-              model: item.model || "",
-              type: item.type || "",
-              watts: item.watts || "",
-              buyPrice: item.buyPrice || 0,
-              sellPrice: item.sellPrice || 0,
-              quantity: item.quantity || 0,
-            };
-
-            const res = await fetch(API_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(productData),
-            });
-
-            if (!res.ok) throw new Error(`Failed to create product ${item.name}`);
-
-            const savedItem = await res.json();
-            
-            // Replace new item with saved item
-            updatedItems = updatedItems.map((itm) =>
-              itm.id === item.id 
-                ? calculateValues({ ...savedItem, isNew: false })
-                : itm
-            );
-          }
-        } else {
-          // Update existing item
-          const productData = {
-            name: item.name,
-            model: item.model || "",
-            type: item.type || "",
-            watts: item.watts || "",
-            buyPrice: item.buyPrice || 0,
-            sellPrice: item.sellPrice || 0,
-            quantity: item.quantity || 0,
-          };
-
-          const res = await fetch(`${API_URL}/${item.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(productData),
-          });
-
-          if (!res.ok) throw new Error(`Failed to update product ${item.name}`);
-        }
+        // Update existing product
+        response = await fetch(`${API_URL}/${editingItem.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(productData),
+        });
       }
 
-      if (errors.length > 0) {
-        showMessage("error", errors.join("\n"));
-      } else {
-        setItems(updatedItems);
-        showMessage("success", "Saved Successfully!");
-        // Refresh to get latest data
-        loadProducts();
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.errors ? errorData.errors.join(', ') : `Failed to ${editingItem.isNew ? 'create' : 'update'} product`);
       }
+
+      const savedProduct = await response.json();
+      console.log('Product saved successfully:', savedProduct);
+
+      showMessage("success", `Item ${editingItem.isNew ? 'created' : 'updated'} successfully!`);
+      setShowEditModal(false);
+      setEditingItem(null);
+      
+      // Reload products to show the new/updated item
+      await loadProducts(currentPage);
+      
     } catch (err) {
       console.error("Save error:", err);
-      showMessage("error", `Error: ${err.message}`);
+      showMessage("error", `Failed to save item: ${err.message}`);
     } finally {
       setSaving(false);
     }
+  };
+
+  // ================= ADD NEW ITEM =================
+  const handleAddNewItem = () => {
+    // Create a new empty item with default values
+    const newItem = calculateAmount({
+      id: `new-${Date.now()}`,
+      name: "",
+      model: "",
+      type: "",
+      watts: "",
+      buyPrice: "",
+      sellPrice: "",
+      quantity: "",
+      isNew: true,
+    });
+    
+    console.log('Creating new item:', newItem);
+    setEditingItem(newItem);
+    setShowEditModal(true);
+  };
+
+  // ================= SAVE/REFRESH =================
+  const handleRefresh = async () => {
+    await loadProducts(currentPage);
+    showMessage("success", "Data refreshed!");
   };
 
   // ================= DELETE =================
@@ -680,33 +573,42 @@ export default function ItemsPage() {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
 
     try {
+      // Only try to delete from backend if it's not a temporary new item
       if (!String(id).startsWith("new-")) {
         const res = await fetch(`${API_URL}/${id}`, {
           method: "DELETE",
         });
         
-        if (!res.ok) throw new Error("Failed to delete product");
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to delete product");
+        }
       }
 
-      setItems((prev) => prev.filter((item) => item.id !== id));
-      // Adjust current page if needed
-      const filteredTotal = filteredItems.length - 1;
-      const maxPage = Math.ceil(filteredTotal / itemsPerPage);
-      if (currentPage > maxPage && currentPage > 1) {
-        setCurrentPage(maxPage);
-      }
       showMessage("success", "Item deleted successfully");
+      await loadProducts(currentPage);
+      
     } catch (err) {
       console.error("Delete error:", err);
-      showMessage("error", "Failed to delete item");
+      showMessage("error", `Failed to delete item: ${err.message}`);
     }
   };
 
   // ================= EXPORT TO EXCEL =================
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
-      // Prepare data for export
-      const exportData = items.map(item => ({
+      const res = await fetch(`${API_URL}?page=1&per_page=1000`);
+      const data = await res.json();
+      
+      let productsArray = [];
+      if (data && data.items && Array.isArray(data.items)) {
+        productsArray = data.items;
+      } else if (Array.isArray(data)) {
+        productsArray = data;
+      }
+
+      const exportData = productsArray.map(item => ({
+        'ID': item.id || '',
         'Name': item.name || '',
         'Model': item.model || '',
         'Type': item.type || '',
@@ -714,16 +616,15 @@ export default function ItemsPage() {
         'Buy Price': item.buyPrice || 0,
         'Sell Price': item.sellPrice || 0,
         'Quantity': item.quantity || 0,
-        'Profit %': item.profitPercent || '0.00',
-        'Amount': item.amount || '0.00'
+        'Amount': (item.sellPrice * item.quantity).toFixed(2) || '0.00'
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
 
-      // Auto-size columns
       const wscols = [
+        { wch: 8 },  // ID
         { wch: 20 }, // Name
         { wch: 15 }, // Model
         { wch: 15 }, // Type
@@ -731,7 +632,6 @@ export default function ItemsPage() {
         { wch: 12 }, // Buy Price
         { wch: 12 }, // Sell Price
         { wch: 10 }, // Quantity
-        { wch: 10 }, // Profit %
         { wch: 12 }, // Amount
       ];
       worksheet['!cols'] = wscols;
@@ -769,44 +669,23 @@ export default function ItemsPage() {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const newItems = jsonData.map((row, index) => {
-          // Map Excel columns to our fields
-          const item = {
-            name: row['Name'] || row['name'] || '',
-            model: row['Model'] || row['model'] || '',
-            type: row['Type'] || row['type'] || '',
-            watts: row['Watts'] || row['watts'] || '',
-            buyPrice: parseFloat(row['Buy Price'] || row['buyPrice'] || 0),
-            sellPrice: parseFloat(row['Sell Price'] || row['sellPrice'] || 0),
-            quantity: parseInt(row['Quantity'] || row['quantity'] || 0),
-          };
-
-          return calculateValues({
-            id: `new-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
-            ...item,
+        if (jsonData.length > 0) {
+          const firstRow = jsonData[0];
+          setEditingItem(calculateAmount({
+            id: `new-${Date.now()}`,
+            name: firstRow['Name'] || firstRow['name'] || '',
+            model: firstRow['Model'] || firstRow['model'] || '',
+            type: firstRow['Type'] || firstRow['type'] || '',
+            watts: firstRow['Watts'] || firstRow['watts'] || '',
+            buyPrice: parseFloat(firstRow['Buy Price'] || firstRow['buyPrice'] || 0),
+            sellPrice: parseFloat(firstRow['Sell Price'] || firstRow['sellPrice'] || 0),
+            quantity: parseInt(firstRow['Quantity'] || firstRow['quantity'] || 0),
             isNew: true,
-          });
-        });
-
-        // Filter out completely empty rows
-        const validNewItems = newItems.filter(item => 
-          item.name?.trim() || 
-          item.model?.trim() || 
-          item.type?.trim() || 
-          item.watts ||
-          item.buyPrice > 0 ||
-          item.sellPrice > 0 ||
-          item.quantity > 0
-        );
-
-        setItems((prev) => [...prev, ...validNewItems]);
-        // Go to last page to show imported items
-        const newTotalItems = items.length + validNewItems.length;
-        const lastPage = Math.ceil(newTotalItems / itemsPerPage);
-        setCurrentPage(lastPage);
-        showMessage("success", `Imported ${validNewItems.length} items`);
+          }));
+          setShowEditModal(true);
+          showMessage("success", `Imported ${jsonData.length} items. You can now create them one by one.`);
+        }
         
-        // Clear input
         e.target.value = '';
       } catch (err) {
         console.error("Import error:", err);
@@ -819,26 +698,38 @@ export default function ItemsPage() {
 
   // ================= PAGINATION FUNCTIONS =================
   const getCurrentPageItems = () => {
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    return filteredItems.slice(indexOfFirstItem, indexOfLastItem);
+    if (search) {
+      return items.filter(
+        (item) =>
+          item.name?.toLowerCase().includes(search.toLowerCase()) ||
+          item.model?.toLowerCase().includes(search.toLowerCase()) ||
+          item.type?.toLowerCase().includes(search.toLowerCase()) ||
+          String(item.id).includes(search)
+      );
+    }
+    return items;
   };
 
   const paginate = (pageNumber) => {
-    if (pageNumber > 0 && pageNumber <= Math.ceil(filteredItems.length / itemsPerPage)) {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
+      loadProducts(pageNumber);
     }
   };
 
   const goToPreviousPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+      const newPage = currentPage - 1;
+      setCurrentPage(newPage);
+      loadProducts(newPage);
     }
   };
 
   const goToNextPage = () => {
-    if (currentPage < Math.ceil(filteredItems.length / itemsPerPage)) {
-      setCurrentPage(currentPage + 1);
+    if (currentPage < totalPages) {
+      const newPage = currentPage + 1;
+      setCurrentPage(newPage);
+      loadProducts(newPage);
     }
   };
 
@@ -847,12 +738,11 @@ export default function ItemsPage() {
     (item) =>
       item.name?.toLowerCase().includes(search.toLowerCase()) ||
       item.model?.toLowerCase().includes(search.toLowerCase()) ||
-      item.type?.toLowerCase().includes(search.toLowerCase())
+      item.type?.toLowerCase().includes(search.toLowerCase()) ||
+      String(item.id).toLowerCase().includes(search.toLowerCase())
   );
 
-  // Get current page items
   const currentItems = getCurrentPageItems();
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
 
   // ================= MODAL STYLES =================
   const modalStyles = {
@@ -873,7 +763,7 @@ export default function ItemsPage() {
       padding: '24px',
       borderRadius: '8px',
       width: '90%',
-      maxWidth: '1000px',
+      maxWidth: '600px',
       maxHeight: '80vh',
       overflow: 'auto',
       border: '1px solid #374151',
@@ -897,32 +787,32 @@ export default function ItemsPage() {
       padding: '4px',
       borderRadius: '4px',
     },
-    modalTable: {
-      width: '100%',
-      borderCollapse: 'collapse',
-      marginBottom: '20px',
+    formGroup: {
+      marginBottom: '15px',
     },
-    modalTh: {
-      backgroundColor: '#374151',
-      padding: '10px',
-      textAlign: 'left',
-      color: '#f3f4f6',
-      fontWeight: '500',
-      fontSize: '12px',
-      position: 'sticky',
-      top: 0,
-    },
-    modalTd: {
-      padding: '10px',
-      borderBottom: '1px solid #374151',
-      color: '#f9fafb',
+    label: {
+      display: 'block',
+      marginBottom: '5px',
+      color: '#9ca3af',
       fontSize: '13px',
+      fontWeight: '500',
     },
-    checkbox: {
-      width: '18px',
-      height: '18px',
-      cursor: 'pointer',
-      accentColor: '#6366f1',
+    input: {
+      width: '100%',
+      padding: '10px',
+      backgroundColor: '#111827',
+      border: '1px solid #374151',
+      color: '#fff',
+      borderRadius: '4px',
+      fontSize: '14px',
+    },
+    readOnlyField: {
+      padding: '10px',
+      backgroundColor: '#1f2937',
+      border: '1px solid #374151',
+      color: '#9ca3af',
+      borderRadius: '4px',
+      fontSize: '14px',
     },
     modalFooter: {
       display: 'flex',
@@ -931,43 +821,6 @@ export default function ItemsPage() {
       marginTop: '20px',
       paddingTop: '20px',
       borderTop: '1px solid #374151',
-    },
-    statusBadge: {
-      padding: '4px 8px',
-      borderRadius: '4px',
-      fontSize: '11px',
-      fontWeight: '500',
-    },
-    pendingBadge: {
-      backgroundColor: '#b45309',
-      color: '#fff',
-    },
-    completedBadge: {
-      backgroundColor: '#059669',
-      color: '#fff',
-    },
-    processButton: {
-      backgroundColor: '#6366f1',
-      color: '#fff',
-      border: 'none',
-      padding: '6px 12px',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      fontSize: '12px',
-      fontWeight: '500',
-    },
-    billCard: {
-      backgroundColor: '#374151',
-      padding: '15px',
-      borderRadius: '6px',
-      marginBottom: '10px',
-      cursor: 'pointer',
-      border: '1px solid transparent',
-      transition: 'all 0.2s',
-    },
-    selectedBillCard: {
-      border: '2px solid #6366f1',
-      backgroundColor: '#4b5563',
     },
   };
 
@@ -1073,16 +926,6 @@ export default function ItemsPage() {
       fontWeight: "500",
       transition: "all 0.2s",
     },
-    supplyButton: {
-      backgroundColor: "#b45309",
-      color: "#fff",
-      border: "none",
-    },
-    billButton: {
-      backgroundColor: "#059669",
-      color: "#fff",
-      border: "none",
-    },
     pendingBillButton: {
       backgroundColor: "#7c3aed",
       color: "#fff",
@@ -1134,7 +977,7 @@ export default function ItemsPage() {
       width: "100%",
       borderCollapse: "collapse",
       backgroundColor: "#1f2937",
-      minWidth: "1200px",
+      minWidth: "1300px",
     },
     th: {
       backgroundColor: "#374151",
@@ -1146,26 +989,26 @@ export default function ItemsPage() {
       whiteSpace: "nowrap",
     },
     td: {
-      padding: "10px",
+      padding: "12px",
       borderTop: "1px solid #374151",
+      color: "#f9fafb",
+      fontSize: "14px",
     },
-    input: {
-      width: "100%",
-      padding: "8px",
-      backgroundColor: "#111827",
-      border: "1px solid #374151",
-      color: "#fff",
-      borderRadius: "4px",
-      fontSize: "13px",
-      transition: "border-color 0.2s",
+    actionButtons: {
+      display: "flex",
+      gap: "8px",
     },
-    readonlyField: {
-      backgroundColor: "#1f2937",
-      color: "#9ca3af",
-      padding: "8px",
+    editButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "6px",
       borderRadius: "4px",
-      fontSize: "13px",
-      textAlign: "right",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#6366f1",
+      transition: "background 0.2s",
     },
     deleteButton: {
       background: "none",
@@ -1176,6 +1019,7 @@ export default function ItemsPage() {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      color: "#ef4444",
       transition: "background 0.2s",
     },
     message: {
@@ -1230,103 +1074,130 @@ export default function ItemsPage() {
 
   return (
     <div style={styles.container}>
-      {/* Supply Items Modal */}
-      {showSupplyModal && (
+      {/* Edit Item Modal */}
+      {showEditModal && editingItem && (
         <div style={modalStyles.overlay}>
           <div style={modalStyles.content}>
             <div style={modalStyles.modalHeader}>
               <h2 style={modalStyles.modalTitle}>
-                <Truck size={20} style={{ marginRight: '8px', display: 'inline' }} />
-                Pending Supply Items
+                <Edit size={20} style={{ marginRight: '8px', display: 'inline' }} />
+                {editingItem.isNew ? 'Add New Item' : 'Edit Item'}
               </h2>
               <button 
                 style={modalStyles.closeButton}
-                onClick={() => setShowSupplyModal(false)}
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingItem(null);
+                }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            {loadingSupply ? (
-              <div style={styles.loadingOverlay}>Loading supply items...</div>
-            ) : supplyItems.length === 0 ? (
-              <div style={styles.emptyState}>No pending supply items found</div>
-            ) : (
-              <>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      style={modalStyles.checkbox}
-                      checked={selectedSupplyItems.size === supplyItems.length}
-                      onChange={toggleSelectAllSupply}
-                    />
-                    <span style={{ color: '#f9fafb' }}>Select All ({supplyItems.length} items)</span>
-                  </label>
-                </div>
+            <div style={modalStyles.formGroup}>
+              <label style={modalStyles.label}>Product Name *</label>
+              <input
+                style={modalStyles.input}
+                value={editingItem.name || ""}
+                onChange={(e) => handleEditChange("name", e.target.value)}
+                placeholder="Enter product name"
+              />
+            </div>
 
-                <table style={modalStyles.modalTable}>
-                  <thead>
-                    <tr>
-                      <th style={modalStyles.modalTh}>Select</th>
-                      <th style={modalStyles.modalTh}>Supplier</th>
-                      <th style={modalStyles.modalTh}>Name</th>
-                      <th style={modalStyles.modalTh}>Model</th>
-                      <th style={modalStyles.modalTh}>Type</th>
-                      <th style={modalStyles.modalTh}>Watts</th>
-                      <th style={modalStyles.modalTh}>Buy Price</th>
-                      <th style={modalStyles.modalTh}>Quantity</th>
-                      <th style={modalStyles.modalTh}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {supplyItems.map((item) => (
-                      <tr key={item.selectionKey}>
-                        <td style={modalStyles.modalTd}>
-                          <input
-                            type="checkbox"
-                            style={modalStyles.checkbox}
-                            checked={selectedSupplyItems.has(item.selectionKey)}
-                            onChange={() => toggleSupplyItem(item.selectionKey)}
-                          />
-                        </td>
-                        <td style={modalStyles.modalTd}>
-                          <div>{item.supplierName}</div>
-                          <small style={{ color: '#9ca3af' }}>{item.supplierCompany}</small>
-                        </td>
-                        <td style={modalStyles.modalTd}>{item.name}</td>
-                        <td style={modalStyles.modalTd}>{item.model}</td>
-                        <td style={modalStyles.modalTd}>{item.type || '-'}</td>
-                        <td style={modalStyles.modalTd}>{item.watts || 0}</td>
-                        <td style={modalStyles.modalTd}>₹{item.buy_price || 0}</td>
-                        <td style={modalStyles.modalTd}>{item.quantity || 1}</td>
-                        <td style={modalStyles.modalTd}>
-                          <span style={{...modalStyles.statusBadge, ...modalStyles.pendingBadge}}>
-                            {item.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div style={modalStyles.formGroup}>
+              <label style={modalStyles.label}>Model</label>
+              <input
+                style={modalStyles.input}
+                value={editingItem.model || ""}
+                onChange={(e) => handleEditChange("model", e.target.value)}
+                placeholder="Enter model"
+              />
+            </div>
 
-                <div style={modalStyles.modalFooter}>
-                  <button 
-                    style={{...styles.button}}
-                    onClick={() => setShowSupplyModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    style={{...styles.button, ...styles.primaryButton}}
-                    onClick={handleAddSupplyItems}
-                    disabled={saving || selectedSupplyItems.size === 0}
-                  >
-                    {saving ? 'Adding...' : `Add Selected (${selectedSupplyItems.size})`}
-                  </button>
-                </div>
-              </>
-            )}
+            <div style={modalStyles.formGroup}>
+              <label style={modalStyles.label}>Type</label>
+              <input
+                style={modalStyles.input}
+                value={editingItem.type || ""}
+                onChange={(e) => handleEditChange("type", e.target.value)}
+                placeholder="Enter type"
+              />
+            </div>
+
+            <div style={modalStyles.formGroup}>
+              <label style={modalStyles.label}>Watts</label>
+              <input
+                style={modalStyles.input}
+                value={editingItem.watts || ""}
+                onChange={(e) => handleEditChange("watts", e.target.value)}
+                placeholder="Enter watts"
+              />
+            </div>
+
+            <div style={modalStyles.formGroup}>
+              <label style={modalStyles.label}>Buy Price (₹)</label>
+              <input
+                style={modalStyles.input}
+                type="number"
+                min="0"
+                step="0.01"
+                value={editingItem.buyPrice || ""}
+                onChange={(e) => handleEditChange("buyPrice", e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div style={modalStyles.formGroup}>
+              <label style={modalStyles.label}>Sell Price (₹)</label>
+              <input
+                style={modalStyles.input}
+                type="number"
+                min="0"
+                step="0.01"
+                value={editingItem.sellPrice || ""}
+                onChange={(e) => handleEditChange("sellPrice", e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div style={modalStyles.formGroup}>
+              <label style={modalStyles.label}>Quantity</label>
+              <input
+                style={modalStyles.input}
+                type="number"
+                min="0"
+                step="1"
+                value={editingItem.quantity || ""}
+                onChange={(e) => handleEditChange("quantity", e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
+            <div style={modalStyles.formGroup}>
+              <label style={modalStyles.label}>Amount (₹)</label>
+              <div style={modalStyles.readOnlyField}>
+                ₹{parseFloat(editingItem.amount || 0).toFixed(2)}
+              </div>
+            </div>
+
+            <div style={modalStyles.modalFooter}>
+              <button 
+                style={{...styles.button}}
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingItem(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                style={{...styles.button, ...styles.primaryButton}}
+                onClick={handleEditSave}
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : (editingItem.isNew ? 'Create Item' : 'Save Changes')}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1334,7 +1205,7 @@ export default function ItemsPage() {
       {/* Pending Bills Modal */}
       {showPendingBillsModal && (
         <div style={modalStyles.overlay}>
-          <div style={modalStyles.content}>
+          <div style={{...modalStyles.content, maxWidth: '1000px'}}>
             <div style={modalStyles.modalHeader}>
               <h2 style={modalStyles.modalTitle}>
                 <Clock size={20} style={{ marginRight: '8px', display: 'inline' }} />
@@ -1367,8 +1238,13 @@ export default function ItemsPage() {
                     <div
                       key={bill.id}
                       style={{
-                        ...modalStyles.billCard,
-                        ...(selectedBill?.id === bill.id ? modalStyles.selectedBillCard : {})
+                        backgroundColor: '#374151',
+                        padding: '15px',
+                        borderRadius: '6px',
+                        marginBottom: '10px',
+                        cursor: 'pointer',
+                        border: selectedBill?.id === bill.id ? '2px solid #6366f1' : '1px solid transparent',
+                        transition: 'all 0.2s',
                       }}
                       onClick={() => handleSelectBill(bill)}
                     >
@@ -1397,7 +1273,7 @@ export default function ItemsPage() {
                           Items for Bill: {selectedBill.billNumber}
                         </h3>
                         <button
-                          style={modalStyles.processButton}
+                          style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
                           onClick={() => handleProcessBill(selectedBill.id)}
                           disabled={processingBill}
                         >
@@ -1405,41 +1281,44 @@ export default function ItemsPage() {
                         </button>
                       </div>
 
-                      <table style={modalStyles.modalTable}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                           <tr>
-                            <th style={modalStyles.modalTh}>Product</th>
-                            <th style={modalStyles.modalTh}>Model</th>
-                            <th style={modalStyles.modalTh}>Quantity</th>
-                            <th style={modalStyles.modalTh}>Price</th>
-                            <th style={modalStyles.modalTh}>Total</th>
-                            <th style={modalStyles.modalTh}>Status</th>
-                            <th style={modalStyles.modalTh}>Action</th>
+                            <th style={{ backgroundColor: '#374151', padding: '10px', textAlign: 'left', color: '#f3f4f6' }}>Product</th>
+                            <th style={{ backgroundColor: '#374151', padding: '10px', textAlign: 'left', color: '#f3f4f6' }}>Model</th>
+                            <th style={{ backgroundColor: '#374151', padding: '10px', textAlign: 'left', color: '#f3f4f6' }}>Quantity</th>
+                            <th style={{ backgroundColor: '#374151', padding: '10px', textAlign: 'left', color: '#f3f4f6' }}>Price</th>
+                            <th style={{ backgroundColor: '#374151', padding: '10px', textAlign: 'left', color: '#f3f4f6' }}>Total</th>
+                            <th style={{ backgroundColor: '#374151', padding: '10px', textAlign: 'left', color: '#f3f4f6' }}>Status</th>
+                            <th style={{ backgroundColor: '#374151', padding: '10px', textAlign: 'left', color: '#f3f4f6' }}>Action</th>
                           </tr>
                         </thead>
                         <tbody>
                           {billItems.map((item) => (
                             <tr key={item.id}>
-                              <td style={modalStyles.modalTd}>{item.product_name}</td>
-                              <td style={modalStyles.modalTd}>{item.product_model}</td>
-                              <td style={modalStyles.modalTd}>{item.quantity}</td>
-                              <td style={modalStyles.modalTd}>₹{item.sell_price}</td>
-                              <td style={modalStyles.modalTd}>₹{item.total}</td>
-                              <td style={modalStyles.modalTd}>
+                              <td style={{ padding: '10px', borderBottom: '1px solid #374151', color: '#f9fafb' }}>{item.product_name}</td>
+                              <td style={{ padding: '10px', borderBottom: '1px solid #374151', color: '#f9fafb' }}>{item.product_model}</td>
+                              <td style={{ padding: '10px', borderBottom: '1px solid #374151', color: '#f9fafb' }}>{item.quantity}</td>
+                              <td style={{ padding: '10px', borderBottom: '1px solid #374151', color: '#f9fafb' }}>₹{item.sell_price}</td>
+                              <td style={{ padding: '10px', borderBottom: '1px solid #374151', color: '#f9fafb' }}>₹{item.total}</td>
+                              <td style={{ padding: '10px', borderBottom: '1px solid #374151' }}>
                                 <span style={{
-                                  ...modalStyles.statusBadge,
-                                  ...(item.item_status === 'pending' ? modalStyles.pendingBadge : modalStyles.completedBadge)
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  backgroundColor: item.item_status === 'pending' ? '#b45309' : '#059669',
+                                  color: '#fff',
+                                  fontSize: '11px'
                                 }}>
                                   {item.item_status}
                                 </span>
                               </td>
-                              <td style={modalStyles.modalTd}>
+                              <td style={{ padding: '10px', borderBottom: '1px solid #374151' }}>
                                 {item.item_status === 'pending' && (
                                   <button
-                                    style={modalStyles.processButton}
+                                    style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
                                     onClick={() => handleProcessBillItem(item.id, selectedBill.id)}
                                   >
-                                    <CheckCircle size={14} style={{ marginRight: '4px' }} />
+                                    <CheckCircle size={14} style={{ marginRight: '4px', display: 'inline' }} />
                                     Complete
                                   </button>
                                 )}
@@ -1465,7 +1344,7 @@ export default function ItemsPage() {
           <h1 style={styles.title}>📦 Products Inventory</h1>
           <button 
             style={styles.refreshButton}
-            onClick={loadProducts}
+            onClick={handleRefresh}
             title="Refresh"
           >
             <RefreshCw size={18} />
@@ -1473,20 +1352,6 @@ export default function ItemsPage() {
         </div>
 
         <div style={styles.buttonGroup}>
-          <button 
-            style={{...styles.button, ...styles.pendingBillButton}} 
-            onClick={handleOpenPendingBillsModal}
-          >
-            <Clock size={16} /> Pending Items
-          </button>
-
-          <button 
-            style={{...styles.button, ...styles.supplyButton}} 
-            onClick={handleOpenSupplyModal}
-          >
-            <Truck size={16} /> Supply
-          </button>
-
           <button style={styles.button} onClick={handleExport}>
             <Download size={16} /> Export
           </button>
@@ -1503,17 +1368,17 @@ export default function ItemsPage() {
 
           <button
             style={{ ...styles.button, ...styles.primaryButton }}
-            onClick={handleAddRows}
+            onClick={handleAddNewItem}
           >
-            <Plus size={16} /> Add Rows
+            <Plus size={16} /> Add New
           </button>
 
           <button
             style={{ ...styles.button, ...styles.saveButton }}
-            onClick={handleSave}
+            onClick={handleRefresh}
             disabled={saving}
           >
-            <Save size={16} /> {saving ? "Saving..." : "Save"}
+            <Save size={16} /> {saving ? "Saving..." : "Refresh"}
           </button>
         </div>
       </div>
@@ -1536,14 +1401,14 @@ export default function ItemsPage() {
           <Search size={16} style={styles.searchIcon} />
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder="Search by ID, name, model, type..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={styles.searchInput}
           />
         </div>
         <span style={{ color: "#9ca3af", fontSize: "13px" }}>
-          {filteredItems.length} item(s)
+          {filteredItems.length} item(s) on this page
         </span>
       </div>
 
@@ -1554,6 +1419,10 @@ export default function ItemsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
+                <th style={styles.th}>
+                  <Hash size={14} style={{ marginRight: '4px', display: 'inline' }} />
+                  ID
+                </th>
                 <th style={styles.th}>Name</th>
                 <th style={styles.th}>Model</th>
                 <th style={styles.th}>Type</th>
@@ -1561,7 +1430,6 @@ export default function ItemsPage() {
                 <th style={styles.th}>Buy Price (₹)</th>
                 <th style={styles.th}>Sell Price (₹)</th>
                 <th style={styles.th}>Quantity</th>
-                <th style={styles.th}>Profit %</th>
                 <th style={styles.th}>Amount (₹)</th>
                 <th style={styles.th}>Actions</th>
               </tr>
@@ -1571,119 +1439,52 @@ export default function ItemsPage() {
               {currentItems.length === 0 ? (
                 <tr>
                   <td colSpan="10" style={styles.emptyState}>
-                    {search ? "No products match your search" : "No products found. Click 'Add Rows' to get started."}
+                    {search ? "No products match your search on this page" : "No products found. Click 'Add New' to get started."}
                   </td>
                 </tr>
               ) : (
                 currentItems.map((item) => (
                   <tr key={item.id}>
                     <td style={styles.td}>
-                      <input
-                        style={styles.input}
-                        value={item.name || ""}
-                        onChange={(e) =>
-                          handleChange(item.id, "name", e.target.value)
-                        }
-                        placeholder="Product name"
-                      />
+                      <span style={{ fontFamily: 'monospace', color: '#9ca3af' }}>
+                        #{item.id}
+                      </span>
+                      {item.isNew && <span style={{...styles.badge, ...styles.newBadge}}>NEW</span>}
                     </td>
                     
-                    <td style={styles.td}>
-                      <input
-                        style={styles.input}
-                        value={item.model || ""}
-                        onChange={(e) =>
-                          handleChange(item.id, "model", e.target.value)
-                        }
-                        placeholder="Model"
-                      />
-                    </td>
+                    <td style={styles.td}>{item.name || '-'}</td>
+                    
+                    <td style={styles.td}>{item.model || '-'}</td>
+                    
+                    <td style={styles.td}>{item.type || '-'}</td>
+                    
+                    <td style={styles.td}>{item.watts || 0}</td>
+                    
+                    <td style={styles.td}>₹{item.buyPrice?.toFixed(2) || '0.00'}</td>
+                    
+                    <td style={styles.td}>₹{item.sellPrice?.toFixed(2) || '0.00'}</td>
+                    
+                    <td style={styles.td}>{item.quantity || 0}</td>
+                    
+                    <td style={styles.td}>₹{parseFloat(item.amount || 0).toFixed(2)}</td>
                     
                     <td style={styles.td}>
-                      <input
-                        style={styles.input}
-                        value={item.type || ""}
-                        onChange={(e) =>
-                          handleChange(item.id, "type", e.target.value)
-                        }
-                        placeholder="Type"
-                      />
-                    </td>
-                    
-                    <td style={styles.td}>
-                      <input
-                        style={styles.input}
-                        value={item.watts || ""}
-                        onChange={(e) =>
-                          handleChange(item.id, "watts", e.target.value)
-                        }
-                        placeholder="Watts"
-                      />
-                    </td>
-                    
-                    <td style={styles.td}>
-                      <input
-                        style={styles.input}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.buyPrice || ""}
-                        onChange={(e) =>
-                          handleChange(item.id, "buyPrice", e.target.value)
-                        }
-                        placeholder="0.00"
-                      />
-                    </td>
-                    
-                    <td style={styles.td}>
-                      <input
-                        style={styles.input}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.sellPrice || ""}
-                        onChange={(e) =>
-                          handleChange(item.id, "sellPrice", e.target.value)
-                        }
-                        placeholder="0.00"
-                      />
-                    </td>
-                    
-                    <td style={styles.td}>
-                      <input
-                        style={styles.input}
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={item.quantity || ""}
-                        onChange={(e) =>
-                          handleChange(item.id, "quantity", e.target.value)
-                        }
-                        placeholder="0"
-                      />
-                    </td>
-                    
-                    <td style={styles.td}>
-                      <div style={styles.readonlyField}>
-                        {item.profitPercent}%
-                        {item.isNew && <span style={{...styles.badge, ...styles.newBadge}}>NEW</span>}
+                      <div style={styles.actionButtons}>
+                        <button
+                          style={styles.editButton}
+                          onClick={() => handleEditClick(item)}
+                          title="Edit"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          style={styles.deleteButton}
+                          onClick={() => handleDelete(item.id)}
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                    </td>
-                    
-                    <td style={styles.td}>
-                      <div style={styles.readonlyField}>
-                        ₹{parseFloat(item.amount || 0).toFixed(2)}
-                      </div>
-                    </td>
-                    
-                    <td style={styles.td}>
-                      <button
-                        style={styles.deleteButton}
-                        onClick={() => handleDelete(item.id)}
-                        title="Delete"
-                      >
-                        <Trash2 size={16} color="#ef4444" />
-                      </button>
                     </td>
                   </tr>
                 ))
@@ -1694,10 +1495,10 @@ export default function ItemsPage() {
       </div>
 
       {/* Pagination */}
-      {filteredItems.length > 0 && (
+      {totalItems > 0 && (
         <div style={paginationStyles.container}>
           <div style={paginationStyles.info}>
-            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredItems.length)} of {filteredItems.length} items
+            Showing page {currentPage} of {totalPages} | Total items: {totalItems}
           </div>
           
           <div style={paginationStyles.controls}>
@@ -1715,7 +1516,6 @@ export default function ItemsPage() {
             <div style={paginationStyles.pageNumbers}>
               {[...Array(totalPages)].map((_, index) => {
                 const pageNumber = index + 1;
-                // Show only first, last, and pages around current page
                 if (
                   pageNumber === 1 ||
                   pageNumber === totalPages ||

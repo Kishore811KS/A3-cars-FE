@@ -13,15 +13,19 @@ const Bill = () => {
   const [billNumber, setBillNumber] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [currentTime, setCurrentTime] = useState('');
+  
+  // Customer information
   const [customerName, setCustomerName] = useState('Walk-in Customer');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerGST, setCustomerGST] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [customerType, setCustomerType] = useState('external'); // 'internal' or 'external'
+  const [customerDiscount, setCustomerDiscount] = useState(0); // Default discount for customer type
   
   // Payment information
   const [discount, setDiscount] = useState(0);
-  const [discountType, setDiscountType] = useState('percentage');
+  const [discountType, setDiscountType] = useState('percentage'); // 'percentage' or 'fixed'
   const [tax, setTax] = useState(0);
   const [taxType, setTaxType] = useState('percentage');
   const [paidAmount, setPaidAmount] = useState(0);
@@ -51,8 +55,8 @@ const Bill = () => {
 
   // Create axios instance with credentials
   const api = axios.create({
-    baseURL: 'http://127.0.0.1:5000/api', // Use 127.0.0.1 instead of localhost
-    withCredentials: true, // This sends cookies/session with every request
+    baseURL: 'http://127.0.0.1:5000/api',
+    withCredentials: true,
     headers: {
       'Content-Type': 'application/json'
     }
@@ -369,13 +373,42 @@ const Bill = () => {
       fontWeight: 'bold',
       color: '#007bff',
     },
-    customerInfo: {
+    customerSection: {
       margin: '10px 0',
       padding: '8px',
       background: '#f9f9f9',
       borderRadius: '2px',
       border: '1px solid #e9ecef',
+    },
+    customerRow: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: '4px',
       fontSize: '10px',
+    },
+    customerLabel: {
+      fontWeight: 'bold',
+      color: '#555',
+    },
+    customerValue: {
+      color: '#333',
+      maxWidth: '180px',
+      textAlign: 'right',
+    },
+    customerTypeBadge: {
+      padding: '2px 6px',
+      borderRadius: '3px',
+      fontSize: '9px',
+      fontWeight: 'bold',
+      textTransform: 'uppercase',
+    },
+    internalBadge: {
+      background: '#cce5ff',
+      color: '#004085',
+    },
+    externalBadge: {
+      background: '#fff3cd',
+      color: '#856404',
     },
     customerInput: {
       width: '100%',
@@ -386,6 +419,15 @@ const Bill = () => {
       fontFamily: "'Courier New', monospace",
       fontSize: '10px',
       transition: 'border-color 0.3s',
+    },
+    customerTypeSelect: {
+      width: '100%',
+      padding: '4px',
+      marginBottom: '4px',
+      border: '1px solid #ddd',
+      borderRadius: '2px',
+      fontFamily: "'Courier New', monospace",
+      fontSize: '10px',
     },
     billItems: {
       margin: '10px 0',
@@ -656,38 +698,138 @@ const Bill = () => {
     }
   }, [paidAmount, selectedProducts, discount, tax]);
 
+  // Set discount based on customer type
+  useEffect(() => {
+    if (customerType === 'internal') {
+      setCustomerDiscount(10); // 10% discount for internal customers
+      setDiscount(10); // Set discount to 10%
+      setDiscountType('percentage');
+    } else {
+      setCustomerDiscount(0); // No default discount for external customers
+      setDiscount(0);
+    }
+  }, [customerType]);
+
   // Add thermal print styles
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
       @media print {
         body * {
-          visibility: hidden;
+          visibility: hidden !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          border: none !important;
+          box-shadow: none !important;
+          background: transparent !important;
         }
+        
         #billPaper, #billPaper * {
-          visibility: visible;
+          visibility: visible !important;
+          background: white !important;
+          border: none !important;
+          box-shadow: none !important;
+          outline: none !important;
         }
+        
         #billPaper {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 280px;
-          margin: 0;
-          padding: 12px;
-          border: none;
-          box-shadow: none;
-          background: white;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 280px !important;
+          margin: 0 !important;
+          padding: 12px !important;
+          border: none !important;
+          box-shadow: none !important;
+          background: white !important;
         }
+        
+        #billPaper div,
+        #billPaper span,
+        #billPaper p,
+        #billPaper h1,
+        #billPaper h2,
+        #billPaper h3,
+        #billPaper table,
+        #billPaper tr,
+        #billPaper td,
+        #billPaper th {
+          border: none !important;
+          box-shadow: none !important;
+          outline: none !important;
+          background: white !important;
+        }
+        
+        #billPaper .bill-header {
+          border-bottom: 1px dashed #000 !important;
+        }
+        
+        #billPaper .bill-info {
+          border-top: 1px dashed #000 !important;
+          border-bottom: 1px dashed #000 !important;
+        }
+        
+        #billPaper .bill-items-header {
+          border-bottom: 1px solid #000 !important;
+        }
+        
+        #billPaper .bill-item {
+          border-bottom: 1px dotted #000 !important;
+        }
+        
+        #billPaper .bill-summary {
+          border-top: 1px solid #000 !important;
+        }
+        
+        #billPaper .bill-footer {
+          border-top: 1px dashed #000 !important;
+        }
+        
+        #billPaper * {
+          background: white !important;
+          color: black !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        #billPaper input,
+        #billPaper select,
+        #billPaper button,
+        #billPaper .no-print {
+          display: none !important;
+        }
+        
+        #billPaper .payment-section {
+          display: none !important;
+        }
+        
+        #billPaper .customer-section input,
+        #billPaper .customer-section select,
+        #billPaper .customer-section button {
+          display: none !important;
+        }
+        
+        #billPaper .customer-section {
+          border: none !important;
+          padding: 0 !important;
+          margin: 10px 0 !important;
+        }
+        
         @page {
-          size: 80mm 297mm;
-          margin: 0;
+          size: 80mm auto !important;
+          margin: 0 !important;
         }
+        
         .no-print {
           display: none !important;
         }
-        * {
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
+      }
+      
+      @media screen {
+        #billPaper input,
+        #billPaper select,
+        #billPaper button {
+          display: block;
         }
       }
     `;
@@ -984,6 +1126,8 @@ const Bill = () => {
       customerEmail,
       customerGST,
       customerAddress,
+      customerType,
+      customerDiscount: customerDiscount,
       subtotal,
       discount: discountAmount,
       discountType,
@@ -1036,6 +1180,8 @@ const Bill = () => {
       setCustomerEmail('');
       setCustomerGST('');
       setCustomerAddress('');
+      setCustomerType('external');
+      setCustomerDiscount(0);
       setDiscount(0);
       setDiscountType('percentage');
       setTax(0);
@@ -1065,14 +1211,31 @@ const Bill = () => {
       return;
     }
 
+    // Get the bill content
+    const billContent = billPaperRef.current.outerHTML;
+    
+    // Create a new window for printing
     const printWindow = window.open('', '_blank');
+    
     if (printWindow) {
-      const billContent = billPaperRef.current.outerHTML;
       printWindow.document.write(`
+        <!DOCTYPE html>
         <html>
           <head>
-            <title>Print Bill - ${billNumber}</title>
+            <title>Bill - ${billNumber}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                border: none;
+                background: none;
+                box-shadow: none;
+                outline: none;
+              }
+              
               body {
                 margin: 0;
                 padding: 0;
@@ -1080,20 +1243,125 @@ const Bill = () => {
                 font-family: 'Courier New', monospace;
                 font-size: 11px;
                 line-height: 1.3;
+                background: white;
               }
+              
+              #billPaper {
+                width: 280px;
+                margin: 0 auto;
+                padding: 12px;
+                background: white;
+                border: none;
+              }
+              
+              .bill-header {
+                text-align: center;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                border-bottom: 1px dashed #000 !important;
+              }
+              
+              .bill-info {
+                margin: 10px 0;
+                padding: 6px 0;
+                border-top: 1px dashed #000 !important;
+                border-bottom: 1px dashed #000 !important;
+              }
+              
+              .customer-section {
+                margin: 10px 0;
+                padding: 6px;
+                border: 1px solid #ddd !important;
+              }
+              
+              .customer-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 3px;
+                font-size: 10px;
+              }
+              
+              .customer-type-badge {
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-size: 9px;
+                font-weight: bold;
+              }
+              
+              .internal-badge {
+                background: #cce5ff !important;
+                color: #004085 !important;
+              }
+              
+              .external-badge {
+                background: #fff3cd !important;
+                color: #856404 !important;
+              }
+              
+              .bill-items-header {
+                display: grid;
+                grid-template-columns: 2fr 1fr 1fr 1.5fr;
+                font-weight: bold;
+                padding: 4px 0;
+                border-bottom: 1px solid #000 !important;
+                font-size: 10px;
+              }
+              
+              .bill-item {
+                display: grid;
+                grid-template-columns: 2fr 1fr 1fr 1.5fr;
+                padding: 3px 0;
+                border-bottom: 1px dotted #000 !important;
+                font-size: 9px;
+              }
+              
+              .bill-summary {
+                margin: 10px 0;
+                padding: 8px 0;
+                border-top: 1px solid #000 !important;
+              }
+              
+              .summary-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 3px;
+                font-size: 10px;
+              }
+              
+              .summary-row-total {
+                font-weight: bold;
+                font-size: 12px;
+                border-top: 1px dashed #000 !important;
+                padding-top: 6px;
+                margin-top: 6px;
+              }
+              
+              .bill-footer {
+                text-align: center;
+                margin-top: 15px;
+                padding-top: 10px;
+                border-top: 1px dashed #000 !important;
+                font-size: 8px;
+              }
+              
+              input, select, button, textarea {
+                display: none !important;
+              }
+              
+              .payment-section {
+                display: none !important;
+              }
+              
+              * {
+                background: white !important;
+                color: black !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              
               @page {
                 size: 80mm auto;
                 margin: 0;
-              }
-              @media print {
-                body {
-                  margin: 0;
-                  padding: 0;
-                }
-              }
-              * {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
               }
             </style>
           </head>
@@ -1101,10 +1369,12 @@ const Bill = () => {
             ${billContent}
             <script>
               window.onload = function() {
-                window.print();
-                window.onafterprint = function() {
-                  window.close();
-                };
+                setTimeout(function() {
+                  window.print();
+                  setTimeout(function() {
+                    window.close();
+                  }, 500);
+                }, 200);
               };
             </script>
           </body>
@@ -1177,7 +1447,7 @@ const Bill = () => {
   return (
     <div style={baseStyles.container}>
       {/* Left Panel - Product Selection */}
-      <div style={baseStyles.productPanel}>
+      <div style={baseStyles.productPanel} className="no-print">
         <h2 style={baseStyles.productPanelTitle}>🧾 Create New Bill</h2>
         
         {error && (
@@ -1294,21 +1564,21 @@ const Bill = () => {
       </div>
       
       {/* Right Panel - Thermal Bill */}
-      <div style={baseStyles.billPanel}>
+      <div style={baseStyles.billPanel} className="no-print">
         <div style={baseStyles.billContainer}>
           <div 
             style={baseStyles.billPaper} 
             id="billPaper" 
             ref={billPaperRef}
           >
-            <div style={baseStyles.billHeader}>
+            <div className="bill-header">
               <h1 style={baseStyles.billHeaderH1}>BRAIN TECH</h1>
               <p style={baseStyles.billHeaderP}>123 Main Street, City - 400001</p>
               <p style={baseStyles.billHeaderP}>Ph: +91 98765 43210</p>
               <p style={baseStyles.billHeaderP}>GST: 27ABCDE1234F1Z5</p>
             </div>
             
-            <div style={baseStyles.billInfo}>
+            <div className="bill-info">
               <div style={baseStyles.billInfoRow}>
                 <span>Bill No:</span>
                 <span style={baseStyles.billNumber}>{billNumber}</span>
@@ -1323,7 +1593,70 @@ const Bill = () => {
               </div>
             </div>
             
-            <div style={baseStyles.customerInfo}>
+            <div className="customer-section">
+              <div style={baseStyles.customerRow}>
+                <span style={baseStyles.customerLabel}>Customer Type:</span>
+                <span 
+                  style={{
+                    ...baseStyles.customerTypeBadge,
+                    ...(customerType === 'internal' ? baseStyles.internalBadge : baseStyles.externalBadge)
+                  }}
+                >
+                  {customerType === 'internal' ? '🏢 INTERNAL' : '👤 EXTERNAL'}
+                </span>
+              </div>
+              
+              <div style={baseStyles.customerRow}>
+                <span style={baseStyles.customerLabel}>Name:</span>
+                <span style={baseStyles.customerValue}>{customerName}</span>
+              </div>
+              
+              {customerPhone && (
+                <div style={baseStyles.customerRow}>
+                  <span style={baseStyles.customerLabel}>Phone:</span>
+                  <span style={baseStyles.customerValue}>{customerPhone}</span>
+                </div>
+              )}
+              
+              {customerEmail && (
+                <div style={baseStyles.customerRow}>
+                  <span style={baseStyles.customerLabel}>Email:</span>
+                  <span style={baseStyles.customerValue}>{customerEmail}</span>
+                </div>
+              )}
+              
+              {customerAddress && (
+                <div style={baseStyles.customerRow}>
+                  <span style={baseStyles.customerLabel}>Address:</span>
+                  <span style={baseStyles.customerValue}>{customerAddress}</span>
+                </div>
+              )}
+              
+              {customerGST && (
+                <div style={baseStyles.customerRow}>
+                  <span style={baseStyles.customerLabel}>GST:</span>
+                  <span style={baseStyles.customerValue}>{customerGST}</span>
+                </div>
+              )}
+              
+              {customerType === 'internal' && (
+                <div style={baseStyles.customerRow}>
+                  <span style={baseStyles.customerLabel}>Staff Discount:</span>
+                  <span style={baseStyles.customerValue}>{customerDiscount}%</span>
+                </div>
+              )}
+            </div>
+            
+            <div style={baseStyles.customerSection} className="no-print">
+              <select
+                style={baseStyles.customerTypeSelect}
+                value={customerType}
+                onChange={(e) => setCustomerType(e.target.value)}
+              >
+                <option value="external">👤 External Customer</option>
+                <option value="internal">🏢 Internal (Staff)</option>
+              </select>
+              
               <input
                 type="text"
                 style={baseStyles.customerInput}
@@ -1331,6 +1664,7 @@ const Bill = () => {
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Customer Name"
               />
+              
               <input
                 type="text"
                 style={baseStyles.customerInput}
@@ -1338,17 +1672,34 @@ const Bill = () => {
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="Phone Number"
               />
+              
+              <input
+                type="email"
+                style={baseStyles.customerInput}
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="Email Address"
+              />
+              
+              <input
+                type="text"
+                style={baseStyles.customerInput}
+                value={customerAddress}
+                onChange={(e) => setCustomerAddress(e.target.value)}
+                placeholder="Address"
+              />
+              
               <input
                 type="text"
                 style={baseStyles.customerInput}
                 value={customerGST}
                 onChange={(e) => setCustomerGST(e.target.value)}
-                placeholder="GST Number (Optional)"
+                placeholder="GST Number (if applicable)"
               />
             </div>
             
-            <div style={baseStyles.billItems}>
-              <div style={baseStyles.billItemsHeader}>
+            <div className="bill-items">
+              <div className="bill-items-header">
                 <span>Item</span>
                 <span>Price</span>
                 <span>Qty</span>
@@ -1361,7 +1712,7 @@ const Bill = () => {
                   </div>
                 ) : (
                   selectedProducts.map(product => (
-                    <div key={product.id} style={baseStyles.billItem}>
+                    <div key={product.id} className="bill-item">
                       <span style={baseStyles.billItemName}>
                         {product.name.length > 12 
                           ? product.name.substring(0, 10) + '...' 
@@ -1380,77 +1731,40 @@ const Bill = () => {
               </div>
             </div>
             
-            <div style={baseStyles.billSummary}>
-              <div style={baseStyles.summaryRow}>
+            <div className="bill-summary">
+              <div className="summary-row">
                 <span>Subtotal:</span>
                 <span>₹{calculateSubtotal().toFixed(2)}</span>
               </div>
               
-              <div style={baseStyles.discountRow}>
-                <span>Discount:</span>
-                <span style={baseStyles.discountControls}>
-                  <input
-                    type="number"
-                    style={baseStyles.summaryInput}
-                    value={discount}
-                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step={discountType === 'percentage' ? '1' : '0.01'}
-                  />
-                  <select
-                    style={baseStyles.discountType}
-                    value={discountType}
-                    onChange={(e) => setDiscountType(e.target.value)}
-                  >
-                    <option value="percentage">%</option>
-                    <option value="amount">₹</option>
-                  </select>
-                </span>
-              </div>
-              
-              {discount > 0 && (
-                <div style={baseStyles.summaryRow}>
-                  <span>Discount Amt:</span>
+              {customerType === 'internal' && (
+                <div className="summary-row">
+                  <span>Staff Discount ({customerDiscount}%):</span>
                   <span>-₹{calculateDiscountAmount().toFixed(2)}</span>
                 </div>
               )}
               
-              <div style={baseStyles.discountRow}>
-                <span>Tax (GST):</span>
-                <span style={baseStyles.discountControls}>
-                  <input
-                    type="number"
-                    style={baseStyles.summaryInput}
-                    value={tax}
-                    onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step={taxType === 'percentage' ? '1' : '0.01'}
-                  />
-                  <select
-                    style={baseStyles.discountType}
-                    value={taxType}
-                    onChange={(e) => setTaxType(e.target.value)}
-                  >
-                    <option value="percentage">%</option>
-                    <option value="amount">₹</option>
-                  </select>
-                </span>
-              </div>
+              {discount > 0 && customerType === 'external' && (
+                <div className="summary-row">
+                  <span>Discount ({discount}{discountType === 'percentage' ? '%' : '₹'}):</span>
+                  <span>-₹{calculateDiscountAmount().toFixed(2)}</span>
+                </div>
+              )}
               
               {tax > 0 && (
-                <div style={baseStyles.summaryRow}>
-                  <span>Tax Amt:</span>
+                <div className="summary-row">
+                  <span>Tax ({tax}{taxType === 'percentage' ? '%' : '₹'}):</span>
                   <span>+₹{calculateTaxAmount().toFixed(2)}</span>
                 </div>
               )}
               
-              <div style={{...baseStyles.summaryRow, ...baseStyles.summaryRowTotal}}>
+              <div className="summary-row summary-row-total">
                 <span>Total:</span>
                 <span>₹{total.toFixed(2)}</span>
               </div>
             </div>
             
-            <div style={baseStyles.paymentSection}>
+            <div className="payment-section">
               <div style={baseStyles.paymentRow}>
                 <span>Payment Method:</span>
                 <select
@@ -1605,7 +1919,7 @@ const Bill = () => {
               </button>
             </div>
             
-            <div style={baseStyles.billFooter}>
+            <div className="bill-footer">
               <p style={baseStyles.billFooterP}>Thank you for your purchase!</p>
               <p style={baseStyles.billFooterP}>Goods once sold not returnable</p>
               <p style={baseStyles.billFooterP}>** Computer generated bill **</p>
@@ -1617,7 +1931,7 @@ const Bill = () => {
             </div>
           </div>
           
-          <div style={baseStyles.actionButtons}>
+          <div style={baseStyles.actionButtons} className="no-print">
             <button
               style={{
                 ...baseStyles.btn,

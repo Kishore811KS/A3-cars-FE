@@ -10,7 +10,6 @@ const ItemsListPage = () => {
   // Filter states
   const [selectedSupplier, setSelectedSupplier] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   
   // Date filters
   const [dateFilterType, setDateFilterType] = useState('all'); // 'all', 'month', 'date', 'range'
@@ -166,11 +165,6 @@ const ItemsListPage = () => {
         return false;
       }
       
-      // Status filter
-      if (statusFilter !== 'all' && item.status !== statusFilter) {
-        return false;
-      }
-      
       // Date filter
       if (!matchesDateFilter(item)) {
         return false;
@@ -183,8 +177,7 @@ const ItemsListPage = () => {
           item.name?.toLowerCase().includes(searchLower) ||
           item.model?.toLowerCase().includes(searchLower) ||
           item.type?.toLowerCase().includes(searchLower) ||
-          item.supplier_name?.toLowerCase().includes(searchLower) ||
-          item.supplier_company?.toLowerCase().includes(searchLower)
+          item.id?.toString().includes(searchLower)
         );
       }
       
@@ -213,7 +206,7 @@ const ItemsListPage = () => {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedSupplier, searchTerm, statusFilter, dateFilterType, selectedMonth, selectedYear, selectedDate, dateRangeStart, dateRangeEnd]);
+  }, [selectedSupplier, searchTerm, dateFilterType, selectedMonth, selectedYear, selectedDate, dateRangeStart, dateRangeEnd]);
 
   // Export to PDF function
   const exportToPDF = () => {
@@ -295,25 +288,6 @@ const ItemsListPage = () => {
           tr:nth-child(even) { 
             background-color: #1e293b; 
           }
-          .status-badge {
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            display: inline-block;
-          }
-          .status-active {
-            background-color: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-          }
-          .status-pending {
-            background-color: rgba(245, 158, 11, 0.2);
-            color: #f59e0b;
-          }
-          .status-inactive {
-            background-color: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-          }
           .footer {
             margin-top: 30px;
             text-align: right;
@@ -360,14 +334,6 @@ const ItemsListPage = () => {
             <div class="summary-value">${filteredItems.length}</div>
           </div>
           <div class="summary-item">
-            <div class="summary-label">Active Items</div>
-            <div class="summary-value">${filteredItems.filter(i => i.status === 'Active').length}</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-label">Pending Items</div>
-            <div class="summary-value">${filteredItems.filter(i => i.status === 'Pending').length}</div>
-          </div>
-          <div class="summary-item">
             <div class="summary-label">Total Value</div>
             <div class="summary-value">₹${filteredItems.reduce((sum, item) => sum + (item.buy_price || 0), 0).toFixed(2)}</div>
           </div>
@@ -382,9 +348,6 @@ const ItemsListPage = () => {
       const supplier = suppliers.find(s => s.id === parseInt(selectedSupplier));
       htmlContent += `<span class="filter-tag">Supplier: ${supplier?.company || 'Selected'}</span>`;
     }
-    if (statusFilter !== 'all') {
-      htmlContent += `<span class="filter-tag">Status: ${statusFilter}</span>`;
-    }
     if (dateFilterType === 'month' && selectedMonth && selectedYear) {
       const monthName = months.find(m => m.value === selectedMonth)?.label;
       htmlContent += `<span class="filter-tag">Month: ${monthName} ${selectedYear}</span>`;
@@ -398,7 +361,7 @@ const ItemsListPage = () => {
     if (searchTerm) {
       htmlContent += `<span class="filter-tag">Search: "${searchTerm}"</span>`;
     }
-    if (dateFilterType === 'all' && selectedSupplier === 'all' && statusFilter === 'all' && !searchTerm) {
+    if (dateFilterType === 'all' && selectedSupplier === 'all' && !searchTerm) {
       htmlContent += `<span class="filter-tag">All Items</span>`;
     }
     
@@ -408,13 +371,12 @@ const ItemsListPage = () => {
         <table>
           <thead>
             <tr>
-              <th>Item Name</th>
-              <th>Type</th>
+              <th>ID</th>
+              <th>Name</th>
               <th>Model</th>
+              <th>Type</th>
               <th>Watts</th>
-              <th>Price (₹)</th>
-              <th>Status</th>
-              <th>Supplier</th>
+              <th>Buy Price (₹)</th>
               <th>Added Date</th>
             </tr>
           </thead>
@@ -422,18 +384,14 @@ const ItemsListPage = () => {
     `;
     
     filteredItems.forEach(item => {
-      const statusClass = item.status === 'Active' ? 'status-active' : 
-                         item.status === 'Pending' ? 'status-pending' : 'status-inactive';
-      
       htmlContent += `
         <tr>
+          <td>${item.id || '—'}</td>
           <td><strong>${item.name || ''}</strong></td>
-          <td>${item.type || '—'}</td>
           <td>${item.model || ''}</td>
+          <td>${item.type || '—'}</td>
           <td>${item.watts || 0}W</td>
           <td>₹${item.buy_price?.toFixed(2) || '0.00'}</td>
-          <td><span class="status-badge ${statusClass}">${item.status || 'Pending'}</span></td>
-          <td>${item.supplier_company || ''}<br><small>${item.supplier_name || ''}</small></td>
           <td>${formatDate(item.created_at)}</td>
         </tr>
       `;
@@ -469,7 +427,6 @@ const ItemsListPage = () => {
   const clearFilters = () => {
     setSelectedSupplier('all');
     setSearchTerm('');
-    setStatusFilter('all');
     setDateFilterType('all');
     setSelectedMonth('');
     setSelectedYear('');
@@ -622,36 +579,6 @@ const ItemsListPage = () => {
       gap: '8px',
       transition: 'all 0.2s ease',
     },
-    statsGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-      gap: '20px',
-      marginBottom: '24px',
-    },
-    statCard: {
-      backgroundColor: '#1e293b',
-      padding: '20px',
-      borderRadius: '16px',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-      border: '1px solid #334155',
-      textAlign: 'center',
-    },
-    statLabel: {
-      fontSize: '13px',
-      color: '#94a3b8',
-      marginBottom: '8px',
-      fontWeight: '500',
-    },
-    statValue: {
-      fontSize: '24px',
-      fontWeight: '600',
-      color: '#ffffff',
-    },
-    statSubtext: {
-      fontSize: '11px',
-      color: '#94a3b8',
-      marginTop: '5px',
-    },
     tableContainer: {
       backgroundColor: '#1e293b',
       borderRadius: '16px',
@@ -683,25 +610,6 @@ const ItemsListPage = () => {
     tr: {
       cursor: 'pointer',
       transition: 'background-color 0.2s',
-    },
-    statusBadge: {
-      padding: '4px 8px',
-      borderRadius: '20px',
-      fontSize: '12px',
-      fontWeight: '500',
-      display: 'inline-block',
-    },
-    statusActive: {
-      backgroundColor: 'rgba(16, 185, 129, 0.2)',
-      color: '#10b981',
-    },
-    statusPending: {
-      backgroundColor: 'rgba(245, 158, 11, 0.2)',
-      color: '#f59e0b',
-    },
-    statusInactive: {
-      backgroundColor: 'rgba(239, 68, 68, 0.2)',
-      color: '#ef4444',
     },
     attachmentLink: {
       color: '#3b82f6',
@@ -778,18 +686,6 @@ const ItemsListPage = () => {
       borderRadius: '50%',
       animation: 'spin 1s linear infinite',
     },
-    supplierInfo: {
-      fontSize: '12px',
-      color: '#94a3b8',
-      marginTop: '4px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '2px',
-    },
-    supplierName: {
-      fontWeight: '500',
-      color: '#ffffff',
-    },
     filterBadge: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -806,7 +702,6 @@ const ItemsListPage = () => {
 
   const filteredItems = getSortedItems();
   const currentItems = getCurrentItems();
-  const totalValue = filteredItems.reduce((sum, item) => sum + (item.buy_price || 0), 0);
 
   return (
     <div style={styles.container}>
@@ -824,7 +719,7 @@ const ItemsListPage = () => {
             <span style={styles.titleIcon}>📋</span>
             Items Inventory
           </h1>
-          <p style={styles.subtitle}>Track and manage all items across suppliers</p>
+          <p style={styles.subtitle}>Track and manage all items</p>
         </div>
         
         <button 
@@ -906,27 +801,11 @@ const ItemsListPage = () => {
           </div>
 
           <div style={styles.filterGroup}>
-            <label style={styles.label}>Status</label>
-            <select 
-              style={styles.select}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-              onBlur={(e) => e.target.style.borderColor = '#334155'}
-            >
-              <option value="all">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-
-          <div style={styles.filterGroup}>
             <label style={styles.label}>Search</label>
             <input
               type="text"
               style={styles.input}
-              placeholder="Search items..."
+              placeholder="Search by ID, name, model, type..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
@@ -1013,11 +892,6 @@ const ItemsListPage = () => {
               Supplier: {suppliers.find(s => s.id === parseInt(selectedSupplier))?.company}
             </span>
           )}
-          {statusFilter !== 'all' && (
-            <span style={styles.filterBadge}>
-              Status: {statusFilter}
-            </span>
-          )}
           {dateFilterType === 'month' && selectedMonth && selectedYear && (
             <span style={styles.filterBadge}>
               Month: {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
@@ -1038,7 +912,7 @@ const ItemsListPage = () => {
               Search: "{searchTerm}"
             </span>
           )}
-          {(selectedSupplier !== 'all' || statusFilter !== 'all' || searchTerm || dateFilterType !== 'all') && (
+          {(selectedSupplier !== 'all' || searchTerm || dateFilterType !== 'all') && (
             <button
               style={styles.clearFiltersButton}
               onClick={clearFilters}
@@ -1057,32 +931,6 @@ const ItemsListPage = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Total Items</div>
-          <div style={styles.statValue}>{filteredItems.length}</div>
-          <div style={styles.statSubtext}>Across all suppliers</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Active Items</div>
-          <div style={styles.statValue}>{filteredItems.filter(i => i.status === 'Active').length}</div>
-          <div style={styles.statSubtext}>Currently active</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Total Value</div>
-          <div style={styles.statValue}>₹{totalValue.toFixed(2)}</div>
-          <div style={styles.statSubtext}>Combined value</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Suppliers</div>
-          <div style={styles.statValue}>
-            {new Set(filteredItems.map(i => i.supplier_id)).size}
-          </div>
-          <div style={styles.statSubtext}>With items</div>
-        </div>
-      </div>
-
       {/* Items Table */}
       {currentItems.length > 0 ? (
         <>
@@ -1090,11 +938,12 @@ const ItemsListPage = () => {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Item Details</th>
-                  <th style={styles.th}>Model/Watts</th>
-                  <th style={styles.th}>Price</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Supplier</th>
+                  <th style={styles.th}>ID</th>
+                  <th style={styles.th}>Name</th>
+                  <th style={styles.th}>Model</th>
+                  <th style={styles.th}>Type</th>
+                  <th style={styles.th}>Watts</th>
+                  <th style={styles.th}>Buy Price (₹)</th>
                   <th style={styles.th}>Added Date</th>
                   <th style={styles.th}>Attachment</th>
                 </tr>
@@ -1108,32 +957,24 @@ const ItemsListPage = () => {
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     <td style={styles.td}>
-                      <strong style={{ color: '#ffffff' }}>{item.name}</strong>
-                      <div style={styles.dateBadge}>{item.type || 'No type'}</div>
+                      <strong style={{ color: '#3b82f6' }}>#{item.id}</strong>
                     </td>
                     <td style={styles.td}>
-                      <div><strong>{item.model}</strong></div>
-                      <div style={styles.dateBadge}>{item.watts}W</div>
+                      <strong style={{ color: '#ffffff' }}>{item.name}</strong>
+                    </td>
+                    <td style={styles.td}>
+                      {item.model || '—'}
+                    </td>
+                    <td style={styles.td}>
+                      {item.type || '—'}
+                    </td>
+                    <td style={styles.td}>
+                      {item.watts ? `${item.watts}W` : '—'}
                     </td>
                     <td style={styles.td}>
                       <strong style={{ color: '#10b981', fontSize: '16px' }}>
-                        ₹{item.buy_price?.toFixed(2)}
+                        ₹{item.buy_price?.toFixed(2) || '0.00'}
                       </strong>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={{
-                        ...styles.statusBadge,
-                        ...(item.status === 'Active' ? styles.statusActive : 
-                           item.status === 'Pending' ? styles.statusPending : styles.statusInactive)
-                      }}>
-                        {item.status || 'Pending'}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      <div style={styles.supplierInfo}>
-                        <span style={styles.supplierName}>{item.supplier_company}</span>
-                        <span>{item.supplier_name}</span>
-                      </div>
                     </td>
                     <td style={styles.td}>
                       <div>{formatDate(item.created_at)}</div>
@@ -1247,7 +1088,7 @@ const ItemsListPage = () => {
           <div style={{ fontSize: '48px', marginBottom: '20px' }}>📭</div>
           <h3 style={{ color: '#ffffff', marginBottom: '10px' }}>No Items Found</h3>
           <p style={{ color: '#94a3b8' }}>
-            {searchTerm || selectedSupplier !== 'all' || statusFilter !== 'all' || dateFilterType !== 'all'
+            {searchTerm || selectedSupplier !== 'all' || dateFilterType !== 'all'
               ? 'No items match your current filters. Try adjusting your search criteria.'
               : 'No items have been added yet. Add some items to get started.'}
           </p>
