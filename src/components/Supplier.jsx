@@ -604,113 +604,6 @@ const SupplierPage = () => {
   // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  // Export to CSV/Excel
-  const exportToExcel = () => {
-    const filteredSuppliers = getFilteredSuppliers();
-    
-    // Create CSV content
-    let csvContent = "Name,Company,Email,Phone,Address,Items Count,Total Quantity\n";
-    
-    filteredSuppliers.forEach(supplier => {
-      const supplierItems = items.filter(item => item.supplier_id === supplier.id);
-      const totalQuantity = supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
-      const row = [
-        `"${supplier.name || ''}"`,
-        `"${supplier.company || ''}"`,
-        `"${supplier.email || ''}"`,
-        `"${supplier.phone || ''}"`,
-        `"${supplier.address || ''}"`,
-        supplierItems.length,
-        totalQuantity
-      ].join(',');
-      csvContent += row + '\n';
-    });
-    
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `suppliers_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Export to PDF
-  const exportToPDF = () => {
-    const filteredSuppliers = getFilteredSuppliers();
-    
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    
-    // Generate HTML content for PDF
-    let htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Suppliers Report</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; background-color: #0f172a; color: #e2e8f0; }
-          h1 { color: #4f46e5; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th { background-color: #2563eb; color: white; padding: 10px; text-align: left; }
-          td { padding: 8px; border-bottom: 1px solid #334155; }
-          tr:nth-child(even) { background-color: #1e293b; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-          .date { color: #94a3b8; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Suppliers Report</h1>
-          <div class="date">Generated: ${new Date().toLocaleDateString()}</div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Company</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Address</th>
-              <th>Items Count</th>
-              <th>Total Quantity</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-    
-    filteredSuppliers.forEach(supplier => {
-      const supplierItems = items.filter(item => item.supplier_id === supplier.id);
-      const totalQuantity = supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
-      htmlContent += `
-        <tr>
-          <td>${supplier.name || ''}</td>
-          <td>${supplier.company || ''}</td>
-          <td>${supplier.email || ''}</td>
-          <td>${supplier.phone || ''}</td>
-          <td>${supplier.address || ''}</td>
-          <td>${supplierItems.length}</td>
-          <td>${totalQuantity}</td>
-        </tr>
-      `;
-    });
-    
-    htmlContent += `
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
-    
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-  };
-
   // ================= DARK STYLES (Matching Dashboard) =================
   const styles = {
     container: {
@@ -1081,12 +974,12 @@ const SupplierPage = () => {
       color: "#94a3b8",
       marginLeft: "10px",
     },
+    // Removed background color from quantity badge
     quantityBadge: {
-      background: "#2563eb",
       padding: "4px 8px",
       borderRadius: "12px",
       fontSize: "12px",
-      color: "#fff",
+      color: "#e2e8f0",
       fontWeight: "500",
     },
     attachmentLink: {
@@ -1122,7 +1015,7 @@ const SupplierPage = () => {
       height: "40px",
       animation: "spin 1s linear infinite",
     },
-    // New styles for search, pagination, and export
+    // New styles for search and pagination
     searchContainer: {
       display: "flex",
       gap: "15px",
@@ -1148,34 +1041,6 @@ const SupplierPage = () => {
       borderRadius: "8px",
       fontSize: "14px",
       minWidth: "150px",
-    },
-    exportButtons: {
-      display: "flex",
-      gap: "10px",
-      marginLeft: "auto",
-    },
-    exportButton: {
-      padding: "10px 20px",
-      borderRadius: "8px",
-      backgroundColor: "#1e293b",
-      color: "#e2e8f0",
-      border: "1px solid #334155",
-      cursor: "pointer",
-      fontSize: "14px",
-      fontWeight: "500",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-    },
-    excelButton: {
-      backgroundColor: "#10b981",
-      color: "#fff",
-      border: "none",
-    },
-    pdfButton: {
-      backgroundColor: "#ef4444",
-      color: "#fff",
-      border: "none",
     },
     pagination: {
       display: "flex",
@@ -1264,7 +1129,7 @@ const SupplierPage = () => {
           </div>
         </div>
 
-        {/* Search and Export Section */}
+        {/* Search Section */}
         <div style={styles.searchContainer}>
           <select 
             style={styles.searchSelect}
@@ -1289,21 +1154,6 @@ const SupplierPage = () => {
               setCurrentPage(1); // Reset to first page on search
             }}
           />
-          
-          <div style={styles.exportButtons}>
-            <button 
-              style={{...styles.exportButton, ...styles.excelButton}}
-              onClick={exportToExcel}
-            >
-              📊 Export Excel
-            </button>
-            <button 
-              style={{...styles.exportButton, ...styles.pdfButton}}
-              onClick={exportToPDF}
-            >
-              📄 Export PDF
-            </button>
-          </div>
         </div>
 
         <div style={{ backgroundColor: "#1e293b", padding: "30px", borderRadius: "16px", border: "1px solid #334155" }}>
@@ -1330,6 +1180,7 @@ const SupplierPage = () => {
                       <th style={styles.th}>Phone</th>
                       <th style={styles.th}>Address</th>
                       <th style={styles.th}>Items</th>
+                      <th style={styles.th}>Total Qty</th>
                       <th style={styles.th}>Actions</th>
                     </tr>
                   </thead>
@@ -1354,9 +1205,7 @@ const SupplierPage = () => {
                             <span style={{ fontWeight: '500', color: '#fff' }}>{supplier.name}</span>
                           </td>
                           <td style={styles.td}>
-                            <span style={{ background: '#2563eb', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', color: '#fff' }}>
-                              {supplier.company}
-                            </span>
+                            <span>{supplier.company}</span>
                           </td>
                           <td style={styles.td}>{supplier.email || '—'}</td>
                           <td style={styles.td}>{supplier.phone || '—'}</td>
@@ -1371,12 +1220,12 @@ const SupplierPage = () => {
                                   {pendingCount} pending
                                 </span>
                               )}
-                              {totalQuantity > 0 && (
-                                <span style={styles.quantityBadge}>
-                                  Qty: {totalQuantity}
-                                </span>
-                              )}
                             </div>
+                          </td>
+                          <td style={styles.td}>
+                            <span style={styles.quantityBadge}>
+                              {totalQuantity}
+                            </span>
                           </td>
                           <td style={styles.td}>
                             <div style={styles.actionButtons}>
@@ -1510,11 +1359,9 @@ const SupplierPage = () => {
               <span style={styles.itemBadge}>
                 {supplierItems.length} {supplierItems.length === 1 ? 'item' : 'items'}
               </span>
-              {supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0) > 0 && (
-                <span style={styles.quantityBadge}>
-                  Total Qty: {supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0)}
-                </span>
-              )}
+              <span style={styles.quantityBadge}>
+                Total Qty: {supplierItems.reduce((sum, item) => sum + (item.quantity || 0), 0)}
+              </span>
             </div>
             <div style={{ color: "#94a3b8", marginTop: "8px", fontSize: "13px", display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
               <span>📧 {selectedSupplier.email || 'No email'}</span>
@@ -1531,7 +1378,7 @@ const SupplierPage = () => {
                 <th style={styles.th}>Item Name</th>
                 <th style={styles.th}>Type</th>
                 <th style={styles.th}>Model</th>
-                <th style={styles.th}>Watts</th>
+                <th style={styles.th}>Warranty</th>
                 <th style={styles.th}>Buy Price (₹)</th>
                 <th style={styles.th}>Quantity</th>
                 <th style={styles.th}>Attachment</th>
@@ -1571,9 +1418,7 @@ const SupplierPage = () => {
                       <span style={{ fontWeight: '600', color: '#10b981' }}>₹{item.buy_price?.toFixed(2)}</span>
                     </td>
                     <td style={styles.td}>
-                      <span style={styles.quantityBadge}>
-                        {item.quantity || 0}
-                      </span>
+                      <span style={styles.quantityBadge}>{item.quantity || 0}</span>
                     </td>
                     <td style={styles.td}>
                       {item.attachment ? (
@@ -1641,7 +1486,7 @@ const SupplierPage = () => {
                     <th style={styles.th}>Item Name</th>
                     <th style={styles.th}>Type</th>
                     <th style={styles.th}>Model</th>
-                    <th style={styles.th}>Watts</th>
+                    <th style={styles.th}>Warranty</th>
                     <th style={styles.th}>Buy Price (₹)</th>
                     <th style={styles.th}>Quantity</th>
                     <th style={styles.th}>Attachment</th>
@@ -1673,9 +1518,7 @@ const SupplierPage = () => {
                         <span style={{ fontWeight: '600', color: '#10b981' }}>₹{item.buy_price?.toFixed(2)}</span>
                       </td>
                       <td style={styles.td}>
-                        <span style={styles.quantityBadge}>
-                          {item.quantity || 0}
-                        </span>
+                        <span style={styles.quantityBadge}>{item.quantity || 0}</span>
                       </td>
                       <td style={styles.td}>
                         {item.attachment ? (
@@ -1888,7 +1731,7 @@ const SupplierPage = () => {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Watts</label>
+                <label style={styles.label}>Warranty</label>
                 <input
                   type="number"
                   name="watts"

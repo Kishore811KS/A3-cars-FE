@@ -493,7 +493,7 @@ export default function ItemsPage() {
         name: editingItem.name.trim(),
         model: editingItem.model?.trim() || "",
         type: editingItem.type?.trim() || "",
-        watts: editingItem.watts?.toString() || "",
+        watts: editingItem.watts?.toString() || "", // Keep as watts in API
         buyPrice: parseFloat(editingItem.buyPrice) || 0,
         sellPrice: parseFloat(editingItem.sellPrice) || 0,
         quantity: parseInt(editingItem.quantity) || 0,
@@ -550,7 +550,7 @@ export default function ItemsPage() {
       name: "",
       model: "",
       type: "",
-      watts: "",
+      watts: "", // This will be displayed as Warranty
       buyPrice: "",
       sellPrice: "",
       quantity: "",
@@ -612,7 +612,7 @@ export default function ItemsPage() {
         'Name': item.name || '',
         'Model': item.model || '',
         'Type': item.type || '',
-        'Watts': item.watts || '',
+        'Warranty': item.watts || '', // Changed from 'Watts' to 'Warranty'
         'Buy Price': item.buyPrice || 0,
         'Sell Price': item.sellPrice || 0,
         'Quantity': item.quantity || 0,
@@ -628,7 +628,7 @@ export default function ItemsPage() {
         { wch: 20 }, // Name
         { wch: 15 }, // Model
         { wch: 15 }, // Type
-        { wch: 10 }, // Watts
+        { wch: 12 }, // Warranty (was Watts)
         { wch: 12 }, // Buy Price
         { wch: 12 }, // Sell Price
         { wch: 10 }, // Quantity
@@ -676,7 +676,7 @@ export default function ItemsPage() {
             name: firstRow['Name'] || firstRow['name'] || '',
             model: firstRow['Model'] || firstRow['model'] || '',
             type: firstRow['Type'] || firstRow['type'] || '',
-            watts: firstRow['Watts'] || firstRow['watts'] || '',
+            watts: firstRow['Warranty'] || firstRow['watts'] || firstRow['Warranty'] || '', // Handle both Warranty and watts
             buyPrice: parseFloat(firstRow['Buy Price'] || firstRow['buyPrice'] || 0),
             sellPrice: parseFloat(firstRow['Sell Price'] || firstRow['sellPrice'] || 0),
             quantity: parseInt(firstRow['Quantity'] || firstRow['quantity'] || 0),
@@ -1125,12 +1125,12 @@ export default function ItemsPage() {
             </div>
 
             <div style={modalStyles.formGroup}>
-              <label style={modalStyles.label}>Watts</label>
+              <label style={modalStyles.label}>Warranty</label> {/* Changed from Watts to Warranty */}
               <input
                 style={modalStyles.input}
                 value={editingItem.watts || ""}
                 onChange={(e) => handleEditChange("watts", e.target.value)}
-                placeholder="Enter watts"
+                placeholder="Enter warranty period"
               />
             </div>
 
@@ -1426,7 +1426,7 @@ export default function ItemsPage() {
                 <th style={styles.th}>Name</th>
                 <th style={styles.th}>Model</th>
                 <th style={styles.th}>Type</th>
-                <th style={styles.th}>Watts</th>
+                <th style={styles.th}>Warranty</th> {/* Changed from Watts to Warranty */}
                 <th style={styles.th}>Buy Price (₹)</th>
                 <th style={styles.th}>Sell Price (₹)</th>
                 <th style={styles.th}>Quantity</th>
@@ -1458,7 +1458,7 @@ export default function ItemsPage() {
                     
                     <td style={styles.td}>{item.type || '-'}</td>
                     
-                    <td style={styles.td}>{item.watts || 0}</td>
+                    <td style={styles.td}>{item.watts || '-'}</td> {/* This displays as Warranty in the UI */}
                     
                     <td style={styles.td}>₹{item.buyPrice?.toFixed(2) || '0.00'}</td>
                     

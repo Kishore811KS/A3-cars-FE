@@ -905,7 +905,7 @@ export default function ItemsByTypePage() {
           </div>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>Watts</label>
+            <label style={styles.label}>Warrenty</label>
             <input
               style={styles.input}
               value={editingItem.watts || ''}
@@ -1254,7 +1254,7 @@ export default function ItemsByTypePage() {
                   <tr>
                     <th style={styles.th}>Product</th>
                     <th style={styles.th}>Model</th>
-                    <th style={styles.th}>Watts</th>
+                    <th style={styles.th}>Warrenty</th>
                     <th style={styles.th}>Buy Price</th>
                     <th style={styles.th}>Sell Price</th>
                     <th style={styles.th}>Quantity</th>

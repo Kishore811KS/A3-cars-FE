@@ -95,7 +95,7 @@ const Header = ({ toggleSidebar }) => {
     <div style={styles.header}>
       <div style={styles.left}>
         <FaBars style={styles.toggleBtn} onClick={toggleSidebar} />
-        <h3 style={styles.title}>Avva-Inventory</h3>
+        <h3 style={styles.title}>   V4SURE</h3>
       </div>
 
       <div style={styles.right}>

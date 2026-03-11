@@ -23,11 +23,16 @@ const Bill = () => {
   const [customerType, setCustomerType] = useState('external'); // 'internal' or 'external'
   const [customerDiscount, setCustomerDiscount] = useState(0); // Default discount for customer type
   
-  // Payment information
+  // Discount information
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState('percentage'); // 'percentage' or 'fixed'
+  const [manualDiscount, setManualDiscount] = useState(false); // Track if discount is manually set
+  
+  // Tax information
   const [tax, setTax] = useState(0);
-  const [taxType, setTaxType] = useState('percentage');
+  const [taxType, setTaxType] = useState('percentage'); // 'percentage' or 'fixed'
+  
+  // Payment information
   const [paidAmount, setPaidAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentStatus, setPaymentStatus] = useState('pending');
@@ -49,6 +54,7 @@ const Bill = () => {
   const [billSaved, setBillSaved] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [showDiscountInput, setShowDiscountInput] = useState(false);
 
   // Refs
   const billPaperRef = useRef(null);
@@ -484,6 +490,57 @@ const Bill = () => {
       marginTop: '6px',
       color: '#333',
     },
+    discountSection: {
+      margin: '8px 0',
+      padding: '6px',
+      background: '#f0f7ff',
+      borderRadius: '3px',
+      border: '1px solid #b8daff',
+    },
+    discountHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '5px',
+      cursor: 'pointer',
+    },
+    discountTitle: {
+      fontWeight: 'bold',
+      color: '#004085',
+      fontSize: '11px',
+    },
+    discountToggle: {
+      color: '#007bff',
+      fontSize: '12px',
+    },
+    discountControls: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '5px',
+      marginTop: '5px',
+    },
+    discountInput: {
+      padding: '4px',
+      border: '1px solid #ddd',
+      borderRadius: '3px',
+      fontFamily: "'Courier New', monospace",
+      fontSize: '10px',
+      width: '100%',
+    },
+    discountTypeSelect: {
+      padding: '4px',
+      border: '1px solid #ddd',
+      borderRadius: '3px',
+      fontFamily: "'Courier New', monospace",
+      fontSize: '10px',
+      width: '100%',
+    },
+    discountAmount: {
+      fontSize: '10px',
+      color: '#28a745',
+      fontWeight: 'bold',
+      marginTop: '3px',
+    },
     summaryInput: {
       width: '50px',
       padding: '2px',
@@ -493,25 +550,6 @@ const Bill = () => {
       fontFamily: "'Courier New', monospace",
       fontSize: '9px',
       marginLeft: '3px',
-    },
-    discountRow: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: '3px',
-      fontSize: '10px',
-      alignItems: 'center',
-    },
-    discountControls: {
-      display: 'flex',
-      gap: '2px',
-      alignItems: 'center',
-    },
-    discountType: {
-      padding: '2px',
-      border: '1px solid #ddd',
-      borderRadius: '2px',
-      fontSize: '9px',
-      fontFamily: "'Courier New', monospace",
     },
     paymentSection: {
       margin: '10px 0',
@@ -696,19 +734,22 @@ const Bill = () => {
     } else if (paidAmount >= total) {
       setPaymentStatus('paid');
     }
-  }, [paidAmount, selectedProducts, discount, tax]);
+  }, [paidAmount, selectedProducts, discount, tax, discountType, taxType]);
 
-  // Set discount based on customer type
+  // Set discount based on customer type (only if not manually set)
   useEffect(() => {
-    if (customerType === 'internal') {
-      setCustomerDiscount(10); // 10% discount for internal customers
-      setDiscount(10); // Set discount to 10%
-      setDiscountType('percentage');
-    } else {
-      setCustomerDiscount(0); // No default discount for external customers
-      setDiscount(0);
+    if (!manualDiscount) {
+      if (customerType === 'internal') {
+        setCustomerDiscount(10); // 10% discount for internal customers
+        setDiscount(10);
+        setDiscountType('percentage');
+      } else {
+        setCustomerDiscount(0);
+        setDiscount(0);
+        setDiscountType('percentage');
+      }
     }
-  }, [customerType]);
+  }, [customerType, manualDiscount]);
 
   // Add thermal print styles
   useEffect(() => {
@@ -813,6 +854,10 @@ const Bill = () => {
           border: none !important;
           padding: 0 !important;
           margin: 10px 0 !important;
+        }
+        
+        #billPaper .discount-section {
+          display: none !important;
         }
         
         @page {
@@ -973,68 +1018,81 @@ const Bill = () => {
     setSearchResults([]);
   };
 
-  // Update quantity
+  // Update quantity - Now sets to 0 instead of deleting
   const updateQuantity = (productId, newQuantity) => {
     const product = selectedProducts.find(p => p.id === productId);
     
     if (product) {
       newQuantity = parseInt(newQuantity) || 0;
       
-      if (newQuantity > 0 && newQuantity <= product.maxQuantity) {
+      // Allow quantity to be 0 (will show as 0 quantity item)
+      if (newQuantity >= 0 && newQuantity <= product.maxQuantity) {
         const updatedProducts = selectedProducts.map(p =>
           p.id === productId
             ? { ...p, quantity: newQuantity, total: newQuantity * p.sellPrice }
             : p
         );
         setSelectedProducts(updatedProducts);
-      } else if (newQuantity === 0) {
-        removeProduct(productId);
-      } else {
+        
+        if (newQuantity === 0) {
+          setSuccess(`${product.name} quantity set to 0`);
+        } else {
+          setSuccess(`Updated ${product.name} quantity`);
+        }
+        setTimeout(() => setSuccess(''), 2000);
+      } else if (newQuantity > product.maxQuantity) {
         setError(`Invalid quantity! Max available: ${product.maxQuantity}`);
         setTimeout(() => setError(''), 3000);
       }
     }
   };
 
-  // Remove product
+  // Remove product - Only for complete removal (separate function)
   const removeProduct = (productId) => {
+    const product = selectedProducts.find(p => p.id === productId);
     setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
-    setSuccess('Item removed');
+    setSuccess(`${product.name} removed from bill`);
     setTimeout(() => setSuccess(''), 2000);
   };
 
-  // Calculate subtotal
+  // Calculate subtotal (only items with quantity > 0)
   const calculateSubtotal = () => {
-    return selectedProducts.reduce((sum, p) => sum + p.total, 0);
+    return selectedProducts
+      .filter(p => p.quantity > 0)
+      .reduce((sum, p) => sum + p.total, 0);
   };
 
   // Calculate discount amount
   const calculateDiscountAmount = () => {
     const subtotal = calculateSubtotal();
+    if (subtotal === 0) return 0;
+    
     if (discountType === 'percentage') {
       return (subtotal * discount) / 100;
     }
-    return discount;
+    return Math.min(discount, subtotal); // Fixed amount cannot exceed subtotal
   };
 
-  // Calculate tax amount
+  // Calculate tax amount (applied after discount)
   const calculateTaxAmount = () => {
     const subtotal = calculateSubtotal();
     const discountAmount = calculateDiscountAmount();
     const afterDiscount = subtotal - discountAmount;
     
+    if (afterDiscount <= 0) return 0;
+    
     if (taxType === 'percentage') {
       return (afterDiscount * tax) / 100;
     }
-    return tax;
+    return Math.min(tax, afterDiscount); // Fixed tax cannot exceed after discount amount
   };
 
-  // Calculate total
+  // Calculate total (subtotal - discount + tax)
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
     const discountAmount = calculateDiscountAmount();
     const taxAmount = calculateTaxAmount();
-    return subtotal - discountAmount + taxAmount;
+    return Math.max(0, subtotal - discountAmount + taxAmount);
   };
 
   // Calculate change
@@ -1047,6 +1105,75 @@ const Bill = () => {
   const calculateDue = () => {
     const total = calculateTotal();
     return Math.max(0, total - paidAmount);
+  };
+
+  // Handle discount change
+  const handleDiscountChange = (value) => {
+    setManualDiscount(true); // Mark as manually set
+    const numValue = parseFloat(value) || 0;
+    const subtotal = calculateSubtotal();
+    
+    // Validate based on discount type
+    if (discountType === 'percentage') {
+      if (numValue > 100) {
+        setError('Percentage discount cannot exceed 100%');
+        setDiscount(100);
+      } else if (numValue < 0) {
+        setDiscount(0);
+      } else {
+        setDiscount(numValue);
+      }
+    } else {
+      if (numValue > subtotal) {
+        setError('Fixed discount cannot exceed subtotal');
+        setDiscount(subtotal);
+      } else if (numValue < 0) {
+        setDiscount(0);
+      } else {
+        setDiscount(numValue);
+      }
+    }
+    
+    // Clear error after 3 seconds
+    setTimeout(() => setError(''), 3000);
+  };
+
+  // Handle discount type change
+  const handleDiscountTypeChange = (type) => {
+    setManualDiscount(true); // Mark as manually set
+    const subtotal = calculateSubtotal();
+    setDiscountType(type);
+    
+    // Convert discount value when type changes
+    if (type === 'percentage') {
+      // If switching to percentage, convert fixed amount to percentage
+      if (discountType === 'fixed' && subtotal > 0) {
+        const percentage = (discount / subtotal) * 100;
+        setDiscount(Math.min(100, Math.round(percentage * 100) / 100));
+      } else if (discount > 100) {
+        setDiscount(100);
+      }
+    } else {
+      // If switching to fixed, convert percentage to fixed amount
+      if (discountType === 'percentage' && subtotal > 0) {
+        const fixed = (subtotal * discount) / 100;
+        setDiscount(Math.min(subtotal, Math.round(fixed * 100) / 100));
+      } else if (discount > subtotal) {
+        setDiscount(subtotal);
+      }
+    }
+  };
+
+  // Reset discount to customer default
+  const resetDiscountToDefault = () => {
+    setManualDiscount(false);
+    if (customerType === 'internal') {
+      setDiscount(10);
+      setDiscountType('percentage');
+    } else {
+      setDiscount(0);
+      setDiscountType('percentage');
+    }
   };
 
   // Handle cash payment
@@ -1072,8 +1199,9 @@ const Bill = () => {
       return;
     }
 
-    if (selectedProducts.length === 0) {
-      setError('No items in bill!');
+    const subtotal = calculateSubtotal();
+    if (subtotal === 0) {
+      setError('No items with quantity > 0 in bill!');
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -1082,7 +1210,6 @@ const Bill = () => {
     setError('');
     setSuccess('');
 
-    const subtotal = calculateSubtotal();
     const discountAmount = calculateDiscountAmount();
     const taxAmount = calculateTaxAmount();
     const total = calculateTotal();
@@ -1132,6 +1259,7 @@ const Bill = () => {
       discount: discountAmount,
       discountType,
       discountValue: discount,
+      manualDiscount,
       tax: taxAmount,
       taxType,
       taxValue: tax,
@@ -1142,14 +1270,16 @@ const Bill = () => {
       paymentMethod,
       paymentStatus,
       paymentDetails,
-      items: selectedProducts.map(p => ({
-        productId: p.id,
-        productName: p.name,
-        productModel: p.model,
-        sellPrice: p.sellPrice,
-        quantity: p.quantity,
-        total: p.total
-      }))
+      items: selectedProducts
+        .filter(p => p.quantity > 0) // Only include items with quantity > 0
+        .map(p => ({
+          productId: p.id,
+          productName: p.name,
+          productModel: p.model,
+          sellPrice: p.sellPrice,
+          quantity: p.quantity,
+          total: p.total
+        }))
     };
 
     try {
@@ -1184,6 +1314,7 @@ const Bill = () => {
       setCustomerDiscount(0);
       setDiscount(0);
       setDiscountType('percentage');
+      setManualDiscount(false);
       setTax(0);
       setTaxType('percentage');
       setPaidAmount(0);
@@ -1205,8 +1336,9 @@ const Bill = () => {
 
   // Handle thermal print
   const handlePrint = () => {
-    if (selectedProducts.length === 0) {
-      setError('No items to print!');
+    const subtotal = calculateSubtotal();
+    if (subtotal === 0) {
+      setError('No items with quantity > 0 to print!');
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -1352,6 +1484,10 @@ const Bill = () => {
                 display: none !important;
               }
               
+              .discount-section {
+                display: none !important;
+              }
+              
               * {
                 background: white !important;
                 color: black !important;
@@ -1413,6 +1549,11 @@ const Bill = () => {
     testAPIConnection();
   }, []);
 
+  // Filter out items with quantity 0 for display in bill summary
+  const activeProducts = selectedProducts.filter(p => p.quantity > 0);
+  const subtotal = calculateSubtotal();
+  const discountAmount = calculateDiscountAmount();
+  const taxAmount = calculateTaxAmount();
   const total = calculateTotal();
   const due = calculateDue();
   const change = calculateChange();
@@ -1423,6 +1564,10 @@ const Bill = () => {
       fontWeight: 'bold',
       color: paidAmount >= total ? '#28a745' : '#dc3545',
       fontSize: '10px',
+    },
+    zeroQuantity: {
+      opacity: 0.5,
+      background: '#fff3cd',
     }
   };
 
@@ -1525,17 +1670,28 @@ const Bill = () => {
         </div>
         
         <div style={baseStyles.selectedProducts}>
-          <h3 style={baseStyles.selectedProductsTitle}>🛒 Current Bill Items ({selectedProducts.length})</h3>
+          <h3 style={baseStyles.selectedProductsTitle}>
+            🛒 Current Bill Items ({activeProducts.length} active / {selectedProducts.length} total)
+          </h3>
           <div style={baseStyles.selectedItemsList}>
             {selectedProducts.length === 0 ? (
               <p style={baseStyles.noItems}>No items added yet. Search or scan products to add.</p>
             ) : (
               selectedProducts.map(product => (
-                <div key={product.id} style={baseStyles.selectedItem}>
+                <div 
+                  key={product.id} 
+                  style={{
+                    ...baseStyles.selectedItem,
+                    ...(product.quantity === 0 ? dynamicStyles.zeroQuantity : {})
+                  }}
+                >
                   <div style={baseStyles.itemInfo}>
                     <span style={baseStyles.itemName}>{product.name}</span>
                     {product.model && (
                       <span style={baseStyles.itemModel}>{product.model}</span>
+                    )}
+                    {product.quantity === 0 && (
+                      <span style={{fontSize: '9px', color: '#856404'}}>(Zero quantity)</span>
                     )}
                   </div>
                   <div style={baseStyles.itemPrice}>₹{product.sellPrice}</div>
@@ -1543,7 +1699,7 @@ const Bill = () => {
                     type="number"
                     style={baseStyles.itemQuantity}
                     value={product.quantity}
-                    min="1"
+                    min="0"
                     max={product.maxQuantity}
                     onChange={(e) => updateQuantity(product.id, e.target.value)}
                   />
@@ -1553,6 +1709,7 @@ const Bill = () => {
                     onClick={() => removeProduct(product.id)}
                     onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
                     onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
+                    title="Remove completely"
                   >
                     ×
                   </button>
@@ -1560,6 +1717,11 @@ const Bill = () => {
               ))
             )}
           </div>
+          {selectedProducts.length > 0 && (
+            <p style={{fontSize: '11px', color: '#666', marginTop: '10px', textAlign: 'center'}}>
+              💡 Set quantity to 0 to keep item in list (will not be billed)
+            </p>
+          )}
         </div>
       </div>
       
@@ -1638,20 +1800,16 @@ const Bill = () => {
                   <span style={baseStyles.customerValue}>{customerGST}</span>
                 </div>
               )}
-              
-              {customerType === 'internal' && (
-                <div style={baseStyles.customerRow}>
-                  <span style={baseStyles.customerLabel}>Staff Discount:</span>
-                  <span style={baseStyles.customerValue}>{customerDiscount}%</span>
-                </div>
-              )}
             </div>
             
             <div style={baseStyles.customerSection} className="no-print">
               <select
                 style={baseStyles.customerTypeSelect}
                 value={customerType}
-                onChange={(e) => setCustomerType(e.target.value)}
+                onChange={(e) => {
+                  setCustomerType(e.target.value);
+                  setManualDiscount(false); // Reset manual discount flag when customer type changes
+                }}
               >
                 <option value="external">👤 External Customer</option>
                 <option value="internal">🏢 Internal (Staff)</option>
@@ -1698,6 +1856,70 @@ const Bill = () => {
               />
             </div>
             
+            {/* Discount Section - Enhanced */}
+            <div style={baseStyles.discountSection} className="no-print">
+              <div 
+                style={baseStyles.discountHeader}
+                onClick={() => setShowDiscountInput(!showDiscountInput)}
+              >
+                <span style={baseStyles.discountTitle}>
+                  {manualDiscount ? '✏️ Manual Discount' : '💰 Default Discount'}
+                </span>
+                <span style={baseStyles.discountToggle}>
+                  {showDiscountInput ? '▼' : '▶'}
+                </span>
+              </div>
+              
+              {showDiscountInput && (
+                <div style={baseStyles.discountControls}>
+                  <select
+                    style={baseStyles.discountTypeSelect}
+                    value={discountType}
+                    onChange={(e) => handleDiscountTypeChange(e.target.value)}
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount (₹)</option>
+                  </select>
+                  
+                  <input
+                    type="number"
+                    style={baseStyles.discountInput}
+                    value={discount}
+                    onChange={(e) => handleDiscountChange(e.target.value)}
+                    min="0"
+                    max={discountType === 'percentage' ? 100 : subtotal}
+                    step={discountType === 'percentage' ? '1' : '0.01'}
+                    placeholder={discountType === 'percentage' ? 'Enter %' : 'Enter amount'}
+                  />
+                </div>
+              )}
+              
+              <div style={baseStyles.discountAmount}>
+                Discount Amount: -₹{discountAmount.toFixed(2)}
+                {!manualDiscount && customerType === 'internal' && (
+                  <span style={{fontSize: '8px', marginLeft: '5px', color: '#666'}}>
+                    (Staff discount)
+                  </span>
+                )}
+              </div>
+              
+              {manualDiscount && (
+                <button
+                  style={{
+                    ...baseStyles.btn,
+                    ...baseStyles.btnSecondary,
+                    fontSize: '9px',
+                    padding: '2px 5px',
+                    marginTop: '5px',
+                    width: '100%'
+                  }}
+                  onClick={resetDiscountToDefault}
+                >
+                  Reset to Default
+                </button>
+              )}
+            </div>
+            
             <div className="bill-items">
               <div className="bill-items-header">
                 <span>Item</span>
@@ -1706,12 +1928,12 @@ const Bill = () => {
                 <span>Total</span>
               </div>
               <div>
-                {selectedProducts.length === 0 ? (
+                {activeProducts.length === 0 ? (
                   <div style={baseStyles.billItemEmpty}>
                     <span>--- No items in bill ---</span>
                   </div>
                 ) : (
-                  selectedProducts.map(product => (
+                  activeProducts.map(product => (
                     <div key={product.id} className="bill-item">
                       <span style={baseStyles.billItemName}>
                         {product.name.length > 12 
@@ -1734,27 +1956,37 @@ const Bill = () => {
             <div className="bill-summary">
               <div className="summary-row">
                 <span>Subtotal:</span>
-                <span>₹{calculateSubtotal().toFixed(2)}</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
               
-              {customerType === 'internal' && (
-                <div className="summary-row">
-                  <span>Staff Discount ({customerDiscount}%):</span>
-                  <span>-₹{calculateDiscountAmount().toFixed(2)}</span>
-                </div>
-              )}
+              <div className="summary-row">
+                <span>
+                  Discount 
+                  {discount > 0 && (
+                    <span style={{fontSize: '8px', color: '#666'}}>
+                      {' '}({discount}{discountType === 'percentage' ? '%' : '₹'})
+                    </span>
+                  )}:
+                </span>
+                <span>-₹{discountAmount.toFixed(2)}</span>
+              </div>
               
-              {discount > 0 && customerType === 'external' && (
-                <div className="summary-row">
-                  <span>Discount ({discount}{discountType === 'percentage' ? '%' : '₹'}):</span>
-                  <span>-₹{calculateDiscountAmount().toFixed(2)}</span>
-                </div>
-              )}
+              <div className="summary-row">
+                <span>After Discount:</span>
+                <span>₹{(subtotal - discountAmount).toFixed(2)}</span>
+              </div>
               
               {tax > 0 && (
                 <div className="summary-row">
-                  <span>Tax ({tax}{taxType === 'percentage' ? '%' : '₹'}):</span>
-                  <span>+₹{calculateTaxAmount().toFixed(2)}</span>
+                  <span>
+                    Tax 
+                    {tax > 0 && (
+                      <span style={{fontSize: '8px', color: '#666'}}>
+                        {' '}({tax}{taxType === 'percentage' ? '%' : '₹'})
+                      </span>
+                    )}:
+                  </span>
+                  <span>+₹{taxAmount.toFixed(2)}</span>
                 </div>
               )}
               
@@ -1936,10 +2168,10 @@ const Bill = () => {
               style={{
                 ...baseStyles.btn,
                 ...baseStyles.btnPrimary,
-                ...(loading || selectedProducts.length === 0 ? baseStyles.btnDisabled : {})
+                ...(loading || activeProducts.length === 0 ? baseStyles.btnDisabled : {})
               }}
               onClick={handlePrint}
-              disabled={loading || selectedProducts.length === 0}
+              disabled={loading || activeProducts.length === 0}
             >
               🖨️ Print
             </button>
@@ -1947,10 +2179,10 @@ const Bill = () => {
               style={{
                 ...baseStyles.btn,
                 ...baseStyles.btnSuccess,
-                ...(loading || selectedProducts.length === 0 ? baseStyles.btnDisabled : {})
+                ...(loading || activeProducts.length === 0 ? baseStyles.btnDisabled : {})
               }}
               onClick={saveBill}
-              disabled={loading || selectedProducts.length === 0}
+              disabled={loading || activeProducts.length === 0}
             >
               {loading ? '💾 Saving...' : '💾 Save'}
             </button>

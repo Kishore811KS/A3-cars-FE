@@ -867,7 +867,7 @@ export default function LowStockPage() {
                 <th style={styles.th}>Name</th>
                 <th style={styles.th}>Model</th>
                 <th style={styles.th}>Type</th>
-                <th style={styles.th}>Watts</th>
+                <th style={styles.th}>Warrenty</th>
                 <th style={styles.th}>Current Stock</th>
                 <th style={styles.th}>Status</th>
                 <th style={styles.th}>Required to reach 5</th>

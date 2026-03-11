@@ -86,7 +86,7 @@ const Sidebar = ({ isOpen }) => {
   return (
     <div style={styles.sidebar}>
       <div style={styles.logoSection}>
-        {isOpen ? "INVENTORY PROJECT" : "INV"}
+        {isOpen ? "Avva Inventry" : "AI"}
       </div>
 
       <div style={styles.navContainer}>

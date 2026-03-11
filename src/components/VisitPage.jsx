@@ -34,8 +34,32 @@ import {
   Copy,
   CheckCircle,
   AlertCircle,
-  Clock
+  Clock,
+  Home,
+  Briefcase,
+  Users,
+  TrendingUp,
+  Wallet,
+  Banknote,
+  Landmark
 } from 'lucide-react';
+
+// Crown icon component for VIP customers
+const Crown = (props) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width={props.size || 24} 
+    height={props.size || 24} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <path d="M2 4l3 12h14l3-12-6 3-4-6-4 3-6-3z" />
+  </svg>
+);
 
 const VisitBillPage = () => {
   const [bills, setBills] = useState([]);
@@ -54,22 +78,14 @@ const VisitBillPage = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPaymentMethod, setFilterPaymentMethod] = useState('all');
-  const [filterPaymentStatus, setFilterPaymentStatus] = useState('all');
+  const [filterCustomerType, setFilterCustomerType] = useState('all');
   const [dateRange, setDateRange] = useState({
     start: '',
     end: ''
   });
-  const [sortBy, setSortBy] = useState('newest'); // newest, oldest, highest, lowest
+  const [sortBy, setSortBy] = useState('newest');
 
   const API_BASE_URL = 'http://localhost:5000/api';
-
-  // Status color mapping
-  const statusColorMap = {
-    paid: { background: '#059669', color: '#fff', icon: <CheckCircle size={12} /> },
-    partial: { background: '#b45309', color: '#fff', icon: <AlertCircle size={12} /> },
-    pending: { background: '#dc2626', color: '#fff', icon: <Clock size={12} /> },
-    default: { background: '#4b5563', color: '#fff', icon: <AlertCircle size={12} /> }
-  };
 
   // Payment method icons and colors
   const paymentMethodMap = {
@@ -80,6 +96,16 @@ const VisitBillPage = () => {
     mixed: { icon: <Filter size={14} />, color: '#6b7280', label: 'Mixed' }
   };
 
+  // Customer type icons and colors
+  const customerTypeMap = {
+    internal: { icon: <Briefcase size={14} />, color: '#3b82f6', label: 'Internal' },
+    external: { icon: <Users size={14} />, color: '#f59e0b', label: 'External' },
+    regular: { icon: <User size={14} />, color: '#6b7280', label: 'Regular' },
+    wholesale: { icon: <TrendingUp size={14} />, color: '#8b5cf6', label: 'Wholesale' },
+    vip: { icon: <Crown size={14} />, color: '#d97706', label: 'VIP' },
+    corporate: { icon: <Briefcase size={14} />, color: '#2563eb', label: 'Corporate' }
+  };
+
   // Load bills on component mount
   useEffect(() => {
     fetchBills();
@@ -88,7 +114,7 @@ const VisitBillPage = () => {
   // Apply filters whenever filter criteria change
   useEffect(() => {
     applyFilters();
-  }, [bills, searchTerm, filterPaymentMethod, filterPaymentStatus, dateRange, sortBy]);
+  }, [bills, searchTerm, filterPaymentMethod, filterCustomerType, dateRange, sortBy]);
 
   // Auto-hide message after 3 seconds
   useEffect(() => {
@@ -109,36 +135,140 @@ const VisitBillPage = () => {
     setError('');
     
     try {
-      const response = await axios.get(`${API_BASE_URL}/billing/bills`);
+      // Try different possible endpoints
+      const endpoints = [
+        `${API_BASE_URL}/billing/bills`,
+        `${API_BASE_URL}/bills`,
+        `${API_BASE_URL}/visit-bills`,
+        `${API_BASE_URL}/billing/visit-bills`
+      ];
       
-      // Handle different response formats
-      let billsData = [];
-      if (Array.isArray(response.data)) {
-        billsData = response.data;
-      } else if (response.data && Array.isArray(response.data.bills)) {
-        billsData = response.data.bills;
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        billsData = response.data.data;
+      let response = null;
+      let success = false;
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log('Trying endpoint:', endpoint);
+          response = await axios.get(endpoint);
+          if (response.data) {
+            success = true;
+            console.log('Success with endpoint:', endpoint);
+            break;
+          }
+        } catch (err) {
+          console.log(`Endpoint ${endpoint} failed:`, err.message);
+        }
       }
       
-      // Process bills to ensure all numeric fields are properly formatted
-      const processedBills = billsData.map(bill => ({
-        ...bill,
-        subtotal: parseFloat(bill.subtotal) || 0,
-        discount: parseFloat(bill.discount) || 0,
-        tax: parseFloat(bill.tax) || 0,
-        total: parseFloat(bill.total) || 0,
-        paidAmount: parseFloat(bill.paidAmount) || 0,
-        changeAmount: parseFloat(bill.changeAmount) || 0,
-        itemCount: bill.items ? bill.items.length : (bill.itemCount || 0)
-      }));
+      if (!success || !response) {
+        throw new Error('Could not fetch bills from any endpoint');
+      }
+      
+      console.log('API Response:', response.data);
+      
+      // Extract bills data from response
+      let billsData = [];
+      
+      if (Array.isArray(response.data)) {
+        billsData = response.data;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        billsData = response.data.data;
+      } else if (response.data.bills && Array.isArray(response.data.bills)) {
+        billsData = response.data.bills;
+      } else if (response.data.results && Array.isArray(response.data.results)) {
+        billsData = response.data.results;
+      } else if (typeof response.data === 'object') {
+        // Try to find any array property
+        for (const key in response.data) {
+          if (Array.isArray(response.data[key])) {
+            billsData = response.data[key];
+            break;
+          }
+        }
+      }
+      
+      if (billsData.length === 0) {
+        console.log('No bills data found in response');
+        setBills([]);
+        setFilteredBills([]);
+        showMessage("info", "ℹ️ No bills found");
+        setLoading(false);
+        return;
+      }
+      
+      // Process bills to ensure all fields are properly mapped
+      const processedBills = billsData.map(bill => {
+        // Handle discount - it could be amount or percentage
+        let discountValue = parseFloat(bill.discount || bill.discount_amount || 0);
+        let discountType = bill.discountType || bill.discount_type || 'amount';
+        let subtotal = parseFloat(bill.subtotal || bill.sub_total || 0);
+        
+        // Calculate actual discount amount
+        let discountAmount = discountValue;
+        if (discountType === 'percentage' && subtotal > 0) {
+          discountAmount = (subtotal * discountValue) / 100;
+        }
+        
+        return {
+          id: bill.id || bill._id || Math.random().toString(),
+          billNumber: bill.billNumber || bill.bill_number || bill.billNo || bill.invoiceNo || `BILL-${Date.now()}`,
+          customerName: bill.customerName || bill.customer_name || bill.customer?.name || 'Walk-in Customer',
+          customerPhone: bill.customerPhone || bill.customer_phone || bill.customer?.phone || '',
+          customerEmail: bill.customerEmail || bill.customer_email || bill.customer?.email || '',
+          customerGst: bill.customerGst || bill.customer_gst || bill.customer?.gst || '',
+          customerAddress: bill.customerAddress || bill.customer_address || bill.customer?.address || '',
+          customerType: bill.customerType || bill.customer_type || bill.customer?.type || 'external',
+          subtotal: subtotal,
+          discountValue: discountValue, // Original discount value (percentage or amount)
+          discountAmount: discountAmount, // Calculated discount amount in rupees
+          discountType: discountType,
+          tax: parseFloat(bill.tax || bill.taxAmount || 0),
+          taxType: bill.taxType || bill.tax_type || 'percentage',
+          total: parseFloat(bill.total || bill.grandTotal || bill.amount || 0),
+          paidAmount: parseFloat(bill.paidAmount || bill.paid_amount || bill.paid || 0),
+          changeAmount: parseFloat(bill.changeAmount || bill.change_amount || bill.change || 0),
+          paymentMethod: bill.paymentMethod || bill.payment_method || bill.payment?.method || 'cash',
+          createdAt: bill.createdAt || bill.created_at || bill.date || new Date().toISOString(),
+          updatedAt: bill.updatedAt || bill.updated_at,
+          createdBy: bill.createdBy || bill.created_by,
+          items: Array.isArray(bill.items) ? bill.items.map(item => ({
+            id: item.id || item._id,
+            productId: item.productId || item.product_id || item.product,
+            productName: item.productName || item.product_name || item.name || 'Unknown',
+            productModel: item.productModel || item.product_model || item.model || '',
+            productType: item.productType || item.product_type || item.type || '',
+            sellPrice: parseFloat(item.sellPrice || item.sell_price || item.price || 0),
+            quantity: parseInt(item.quantity || item.qty || 1),
+            total: parseFloat(item.total || item.subtotal || 0),
+          })) : [],
+          payments: Array.isArray(bill.payments) ? bill.payments.map(payment => ({
+            id: payment.id || payment._id,
+            paymentId: payment.paymentId || payment.payment_id,
+            amount: parseFloat(payment.amount || 0),
+            method: payment.method || 'cash',
+            status: payment.status || 'completed',
+            reference: payment.reference || '',
+            notes: payment.notes || '',
+            createdAt: payment.createdAt || payment.created_at
+          })) : []
+        };
+      });
+      
+      // Calculate item count and due amount for each bill
+      processedBills.forEach(bill => {
+        bill.itemCount = bill.items ? bill.items.length : 0;
+        bill.dueAmount = bill.total - bill.paidAmount;
+      });
+      
+      console.log('Processed Bills:', processedBills);
       
       setBills(processedBills);
       setFilteredBills(processedBills);
+      
       showMessage("success", `✅ Loaded ${processedBills.length} bills successfully!`);
     } catch (err) {
       console.error('Error fetching bills:', err);
-      setError('Failed to load bills. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Failed to load bills. Please try again.');
       showMessage("error", "❌ Failed to load bills");
     } finally {
       setLoading(false);
@@ -147,24 +277,138 @@ const VisitBillPage = () => {
 
   const fetchBillDetails = async (billId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/billing/bills/${billId}`);
+      setLoading(true);
       
-      // Process the bill data to ensure proper numeric formatting
+      // First check if we already have the bill in state
+      const existingBill = bills.find(b => b.id === billId);
+      if (existingBill && existingBill.items && existingBill.items.length > 0) {
+        console.log('Using existing bill data');
+        setSelectedBill(existingBill);
+        setShowBillModal(true);
+        setLoading(false);
+        return;
+      }
+      
+      // Try different endpoints for single bill
+      const endpoints = [
+        `${API_BASE_URL}/billing/bills/${billId}`,
+        `${API_BASE_URL}/bills/${billId}`,
+        `${API_BASE_URL}/visit-bills/${billId}`,
+        `${API_BASE_URL}/billing/visit-bills/${billId}`
+      ];
+      
+      let response = null;
+      let success = false;
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log('Trying details endpoint:', endpoint);
+          response = await axios.get(endpoint);
+          if (response.data) {
+            success = true;
+            console.log('Success with details endpoint:', endpoint);
+            break;
+          }
+        } catch (err) {
+          console.log(`Endpoint ${endpoint} failed:`, err.message);
+        }
+      }
+      
+      if (!success || !response) {
+        // If API fails, use the existing bill data
+        const billFromList = bills.find(b => b.id === billId);
+        if (billFromList) {
+          console.log('Using bill from list as fallback');
+          setSelectedBill(billFromList);
+          setShowBillModal(true);
+          setLoading(false);
+          return;
+        }
+        throw new Error('Could not fetch bill details');
+      }
+      
+      console.log('Bill Details Response:', response.data);
+      
+      // Process the bill data
+      const billData = response.data;
+      
+      // Handle discount - it could be amount or percentage
+      let discountValue = parseFloat(billData.discount || billData.discount_amount || 0);
+      let discountType = billData.discountType || billData.discount_type || 'amount';
+      let subtotal = parseFloat(billData.subtotal || billData.sub_total || 0);
+      
+      // Calculate actual discount amount
+      let discountAmount = discountValue;
+      if (discountType === 'percentage' && subtotal > 0) {
+        discountAmount = (subtotal * discountValue) / 100;
+      }
+      
       const processedBill = {
-        ...response.data,
-        subtotal: parseFloat(response.data.subtotal) || 0,
-        discount: parseFloat(response.data.discount) || 0,
-        tax: parseFloat(response.data.tax) || 0,
-        total: parseFloat(response.data.total) || 0,
-        paidAmount: parseFloat(response.data.paidAmount) || 0,
-        changeAmount: parseFloat(response.data.changeAmount) || 0
+        id: billData.id || billData._id || billId,
+        billNumber: billData.billNumber || billData.bill_number || billData.billNo || 'N/A',
+        customerName: billData.customerName || billData.customer_name || billData.customer?.name || 'Walk-in Customer',
+        customerPhone: billData.customerPhone || billData.customer_phone || billData.customer?.phone || '',
+        customerEmail: billData.customerEmail || billData.customer_email || billData.customer?.email || '',
+        customerGst: billData.customerGst || billData.customer_gst || billData.customer?.gst || '',
+        customerAddress: billData.customerAddress || billData.customer_address || billData.customer?.address || '',
+        customerType: billData.customerType || billData.customer_type || billData.customer?.type || 'external',
+        subtotal: subtotal,
+        discountValue: discountValue,
+        discountAmount: discountAmount,
+        discountType: discountType,
+        tax: parseFloat(billData.tax || billData.taxAmount || 0),
+        taxType: billData.taxType || billData.tax_type || 'percentage',
+        total: parseFloat(billData.total || billData.grandTotal || billData.amount || 0),
+        paidAmount: parseFloat(billData.paidAmount || billData.paid_amount || billData.paid || 0),
+        changeAmount: parseFloat(billData.changeAmount || billData.change_amount || billData.change || 0),
+        paymentMethod: billData.paymentMethod || billData.payment_method || billData.payment?.method || 'cash',
+        createdAt: billData.createdAt || billData.created_at || billData.date || new Date().toISOString(),
+        updatedAt: billData.updatedAt || billData.updated_at,
+        createdBy: billData.createdBy || billData.created_by,
+        items: Array.isArray(billData.items) ? billData.items.map(item => ({
+          id: item.id || item._id,
+          productId: item.productId || item.product_id || item.product,
+          productName: item.productName || item.product_name || item.name || 'Unknown',
+          productModel: item.productModel || item.product_model || item.model || '',
+          productType: item.productType || item.product_type || item.type || '',
+          sellPrice: parseFloat(item.sellPrice || item.sell_price || item.price || 0),
+          quantity: parseInt(item.quantity || item.qty || 1),
+          total: parseFloat(item.total || item.subtotal || 0),
+        })) : [],
+        payments: Array.isArray(billData.payments) ? billData.payments.map(payment => ({
+          id: payment.id || payment._id,
+          paymentId: payment.paymentId || payment.payment_id,
+          amount: parseFloat(payment.amount || 0),
+          method: payment.method || 'cash',
+          status: payment.status || 'completed',
+          reference: payment.reference || '',
+          notes: payment.notes || '',
+          createdAt: payment.createdAt || payment.created_at
+        })) : []
       };
+      
+      // Calculate item count and due amount
+      processedBill.itemCount = processedBill.items.length;
+      processedBill.dueAmount = processedBill.total - processedBill.paidAmount;
+      
+      console.log('Processed Bill Details:', processedBill);
       
       setSelectedBill(processedBill);
       setShowBillModal(true);
     } catch (err) {
       console.error('Error fetching bill details:', err);
-      showMessage("error", "❌ Failed to load bill details");
+      
+      // Try to use the bill from the list as fallback
+      const billFromList = bills.find(b => b.id === billId);
+      if (billFromList) {
+        console.log('Using bill from list as fallback after error');
+        setSelectedBill(billFromList);
+        setShowBillModal(true);
+      } else {
+        showMessage("error", "❌ Failed to load bill details");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -173,32 +417,39 @@ const VisitBillPage = () => {
 
     // Search filter
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+      const term = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(bill => 
-        (bill.customerName?.toLowerCase().includes(term)) ||
         (bill.billNumber?.toLowerCase().includes(term)) ||
-        (bill.customerPhone?.includes(term)) ||
-        (bill.customerEmail?.toLowerCase().includes(term))
+        (bill.customerName?.toLowerCase().includes(term)) ||
+        (bill.customerPhone?.toLowerCase().includes(term)) ||
+        (bill.customerEmail?.toLowerCase().includes(term)) ||
+        (bill.customerGst?.toLowerCase().includes(term))
       );
     }
 
     // Payment method filter
     if (filterPaymentMethod !== 'all') {
-      filtered = filtered.filter(bill => bill.paymentMethod === filterPaymentMethod);
+      filtered = filtered.filter(bill => 
+        bill.paymentMethod?.toLowerCase() === filterPaymentMethod.toLowerCase()
+      );
     }
 
-    // Payment status filter
-    if (filterPaymentStatus !== 'all') {
-      filtered = filtered.filter(bill => bill.paymentStatus === filterPaymentStatus);
+    // Customer type filter
+    if (filterCustomerType !== 'all') {
+      filtered = filtered.filter(bill => 
+        bill.customerType?.toLowerCase() === filterCustomerType.toLowerCase()
+      );
     }
 
     // Date range filter
     if (dateRange.start && dateRange.end) {
-      const start = new Date(dateRange.start).setHours(0, 0, 0, 0);
-      const end = new Date(dateRange.end).setHours(23, 59, 59, 999);
+      const start = new Date(dateRange.start);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(dateRange.end);
+      end.setHours(23, 59, 59, 999);
       
       filtered = filtered.filter(bill => {
-        const billDate = new Date(bill.createdAt).getTime();
+        const billDate = new Date(bill.createdAt);
         return billDate >= start && billDate <= end;
       });
     }
@@ -226,7 +477,7 @@ const VisitBillPage = () => {
   const resetFilters = () => {
     setSearchTerm('');
     setFilterPaymentMethod('all');
-    setFilterPaymentStatus('all');
+    setFilterCustomerType('all');
     setDateRange({ start: '', end: '' });
     setSortBy('newest');
     setFilteredBills(bills);
@@ -234,10 +485,8 @@ const VisitBillPage = () => {
     showMessage("info", "🔍 Filters cleared");
   };
 
-  // ================= EXPORT TO EXCEL =================
   const handleExportExcel = () => {
     try {
-      // Prepare data for export
       const exportData = filteredBills.map(bill => ({
         'Bill Number': bill.billNumber || '',
         'Date': new Date(bill.createdAt).toLocaleDateString(),
@@ -245,42 +494,29 @@ const VisitBillPage = () => {
         'Customer Name': bill.customerName || 'Walk-in Customer',
         'Customer Phone': bill.customerPhone || '',
         'Customer Email': bill.customerEmail || '',
-        'Customer Type': bill.customerType || 'external',
+        'Customer Type': (bill.customerType || 'external').toUpperCase(),
         'Items Count': bill.itemCount || 0,
         'Subtotal (₹)': (bill.subtotal || 0).toFixed(2),
-        'Discount (₹)': (bill.discount || 0).toFixed(2),
+        'Discount Value': bill.discountType === 'percentage' ? `${bill.discountValue}%` : `₹${bill.discountValue.toFixed(2)}`,
+        'Discount Amount (₹)': (bill.discountAmount || 0).toFixed(2),
+        'Discount Type': bill.discountType || 'amount',
         'Tax (₹)': (bill.tax || 0).toFixed(2),
         'Total (₹)': (bill.total || 0).toFixed(2),
         'Paid (₹)': (bill.paidAmount || 0).toFixed(2),
         'Change (₹)': (bill.changeAmount || 0).toFixed(2),
         'Due (₹)': ((bill.total || 0) - (bill.paidAmount || 0)).toFixed(2),
-        'Payment Method': bill.paymentMethod ? bill.paymentMethod.toUpperCase() : '',
-        'Payment Status': bill.paymentStatus ? bill.paymentStatus.toUpperCase() : ''
+        'Payment Method': (bill.paymentMethod || 'cash').toUpperCase()
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Bills");
 
-      // Auto-size columns
       const wscols = [
-        { wch: 15 }, // Bill Number
-        { wch: 12 }, // Date
-        { wch: 10 }, // Time
-        { wch: 25 }, // Customer Name
-        { wch: 15 }, // Customer Phone
-        { wch: 25 }, // Customer Email
-        { wch: 12 }, // Customer Type
-        { wch: 10 }, // Items Count
-        { wch: 12 }, // Subtotal
-        { wch: 12 }, // Discount
-        { wch: 10 }, // Tax
-        { wch: 12 }, // Total
-        { wch: 12 }, // Paid
-        { wch: 12 }, // Change
-        { wch: 12 }, // Due
-        { wch: 15 }, // Payment Method
-        { wch: 15 }, // Payment Status
+        { wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 15 },
+        { wch: 25 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 15 },
+        { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
+        { wch: 12 }, { wch: 12 }, { wch: 15 }
       ];
       worksheet['!cols'] = wscols;
 
@@ -303,24 +539,18 @@ const VisitBillPage = () => {
     }
   };
 
-  // ================= EXPORT TO PDF =================
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF();
       
-      // Add title
       doc.setFontSize(20);
       doc.setTextColor(99, 102, 241);
       doc.text('Bills Report', 14, 22);
       
-      // Add date
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
       doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
       
-      // Add filter info
-      doc.setFontSize(9);
-      doc.setTextColor(80, 80, 80);
       let filterY = 37;
       if (searchTerm) {
         doc.text(`Search: "${searchTerm}"`, 14, filterY);
@@ -330,8 +560,8 @@ const VisitBillPage = () => {
         doc.text(`Payment Method: ${filterPaymentMethod}`, 14, filterY);
         filterY += 5;
       }
-      if (filterPaymentStatus !== 'all') {
-        doc.text(`Payment Status: ${filterPaymentStatus}`, 14, filterY);
+      if (filterCustomerType !== 'all') {
+        doc.text(`Customer Type: ${filterCustomerType}`, 14, filterY);
         filterY += 5;
       }
       if (dateRange.start && dateRange.end) {
@@ -339,47 +569,50 @@ const VisitBillPage = () => {
         filterY += 5;
       }
       
-      // Add summary
       const totalAmount = filteredBills.reduce((sum, bill) => sum + (bill.total || 0), 0);
       const totalPaid = filteredBills.reduce((sum, bill) => sum + (bill.paidAmount || 0), 0);
       const totalDue = totalAmount - totalPaid;
+      const totalDiscount = filteredBills.reduce((sum, bill) => sum + (bill.discountAmount || 0), 0);
       
       doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
       doc.text(`Total Bills: ${filteredBills.length}`, 14, filterY + 5);
       doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 14, filterY + 12);
-      doc.text(`Total Paid: ₹${totalPaid.toFixed(2)}`, 14, filterY + 19);
-      doc.text(`Total Due: ₹${totalDue.toFixed(2)}`, 14, filterY + 26);
+      doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`, 14, filterY + 19);
+      doc.text(`Total Paid: ₹${totalPaid.toFixed(2)}`, 14, filterY + 26);
+      doc.text(`Total Due: ₹${totalDue.toFixed(2)}`, 14, filterY + 33);
       
-      // Prepare table data
       const tableColumn = [
-        'Bill No',
-        'Date',
-        'Customer',
-        'Items',
-        'Total (₹)',
-        'Paid (₹)',
-        'Due (₹)',
-        'Method',
-        'Status'
+        'Bill No', 'Date', 'Customer', 'Type', 'Items', 'Subtotal', 'Discount',
+        'Total (₹)', 'Paid (₹)', 'Due (₹)', 'Method'
       ];
       
-      const tableRows = filteredBills.map(bill => [
-        bill.billNumber || '',
-        new Date(bill.createdAt).toLocaleDateString(),
-        (bill.customerName || 'Walk-in').substring(0, 20),
-        bill.itemCount || 0,
-        (bill.total || 0).toFixed(2),
-        (bill.paidAmount || 0).toFixed(2),
-        ((bill.total || 0) - (bill.paidAmount || 0)).toFixed(2),
-        (bill.paymentMethod || '').toUpperCase(),
-        (bill.paymentStatus || '').toUpperCase()
-      ]);
+      const tableRows = filteredBills.map(bill => {
+        // Format discount display
+        let discountDisplay = '';
+        if (bill.discountType === 'percentage') {
+          discountDisplay = `${bill.discountValue}%`;
+        } else {
+          discountDisplay = `₹${bill.discountAmount.toFixed(2)}`;
+        }
+        
+        return [
+          bill.billNumber || '',
+          new Date(bill.createdAt).toLocaleDateString(),
+          (bill.customerName || 'Walk-in').substring(0, 20),
+          (bill.customerType || 'ext').substring(0, 3).toUpperCase(),
+          bill.itemCount || 0,
+          (bill.subtotal || 0).toFixed(2),
+          discountDisplay,
+          (bill.total || 0).toFixed(2),
+          (bill.paidAmount || 0).toFixed(2),
+          ((bill.total || 0) - (bill.paidAmount || 0)).toFixed(2),
+          (bill.paymentMethod || 'cash').substring(0, 3).toUpperCase()
+        ];
+      });
       
-      // Calculate start Y based on content
-      const startY = filterY + 35;
+      const startY = filterY + 42;
       
-      // Generate table
       doc.autoTable({
         head: [tableColumn],
         body: tableRows,
@@ -389,7 +622,6 @@ const VisitBillPage = () => {
         alternateRowStyles: { fillColor: [240, 240, 240] },
       });
       
-      // Save PDF
       const date = new Date().toISOString().split('T')[0];
       doc.save(`Bills_Report_${date}.pdf`);
       
@@ -403,16 +635,26 @@ const VisitBillPage = () => {
   const handlePrintBill = (bill) => {
     const printWindow = window.open('', '_blank');
     
-    // Process bill items to ensure proper display
     const processedBill = {
       ...bill,
       subtotal: parseFloat(bill.subtotal) || 0,
-      discount: parseFloat(bill.discount) || 0,
+      discountValue: parseFloat(bill.discountValue) || 0,
+      discountAmount: parseFloat(bill.discountAmount) || 0,
+      discountType: bill.discountType || 'amount',
       tax: parseFloat(bill.tax) || 0,
       total: parseFloat(bill.total) || 0,
       paidAmount: parseFloat(bill.paidAmount) || 0,
-      changeAmount: parseFloat(bill.changeAmount) || 0
+      changeAmount: parseFloat(bill.changeAmount) || 0,
+      dueAmount: (parseFloat(bill.total) || 0) - (parseFloat(bill.paidAmount) || 0)
     };
+    
+    // Format discount display
+    let discountDisplay = '';
+    if (processedBill.discountType === 'percentage') {
+      discountDisplay = `${processedBill.discountValue}% (₹${processedBill.discountAmount.toFixed(2)})`;
+    } else {
+      discountDisplay = `₹${processedBill.discountAmount.toFixed(2)}`;
+    }
     
     printWindow.document.write(`
       <html>
@@ -513,16 +755,6 @@ const VisitBillPage = () => {
               margin-top: 5px; 
               color: #000; 
             }
-            .payment-status {
-              display: inline-block;
-              padding: 2px 8px;
-              border-radius: 12px;
-              font-size: 10px;
-              font-weight: bold;
-              background: ${processedBill.paymentStatus === 'paid' ? '#059669' : 
-                          processedBill.paymentStatus === 'partial' ? '#b45309' : '#dc2626'};
-              color: white;
-            }
             .footer { 
               text-align: center; 
               margin-top: 20px; 
@@ -533,7 +765,7 @@ const VisitBillPage = () => {
             }
             .amount-due {
               font-weight: bold;
-              color: ${(processedBill.total - processedBill.paidAmount) > 0 ? '#dc2626' : '#059669'};
+              color: ${processedBill.dueAmount > 0 ? '#dc2626' : '#059669'};
             }
           </style>
         </head>
@@ -554,7 +786,7 @@ const VisitBillPage = () => {
           <div class="customer-section">
             <div class="customer-row">
               <span><strong>Customer Type:</strong></span>
-              <span class="customer-type">${processedBill.customerType === 'internal' ? 'INTERNAL' : 'EXTERNAL'}</span>
+              <span class="customer-type">${(processedBill.customerType || 'external').toUpperCase()}</span>
             </div>
             <div class="customer-row">
               <span><strong>Name:</strong></span>
@@ -589,10 +821,10 @@ const VisitBillPage = () => {
               <span>Qty</span>
               <span>Total</span>
             </div>
-            ${processedBill.items ? processedBill.items.map(item => {
-              const productName = item.product_name || item.productName || 'Unknown';
-              const productModel = item.product_model || item.productModel || '';
-              const sellPrice = parseFloat(item.sell_price || item.sellPrice || 0);
+            ${processedBill.items && processedBill.items.length > 0 ? processedBill.items.map(item => {
+              const productName = item.productName || item.product_name || 'Unknown';
+              const productModel = item.productModel || item.product_model || '';
+              const sellPrice = parseFloat(item.sellPrice || item.sell_price || 0);
               const quantity = item.quantity || 0;
               const total = parseFloat(item.total || 0);
               
@@ -604,19 +836,18 @@ const VisitBillPage = () => {
                   <span>₹${total.toFixed(2)}</span>
                 </div>
               `;
-            }).join('') : ''}
+            }).join('') : '<div class="item"><span colspan="4">No items found</span></div>'}
           </div>
           
           <div class="summary">
             <div class="summary-row"><span>Subtotal:</span><span>₹${processedBill.subtotal.toFixed(2)}</span></div>
-            <div class="summary-row"><span>Discount:</span><span>₹${processedBill.discount.toFixed(2)}</span></div>
+            <div class="summary-row"><span>Discount:</span><span>${discountDisplay}</span></div>
             <div class="summary-row"><span>Tax:</span><span>₹${processedBill.tax.toFixed(2)}</span></div>
             <div class="summary-row total"><span>Total:</span><span>₹${processedBill.total.toFixed(2)}</span></div>
             <div class="summary-row"><span>Paid:</span><span>₹${processedBill.paidAmount.toFixed(2)}</span></div>
             <div class="summary-row"><span>Change:</span><span>₹${processedBill.changeAmount.toFixed(2)}</span></div>
-            <div class="summary-row"><span>Due:</span><span class="amount-due">₹${(processedBill.total - processedBill.paidAmount).toFixed(2)}</span></div>
-            <div class="summary-row"><span>Payment:</span><span>${processedBill.paymentMethod?.toUpperCase()}</span></div>
-            <div class="summary-row"><span>Status:</span><span class="payment-status">${processedBill.paymentStatus?.toUpperCase()}</span></div>
+            <div class="summary-row"><span>Due:</span><span class="amount-due">₹${processedBill.dueAmount.toFixed(2)}</span></div>
+            <div class="summary-row"><span>Payment:</span><span>${(processedBill.paymentMethod || 'cash').toUpperCase()}</span></div>
           </div>
           
           <div class="footer">
@@ -671,15 +902,19 @@ const VisitBillPage = () => {
   };
 
   const getPaymentIcon = (method) => {
-    return paymentMethodMap[method]?.icon || <DollarSign size={14} />;
+    return paymentMethodMap[method?.toLowerCase()]?.icon || <DollarSign size={14} />;
   };
 
   const getPaymentColor = (method) => {
-    return paymentMethodMap[method]?.color || '#6b7280';
+    return paymentMethodMap[method?.toLowerCase()]?.color || '#6b7280';
   };
 
-  const getStatusColor = (status) => {
-    return statusColorMap[status] || statusColorMap.default;
+  const getCustomerTypeIcon = (type) => {
+    return customerTypeMap[type?.toLowerCase()]?.icon || <User size={14} />;
+  };
+
+  const getCustomerTypeColor = (type) => {
+    return customerTypeMap[type?.toLowerCase()]?.color || '#6b7280';
   };
 
   const formatCurrency = (amount) => {
@@ -866,15 +1101,6 @@ const VisitBillPage = () => {
       fontSize: "13px",
       color: "#f9fafb",
     },
-    statusBadge: {
-      padding: "4px 10px",
-      borderRadius: "20px",
-      fontSize: "11px",
-      fontWeight: "600",
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "4px",
-    },
     paymentBadge: {
       padding: "4px 10px",
       borderRadius: "20px",
@@ -884,6 +1110,15 @@ const VisitBillPage = () => {
       alignItems: "center",
       gap: "4px",
       backgroundColor: "rgba(255,255,255,0.1)",
+    },
+    customerTypeBadge: {
+      padding: "4px 10px",
+      borderRadius: "20px",
+      fontSize: "11px",
+      fontWeight: "600",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px",
     },
     actionButton: {
       padding: "6px 10px",
@@ -1101,9 +1336,7 @@ const VisitBillPage = () => {
           {message.type === "success" && <CheckCircle size={18} />}
           {message.type === "error" && <AlertCircle size={18} />}
           {message.type === "info" && <Filter size={18} />}
-          {message.text.split('\n').map((line, i) => (
-            <span key={i}>{line}</span>
-          ))}
+          <span>{message.text}</span>
         </div>
       )}
 
@@ -1118,6 +1351,14 @@ const VisitBillPage = () => {
             style={styles.refreshButton}
             onClick={fetchBills}
             title="Refresh"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#f9fafb';
+              e.currentTarget.style.backgroundColor = '#1f2937';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#9ca3af';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
             <RefreshCw size={18} />
           </button>
@@ -1137,26 +1378,30 @@ const VisitBillPage = () => {
           <button 
             style={{...styles.button, ...styles.infoButton}} 
             onClick={handleExportExcel}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
             <FileSpreadsheet size={16} /> Excel
           </button>
           <button 
             style={{...styles.button, ...styles.successButton}} 
             onClick={handleExportPDF}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
             <FileJson size={16} /> PDF
           </button>
         </div>
       </div>
 
-      {/* Filters - Enhanced Grid Layout */}
+      {/* Filters */}
       <div style={styles.filterBar}>
         <div style={styles.searchBox}>
           <Search size={16} style={styles.searchIcon} />
           <input
             type="text"
             style={styles.searchInput}
-            placeholder="Search bill no, customer name, phone..."
+            placeholder="Search bill no, customer name, phone, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -1175,12 +1420,26 @@ const VisitBillPage = () => {
           <option value="mixed">Mixed</option>
         </select>
 
+        <select
+          style={styles.filterSelect}
+          value={filterCustomerType}
+          onChange={(e) => setFilterCustomerType(e.target.value)}
+        >
+          <option value="all">All Customers</option>
+          <option value="internal">Internal (Staff)</option>
+          <option value="external">External</option>
+          <option value="regular">Regular</option>
+          <option value="wholesale">Wholesale</option>
+          <option value="vip">VIP</option>
+          <option value="corporate">Corporate</option>
+        </select>
+
         <input
           type="date"
           style={styles.dateInput}
           value={dateRange.start}
           onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-          placeholder="From"
+          placeholder="From Date"
         />
 
         <input
@@ -1188,7 +1447,7 @@ const VisitBillPage = () => {
           style={styles.dateInput}
           value={dateRange.end}
           onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-          placeholder="To"
+          placeholder="To Date"
         />
 
         <select
@@ -1205,6 +1464,14 @@ const VisitBillPage = () => {
         <button 
           style={styles.filterButton}
           onClick={resetFilters}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#2d3748';
+            e.currentTarget.style.borderColor = '#4b5563';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#1f2937';
+            e.currentTarget.style.borderColor = '#374151';
+          }}
         >
           <X size={16} /> Clear
         </button>
@@ -1220,6 +1487,7 @@ const VisitBillPage = () => {
               <th style={styles.th}>Bill No.</th>
               <th style={styles.th}>Date & Time</th>
               <th style={styles.th}>Customer</th>
+              <th style={styles.th}>Type</th>
               <th style={styles.th}>Contact</th>
               <th style={styles.th}>Items</th>
               <th style={styles.th}>Subtotal</th>
@@ -1229,7 +1497,6 @@ const VisitBillPage = () => {
               <th style={styles.th}>Paid</th>
               <th style={styles.th}>Due</th>
               <th style={styles.th}>Payment</th>
-              <th style={styles.th}>Status</th>
               <th style={styles.th}>Actions</th>
             </tr>
           </thead>
@@ -1237,13 +1504,21 @@ const VisitBillPage = () => {
             {currentBills.length === 0 ? (
               <tr>
                 <td colSpan="14" style={styles.noData}>
-                  {searchTerm || filterPaymentMethod !== 'all' || filterPaymentStatus !== 'all' || dateRange.start 
+                  {searchTerm || filterPaymentMethod !== 'all' || filterCustomerType !== 'all' || dateRange.start 
                     ? <div>
                         <Filter size={30} style={{marginBottom: '10px', opacity: 0.5}} />
                         <div>No bills match your filters</div>
                         <button 
                           onClick={resetFilters}
                           style={{...styles.button, marginTop: '15px', display: 'inline-flex'}}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#2d3748';
+                            e.currentTarget.style.borderColor = '#4b5563';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#1f2937';
+                            e.currentTarget.style.borderColor = '#374151';
+                          }}
                         >
                           <X size={14} /> Clear Filters
                         </button>
@@ -1257,6 +1532,15 @@ const VisitBillPage = () => {
             ) : (
               currentBills.map((bill) => {
                 const dueAmount = (bill.total || 0) - (bill.paidAmount || 0);
+                
+                // Format discount display
+                let discountDisplay = '';
+                if (bill.discountType === 'percentage') {
+                  discountDisplay = `${bill.discountValue}%`;
+                } else {
+                  discountDisplay = formatCurrency(bill.discountAmount);
+                }
+                
                 return (
                   <tr key={bill.id}>
                     <td style={styles.td}>
@@ -1266,6 +1550,8 @@ const VisitBillPage = () => {
                           style={styles.copyButton}
                           onClick={() => handleCopyBillNumber(bill.billNumber)}
                           title="Copy bill number"
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#f9fafb'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}
                         >
                           {copiedBillNo === bill.billNumber ? <CheckCircle size={14} color="#059669" /> : <Copy size={14} />}
                         </button>
@@ -1278,28 +1564,52 @@ const VisitBillPage = () => {
                       </small>
                     </td>
                     <td style={styles.td}>
-                      <div><User size={12} style={{display: 'inline', marginRight: '4px'}} /> {bill.customerName || 'Walk-in'}</div>
-                      {bill.customerType && (
-                        <small style={{
-                          color: bill.customerType === 'internal' ? '#3b82f6' : '#f59e0b',
-                          fontSize: '10px',
-                          fontWeight: '600'
-                        }}>
-                          {bill.customerType === 'internal' ? '🏢 INTERNAL' : '👤 EXTERNAL'}
+                      <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                        <User size={12} color="#9ca3af" />
+                        <span>{bill.customerName || 'Walk-in'}</span>
+                      </div>
+                      {bill.customerEmail && (
+                        <small style={{color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px'}}>
+                          <Mail size={10} /> {bill.customerEmail}
                         </small>
                       )}
                     </td>
                     <td style={styles.td}>
+                      <span style={{
+                        ...styles.customerTypeBadge,
+                        backgroundColor: `${getCustomerTypeColor(bill.customerType)}20`,
+                        color: getCustomerTypeColor(bill.customerType),
+                        border: `1px solid ${getCustomerTypeColor(bill.customerType)}40`
+                      }}>
+                        {getCustomerTypeIcon(bill.customerType)}
+                        <span style={{textTransform: 'capitalize'}}>{bill.customerType || 'external'}</span>
+                      </span>
+                    </td>
+                    <td style={styles.td}>
                       {bill.customerPhone && (
-                        <div><Phone size={10} style={{display: 'inline', marginRight: '4px'}} /> {bill.customerPhone}</div>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                          <Phone size={10} color="#9ca3af" />
+                          <span>{bill.customerPhone}</span>
+                        </div>
                       )}
-                      {bill.customerEmail && (
-                        <small style={{color: '#9ca3af'}}>{bill.customerEmail}</small>
+                      {bill.customerGst && (
+                        <small style={{color: '#9ca3af', fontSize: '10px'}}>
+                          GST: {bill.customerGst}
+                        </small>
                       )}
                     </td>
                     <td style={styles.td}>{bill.itemCount || 0}</td>
                     <td style={styles.td}>{formatCurrency(bill.subtotal)}</td>
-                    <td style={styles.td}>{formatCurrency(bill.discount)}</td>
+                    <td style={styles.td}>
+                      <span title={`${bill.discountType === 'percentage' ? 'Percentage' : 'Fixed'} discount`}>
+                        {discountDisplay}
+                        {bill.discountType === 'percentage' && (
+                          <small style={{color: '#9ca3af', marginLeft: '4px', fontSize: '10px'}}>
+                            (₹{bill.discountAmount.toFixed(2)})
+                          </small>
+                        )}
+                      </span>
+                    </td>
                     <td style={styles.td}>{formatCurrency(bill.tax)}</td>
                     <td style={styles.td}><strong>{formatCurrency(bill.total)}</strong></td>
                     <td style={styles.td}>{formatCurrency(bill.paidAmount)}</td>
@@ -1322,20 +1632,18 @@ const VisitBillPage = () => {
                       </div>
                     </td>
                     <td style={styles.td}>
-                      <span style={{
-                        ...styles.statusBadge,
-                        backgroundColor: getStatusColor(bill.paymentStatus).background,
-                        color: getStatusColor(bill.paymentStatus).color
-                      }}>
-                        {getStatusColor(bill.paymentStatus).icon}
-                        <span style={{textTransform: 'capitalize'}}>{bill.paymentStatus}</span>
-                      </span>
-                    </td>
-                    <td style={styles.td}>
                       <button
                         style={{...styles.actionButton, backgroundColor: '#3b82f6', color: 'white', marginRight: '4px'}}
                         onClick={() => fetchBillDetails(bill.id)}
                         title="View Details"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#2563eb';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#3b82f6';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
                       >
                         <Eye size={14} />
                       </button>
@@ -1343,6 +1651,14 @@ const VisitBillPage = () => {
                         style={{...styles.actionButton, backgroundColor: '#059669', color: 'white'}}
                         onClick={() => handlePrintBill(bill)}
                         title="Print Bill"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#047857';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#059669';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
                       >
                         <Printer size={14} />
                       </button>
@@ -1370,6 +1686,18 @@ const VisitBillPage = () => {
                 ...styles.pageButton,
                 ...(currentPage === 1 ? styles.disabledButton : {})
               }}
+              onMouseEnter={(e) => {
+                if (currentPage !== 1) {
+                  e.currentTarget.style.backgroundColor = '#2d3748';
+                  e.currentTarget.style.borderColor = '#4b5563';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== 1) {
+                  e.currentTarget.style.backgroundColor = '#1f2937';
+                  e.currentTarget.style.borderColor = '#374151';
+                }
+              }}
             >
               <ChevronLeft size={16} />
             </button>
@@ -1389,6 +1717,18 @@ const VisitBillPage = () => {
                       style={{
                         ...styles.pageButton,
                         ...(currentPage === pageNumber ? styles.activePageButton : {})
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== pageNumber) {
+                          e.currentTarget.style.backgroundColor = '#2d3748';
+                          e.currentTarget.style.borderColor = '#4b5563';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== pageNumber) {
+                          e.currentTarget.style.backgroundColor = '#1f2937';
+                          e.currentTarget.style.borderColor = '#374151';
+                        }
                       }}
                     >
                       {pageNumber}
@@ -1411,6 +1751,18 @@ const VisitBillPage = () => {
                 ...styles.pageButton,
                 ...(currentPage === totalPages ? styles.disabledButton : {})
               }}
+              onMouseEnter={(e) => {
+                if (currentPage !== totalPages) {
+                  e.currentTarget.style.backgroundColor = '#2d3748';
+                  e.currentTarget.style.borderColor = '#4b5563';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== totalPages) {
+                  e.currentTarget.style.backgroundColor = '#1f2937';
+                  e.currentTarget.style.borderColor = '#374151';
+                }
+              }}
             >
               <ChevronRight size={16} />
             </button>
@@ -1418,11 +1770,22 @@ const VisitBillPage = () => {
         </div>
       )}
 
-      {/* Bill Details Modal */}
+      {/* Bill Details Modal - UPDATED: Removed discount and payment summary */}
       {showBillModal && selectedBill && (
         <div style={styles.modal} onClick={() => setShowBillModal(false)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button style={styles.modalClose} onClick={() => setShowBillModal(false)}>
+            <button 
+              style={styles.modalClose} 
+              onClick={() => setShowBillModal(false)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#f9fafb';
+                e.currentTarget.style.backgroundColor = '#374151';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#9ca3af';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
               <X size={20} />
             </button>
             
@@ -1432,128 +1795,128 @@ const VisitBillPage = () => {
             </h2>
             
             <div style={styles.modalSection}>
-              <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px'}}>
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px'}}>
                 <div>
-                  <p style={styles.modalText}><strong>Bill Number:</strong> {selectedBill.billNumber}</p>
-                  <p style={styles.modalText}><strong>Date:</strong> {new Date(selectedBill.createdAt).toLocaleDateString()}</p>
-                  <p style={styles.modalText}><strong>Time:</strong> {new Date(selectedBill.createdAt).toLocaleTimeString()}</p>
-                </div>
-                <div>
-                  <p style={styles.modalText}><strong>Customer Type:</strong> 
+                  <p style={styles.modalText}>
+                    <strong>Bill Number:</strong> {selectedBill.billNumber}
+                  </p>
+                  <p style={styles.modalText}>
+                    <strong>Date:</strong> {new Date(selectedBill.createdAt).toLocaleDateString()}
+                  </p>
+                  <p style={styles.modalText}>
+                    <strong>Time:</strong> {new Date(selectedBill.createdAt).toLocaleTimeString()}
+                  </p>
+                  <p style={styles.modalText}>
+                    <strong>Customer Type:</strong>{' '}
                     <span style={{
-                      color: selectedBill.customerType === 'internal' ? '#3b82f6' : '#f59e0b',
-                      marginLeft: '5px',
+                      color: getCustomerTypeColor(selectedBill.customerType),
                       fontWeight: '600'
                     }}>
-                      {selectedBill.customerType?.toUpperCase() || 'EXTERNAL'}
+                      {(selectedBill.customerType || 'external').toUpperCase()}
                     </span>
                   </p>
-                  <p style={styles.modalText}><strong>Customer:</strong> {selectedBill.customerName || 'Walk-in Customer'}</p>
-                  {selectedBill.customerPhone && <p style={styles.modalText}><strong>Phone:</strong> {selectedBill.customerPhone}</p>}
+                </div>
+                <div>
+                  <p style={styles.modalText}>
+                    <strong>Customer:</strong> {selectedBill.customerName || 'Walk-in Customer'}
+                  </p>
+                  {selectedBill.customerPhone && (
+                    <p style={styles.modalText}>
+                      <strong>Phone:</strong> {selectedBill.customerPhone}
+                    </p>
+                  )}
+                  {selectedBill.customerEmail && (
+                    <p style={styles.modalText}>
+                      <strong>Email:</strong> {selectedBill.customerEmail}
+                    </p>
+                  )}
                 </div>
               </div>
               
-              {selectedBill.customerEmail && <p style={styles.modalText}><strong>Email:</strong> {selectedBill.customerEmail}</p>}
-              {selectedBill.customerAddress && <p style={styles.modalText}><strong>Address:</strong> {selectedBill.customerAddress}</p>}
-              {selectedBill.customerGst && <p style={styles.modalText}><strong>GST:</strong> {selectedBill.customerGst}</p>}
+              {selectedBill.customerAddress && (
+                <p style={styles.modalText}>
+                  <strong>Address:</strong> {selectedBill.customerAddress}
+                </p>
+              )}
+              {selectedBill.customerGst && (
+                <p style={styles.modalText}>
+                  <strong>GST:</strong> {selectedBill.customerGst}
+                </p>
+              )}
             </div>
 
-            <h3 style={{color: '#f9fafb', marginBottom: '10px', fontSize: '16px'}}>Items</h3>
+            <h3 style={{color: '#f9fafb', marginBottom: '10px', fontSize: '16px'}}>
+              Items ({selectedBill.items?.length || 0})
+            </h3>
+            
             <table style={styles.modalTable}>
               <thead>
                 <tr>
                   <th style={styles.modalTh}>Item</th>
+                  <th style={styles.modalTh}>Model</th>
                   <th style={styles.modalTh}>Price</th>
                   <th style={styles.modalTh}>Qty</th>
                   <th style={styles.modalTh}>Total</th>
                 </tr>
               </thead>
               <tbody>
-                {(selectedBill.items || []).map((item, index) => {
-                  const productName = item.product_name || item.productName || 'Unknown';
-                  const productModel = item.product_model || item.productModel || '';
-                  const sellPrice = parseFloat(item.sell_price || item.sellPrice || 0);
-                  const quantity = item.quantity || 0;
-                  const total = parseFloat(item.total || 0);
-                  
-                  return (
-                    <tr key={index}>
-                      <td style={styles.modalTd}>
-                        <div><strong>{productName}</strong></div>
-                        {productModel && <small style={{color: '#9ca3af'}}>{productModel}</small>}
-                      </td>
-                      <td style={styles.modalTd}>₹{sellPrice.toFixed(2)}</td>
-                      <td style={styles.modalTd}>{quantity}</td>
-                      <td style={styles.modalTd}>₹{total.toFixed(2)}</td>
-                    </tr>
-                  );
-                })}
+                {selectedBill.items && selectedBill.items.length > 0 ? (
+                  selectedBill.items.map((item, index) => {
+                    const productName = item.productName || item.product_name || 'Unknown';
+                    const productModel = item.productModel || item.product_model || '';
+                    const sellPrice = parseFloat(item.sellPrice || item.sell_price || 0);
+                    const quantity = item.quantity || 0;
+                    const total = parseFloat(item.total || 0);
+                    
+                    return (
+                      <tr key={index}>
+                        <td style={styles.modalTd}>
+                          <strong>{productName}</strong>
+                        </td>
+                        <td style={styles.modalTd}>
+                          {productModel || '-'}
+                        </td>
+                        <td style={styles.modalTd}>₹{sellPrice.toFixed(2)}</td>
+                        <td style={styles.modalTd}>{quantity}</td>
+                        <td style={styles.modalTd}>₹{total.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="5" style={{...styles.modalTd, textAlign: 'center', color: '#9ca3af'}}>
+                      No items found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
 
-            <div style={{borderTop: '1px solid #374151', paddingTop: '15px'}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px', color: '#d1d5db'}}>
-                <span>Subtotal:</span>
-                <span>₹{(selectedBill.subtotal || 0).toFixed(2)}</span>
-              </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px', color: '#d1d5db'}}>
-                <span>Discount:</span>
-                <span>- ₹{(selectedBill.discount || 0).toFixed(2)}</span>
-              </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px', color: '#d1d5db'}}>
-                <span>Tax:</span>
-                <span>+ ₹{(selectedBill.tax || 0).toFixed(2)}</span>
-              </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 'bold', fontSize: '18px', color: '#f9fafb', borderTop: '1px dashed #374151', paddingTop: '8px'}}>
-                <span>Total:</span>
-                <span>₹{(selectedBill.total || 0).toFixed(2)}</span>
-              </div>
-              
-              <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #374151'}}>
-                <div>
-                  <p style={{color: '#d1d5db', fontSize: '13px'}}>
-                    <strong>Paid:</strong> ₹{(selectedBill.paidAmount || 0).toFixed(2)}
-                  </p>
-                  <p style={{color: '#d1d5db', fontSize: '13px'}}>
-                    <strong>Change:</strong> ₹{(selectedBill.changeAmount || 0).toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <p style={{color: '#d1d5db', fontSize: '13px'}}>
-                    <strong>Due:</strong> 
-                    <span style={{
-                      color: ((selectedBill.total || 0) - (selectedBill.paidAmount || 0)) > 0 ? '#f87171' : '#34d399',
-                      fontWeight: '600',
-                      marginLeft: '5px'
+            {/* Payment Summary Section - COMPLETELY REMOVED */}
+
+            {/* Payment History if available */}
+            {selectedBill.payments && selectedBill.payments.length > 0 && (
+              <div style={{marginTop: '20px'}}>
+                <h4 style={{color: '#f9fafb', marginBottom: '10px', fontSize: '14px'}}>Payment History</h4>
+                <div style={{backgroundColor: '#111827', borderRadius: '6px', padding: '10px'}}>
+                  {selectedBill.payments.map((payment, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '5px 0',
+                      borderBottom: index < selectedBill.payments.length - 1 ? '1px solid #374151' : 'none'
                     }}>
-                      ₹{((selectedBill.total || 0) - (selectedBill.paidAmount || 0)).toFixed(2)}
-                    </span>
-                  </p>
-                  <p style={{color: '#d1d5db', fontSize: '13px'}}>
-                    <strong>Method:</strong> 
-                    <span style={{textTransform: 'capitalize', marginLeft: '5px'}}>{selectedBill.paymentMethod}</span>
-                  </p>
+                      <span style={{color: '#d1d5db', fontSize: '12px'}}>
+                        {new Date(payment.createdAt).toLocaleTimeString()} - {payment.method?.toUpperCase()}
+                      </span>
+                      <span style={{color: '#f9fafb', fontWeight: '500'}}>
+                        ₹{payment.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              
-              <div style={{display: 'flex', justifyContent: 'space-between', marginTop: '15px', alignItems: 'center'}}>
-                <span style={{color: '#d1d5db', fontSize: '13px'}}><strong>Payment Status:</strong></span>
-                <span style={{
-                  padding: '6px 16px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  backgroundColor: getStatusColor(selectedBill.paymentStatus).background,
-                  color: getStatusColor(selectedBill.paymentStatus).color,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}>
-                  {getStatusColor(selectedBill.paymentStatus).icon}
-                  {selectedBill.paymentStatus?.toUpperCase()}
-                </span>
-              </div>
-            </div>
+            )}
 
             <div style={styles.modalFooter}>
               <button
@@ -1562,12 +1925,28 @@ const VisitBillPage = () => {
                   setShowBillModal(false);
                   handlePrintBill(selectedBill);
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#047857';
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#059669';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
               >
                 <Printer size={16} /> Print Bill
               </button>
               <button
                 style={{...styles.actionButton, backgroundColor: '#374151', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
                 onClick={() => setShowBillModal(false)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4b5563';
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#374151';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
               >
                 Close
               </button>

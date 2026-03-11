@@ -375,7 +375,7 @@ const ItemsListPage = () => {
               <th>Name</th>
               <th>Model</th>
               <th>Type</th>
-              <th>Watts</th>
+              <th>Warrenty</th>
               <th>Buy Price (₹)</th>
               <th>Added Date</th>
             </tr>
@@ -942,7 +942,7 @@ const ItemsListPage = () => {
                   <th style={styles.th}>Name</th>
                   <th style={styles.th}>Model</th>
                   <th style={styles.th}>Type</th>
-                  <th style={styles.th}>Watts</th>
+                  <th style={styles.th}>Warrenty</th>
                   <th style={styles.th}>Buy Price (₹)</th>
                   <th style={styles.th}>Added Date</th>
                   <th style={styles.th}>Attachment</th>

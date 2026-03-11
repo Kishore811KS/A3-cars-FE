@@ -205,6 +205,97 @@ const SupplierDuplicatePage = () => {
     return items.filter(item => item.supplier_id === supplierId).length;
   };
 
+  // Export to Excel/CSV
+  const exportToExcel = () => {
+    // Create CSV content with only Name, Company, Address, Phone
+    let csvContent = "Name,Company,Address,Phone\n";
+    
+    filteredGroups.forEach(group => {
+      const row = [
+        `"${group.name || ''}"`,
+        `"${group.company || ''}"`,
+        `"${group.address || ''}"`,
+        `"${group.phone || ''}"`
+      ].join(',');
+      csvContent += row + '\n';
+    });
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `supplier_list_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export to PDF
+  const exportToPDF = () => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    
+    // Generate HTML content for PDF with only Name, Company, Address, Phone
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Supplier List Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; background-color: #0f172a; color: #e2e8f0; }
+          h1 { color: #4f46e5; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th { background-color: #2563eb; color: white; padding: 10px; text-align: left; }
+          td { padding: 8px; border-bottom: 1px solid #334155; }
+          tr:nth-child(even) { background-color: #1e293b; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .date { color: #94a3b8; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Supplier List Report</h1>
+          <div class="date">Generated: ${new Date().toLocaleDateString()}</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Company</th>
+              <th>Address</th>
+              <th>Phone</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    filteredGroups.forEach(group => {
+      htmlContent += `
+        <tr>
+          <td>${group.name || ''}</td>
+          <td>${group.company || ''}</td>
+          <td>${group.address || ''}</td>
+          <td>${group.phone || ''}</td>
+        </tr>
+      `;
+    });
+    
+    htmlContent += `
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -244,34 +335,6 @@ const SupplierDuplicatePage = () => {
       color: "#94a3b8",
       marginTop: "4px",
       fontSize: "14px",
-    },
-    statsContainer: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-      gap: "20px",
-      marginBottom: "30px",
-    },
-    statCard: {
-      backgroundColor: "#1e293b",
-      padding: "20px",
-      borderRadius: "16px",
-      border: "1px solid #334155",
-      boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
-    },
-    statLabel: {
-      fontSize: "14px",
-      color: "#94a3b8",
-      marginBottom: "8px",
-    },
-    statValue: {
-      fontSize: "32px",
-      fontWeight: "600",
-      color: "#fff",
-    },
-    statSubtext: {
-      fontSize: "12px",
-      color: "#94a3b8",
-      marginTop: "5px",
     },
     searchContainer: {
       display: "flex",
@@ -331,6 +394,34 @@ const SupplierDuplicatePage = () => {
       cursor: "pointer",
       transition: "all 0.2s",
     },
+    exportButtons: {
+      display: "flex",
+      gap: "10px",
+      marginLeft: "auto",
+    },
+    exportButton: {
+      padding: "10px 20px",
+      borderRadius: "8px",
+      backgroundColor: "#1e293b",
+      color: "#e2e8f0",
+      border: "1px solid #334155",
+      cursor: "pointer",
+      fontSize: "14px",
+      fontWeight: "500",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    excelButton: {
+      backgroundColor: "#10b981",
+      color: "#fff",
+      border: "none",
+    },
+    pdfButton: {
+      backgroundColor: "#ef4444",
+      color: "#fff",
+      border: "none",
+    },
     tableContainer: {
       overflowX: "auto",
       borderRadius: "16px",
@@ -343,7 +434,7 @@ const SupplierDuplicatePage = () => {
       width: "100%",
       borderCollapse: "collapse",
       backgroundColor: "#1e293b",
-      minWidth: "1000px",
+      minWidth: "800px",
     },
     th: {
       backgroundColor: "#0f172a",
@@ -372,15 +463,6 @@ const SupplierDuplicatePage = () => {
     repeatBadge: {
       backgroundColor: "rgba(245, 158, 11, 0.2)",
       color: "#f59e0b",
-    },
-    countBadge: {
-      backgroundColor: "#2563eb",
-      color: "#fff",
-      padding: "4px 8px",
-      borderRadius: "12px",
-      fontSize: "12px",
-      fontWeight: "500",
-      marginLeft: "5px",
     },
     viewButton: {
       background: "#2563eb",
@@ -591,9 +673,6 @@ const SupplierDuplicatePage = () => {
 
   // Calculate statistics
   const totalSuppliers = suppliers.length;
-  const repeatGroups = filteredGroups.filter(g => g.count > 1).length;
-  const uniqueSuppliers = filteredGroups.filter(g => g.count === 1).length;
-  const totalRepeats = totalSuppliers - uniqueSuppliers;
   const showingResults = filteredGroups.length;
 
   // Render popup for group details
@@ -664,9 +743,7 @@ const SupplierDuplicatePage = () => {
                     </td>
                     <td style={styles.td}>{supplier.email || '—'}</td>
                     <td style={styles.td}>
-                      <span style={styles.countBadge}>
-                        {getItemCountForSupplier(supplier.id)} items
-                      </span>
+                      <span>{getItemCountForSupplier(supplier.id)} items</span>
                     </td>
                     <td style={styles.td}>
                       {supplier.created_at ? new Date(supplier.created_at).toLocaleDateString() : '—'}
@@ -702,39 +779,34 @@ const SupplierDuplicatePage = () => {
       {/* Header */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Supplier Analysis</h1>
-          <div style={styles.subtitle}>View and manage supplier entries</div>
+          <h1 style={styles.title}>Supplier List</h1>
+          <div style={styles.subtitle}>View all suppliers</div>
         </div>
-        <button 
-          style={styles.refreshButton}
-          onClick={fetchSuppliers}
-        >
-          🔄 Refresh Data
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            style={{...styles.exportButton, ...styles.excelButton}}
+            onClick={exportToExcel}
+          >
+            📊 Export Excel
+          </button>
+          <button 
+            style={{...styles.exportButton, ...styles.pdfButton}}
+            onClick={exportToPDF}
+          >
+            📄 Export PDF
+          </button>
+          <button 
+            style={styles.refreshButton}
+            onClick={fetchSuppliers}
+          >
+            🔄 Refresh Data
+          </button>
+        </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div style={styles.statsContainer}>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Total Suppliers</div>
-          <div style={styles.statValue}>{totalSuppliers}</div>
-          <div style={styles.statSubtext}>All supplier entries</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Unique Entries</div>
-          <div style={styles.statValue}>{uniqueSuppliers}</div>
-          <div style={styles.statSubtext}>Single entries only</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Repeat Groups</div>
-          <div style={styles.statValue}>{repeatGroups}</div>
-          <div style={styles.statSubtext}>Groups with multiple entries</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statLabel}>Total Repeats</div>
-          <div style={styles.statValue}>{totalRepeats}</div>
-          <div style={styles.statSubtext}>Suppliers in repeat groups</div>
-        </div>
+      {/* Summary Stats Line */}
+      <div style={{ marginBottom: "20px", color: "#94a3b8", fontSize: "14px" }}>
+        Total Suppliers: {totalSuppliers} | Showing {showingResults} group{showingResults !== 1 ? 's' : ''}
       </div>
 
       {/* Search Section */}
@@ -779,7 +851,7 @@ const SupplierDuplicatePage = () => {
       <div style={{ backgroundColor: "#1e293b", padding: "30px", borderRadius: "16px", border: "1px solid #334155" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <h2 style={{ color: "#fff", fontSize: "20px", fontWeight: "600" }}>
-            Suppliers Grouped by Name, Company, Address & Phone
+            Suppliers List
           </h2>
           {searchTerm && (
             <span style={{ color: "#94a3b8", fontSize: "14px" }}>
@@ -800,58 +872,19 @@ const SupplierDuplicatePage = () => {
                     <th style={styles.th}>Company</th>
                     <th style={styles.th}>Address</th>
                     <th style={styles.th}>Phone</th>
-                    <th style={styles.th}>Count</th>
-                    <th style={styles.th}>Total Items</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {currentGroups.map(group => (
-                    <tr 
-                      key={group.id}
-                      style={group.count > 1 ? { backgroundColor: 'rgba(245, 158, 11, 0.1)' } : {}}
-                    >
+                    <tr key={group.id}>
                       <td style={styles.td}>
                         <span style={{ fontWeight: '500', color: '#fff' }}>{group.name || '—'}</span>
                       </td>
                       <td style={styles.td}>
-                        <span style={{ background: '#2563eb', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', color: '#fff' }}>
-                          {group.company || '—'}
-                        </span>
+                        <span>{group.company || '—'}</span>
                       </td>
                       <td style={styles.td}>{group.address || '—'}</td>
                       <td style={styles.td}>{group.phone || '—'}</td>
-                      <td style={styles.td}>
-                        <span style={{
-                          ...styles.badge,
-                          ...(group.count > 1 ? styles.repeatBadge : { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981' })
-                        }}>
-                          {group.count} {group.count === 1 ? 'entry' : 'entries'}
-                        </span>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={styles.countBadge}>
-                          {group.totalItems} items
-                        </span>
-                      </td>
-                      <td style={styles.td}>
-                        {group.count > 1 ? (
-                          <span style={{ ...styles.badge, ...styles.repeatBadge }}>🔄 Repeats</span>
-                        ) : (
-                          <span style={{ ...styles.badge, backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>✓ Single</span>
-                        )}
-                      </td>
-                      <td style={styles.td}>
-                        {group.count > 1 && (
-                          <button
-                            style={styles.viewButton}
-                            onClick={() => viewGroupDetails(group)}
-                          >
-                            View Details
-                          </button>
-                        )}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
