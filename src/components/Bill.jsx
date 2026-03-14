@@ -55,9 +55,12 @@ const Bill = () => {
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [showDiscountInput, setShowDiscountInput] = useState(false);
+  const [lastGeneratedBill, setLastGeneratedBill] = useState(null);
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
 
   // Refs
   const billPaperRef = useRef(null);
+  const downloadLinkRef = useRef(null);
 
   // Create axios instance with credentials
   const api = axios.create({
@@ -615,6 +618,24 @@ const Bill = () => {
       gap: '8px',
       marginTop: '15px',
     },
+    whatsappButton: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      padding: '10px',
+      marginTop: '10px',
+      background: '#25D366',
+      color: 'white',
+      border: 'none',
+      borderRadius: '5px',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+      fontSize: '14px',
+      transition: 'background 0.3s',
+      textDecoration: 'none',
+      width: '100%',
+    },
     btn: {
       padding: '10px',
       border: 'none',
@@ -656,6 +677,9 @@ const Bill = () => {
     btnWarning: {
       background: '#ffc107',
       color: '#333',
+    },
+    downloadLink: {
+      display: 'none',
     },
   };
 
@@ -1192,13 +1216,505 @@ const Bill = () => {
     }
   };
 
-  // Save bill
-  const saveBill = async () => {
-    if (!isAuthenticated) {
-      setError('Please login first');
+  // Generate HTML content for bill
+  const generateBillHTML = () => {
+    const subtotal = calculateSubtotal();
+    const discountAmount = calculateDiscountAmount();
+    const taxAmount = calculateTaxAmount();
+    const total = calculateTotal();
+    const due = calculateDue();
+    const change = calculateChange();
+    const activeProducts = selectedProducts.filter(p => p.quantity > 0);
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Bill - ${billNumber}</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              margin: 0;
+              padding: 20px;
+              width: 80mm;
+              font-family: 'Courier New', monospace;
+              font-size: 11px;
+              line-height: 1.3;
+              background: white;
+            }
+            
+            #billPaper {
+              width: 280px;
+              margin: 0 auto;
+              padding: 12px;
+              background: white;
+            }
+            
+            .bill-header {
+              text-align: center;
+              margin-bottom: 12px;
+              padding-bottom: 8px;
+              border-bottom: 1px dashed #000;
+            }
+            
+            .bill-header h1 {
+              font-size: 16px;
+              letter-spacing: 1px;
+              margin-bottom: 3px;
+              color: #333;
+              font-weight: bold;
+            }
+            
+            .bill-header p {
+              font-size: 9px;
+              color: #666;
+              margin: 1px 0;
+              line-height: 1.2;
+            }
+            
+            .bill-info {
+              margin: 10px 0;
+              padding: 6px 0;
+              border-top: 1px dashed #000;
+              border-bottom: 1px dashed #000;
+            }
+            
+            .bill-info-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 2px;
+              font-size: 10px;
+            }
+            
+            .bill-number {
+              font-weight: bold;
+              color: #007bff;
+            }
+            
+            .customer-section {
+              margin: 10px 0;
+              padding: 8px;
+              background: #f9f9f9;
+              border-radius: 2px;
+              border: 1px solid #e9ecef;
+            }
+            
+            .customer-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 4px;
+              font-size: 10px;
+            }
+            
+            .customer-label {
+              font-weight: bold;
+              color: #555;
+            }
+            
+            .customer-value {
+              color: #333;
+              max-width: 180px;
+              text-align: right;
+            }
+            
+            .customer-type-badge {
+              padding: 2px 6px;
+              border-radius: 3px;
+              font-size: 9px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            
+            .internal-badge {
+              background: #cce5ff;
+              color: #004085;
+            }
+            
+            .external-badge {
+              background: #fff3cd;
+              color: #856404;
+            }
+            
+            .bill-items {
+              margin: 10px 0;
+            }
+            
+            .bill-items-header {
+              display: grid;
+              grid-template-columns: 2fr 1fr 1fr 1.5fr;
+              font-weight: bold;
+              padding: 4px 0;
+              border-bottom: 1px solid #000;
+              font-size: 10px;
+              background: #f0f0f0;
+              padding-left: 2px;
+            }
+            
+            .bill-item {
+              display: grid;
+              grid-template-columns: 2fr 1fr 1fr 1.5fr;
+              padding: 3px 0;
+              border-bottom: 1px dotted #ccc;
+              font-size: 9px;
+              padding-left: 2px;
+            }
+            
+            .bill-item-empty {
+              text-align: center;
+              color: #999;
+              padding: 10px;
+              font-style: italic;
+              font-size: 10px;
+            }
+            
+            .bill-item-name {
+              display: flex;
+              flex-direction: column;
+            }
+            
+            .bill-item-small {
+              font-size: 7px;
+              color: #666;
+            }
+            
+            .bill-summary {
+              margin: 10px 0;
+              padding: 8px 0;
+              border-top: 1px solid #000;
+            }
+            
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 3px;
+              font-size: 10px;
+            }
+            
+            .summary-row-total {
+              font-weight: bold;
+              font-size: 12px;
+              border-top: 1px dashed #000;
+              padding-top: 6px;
+              margin-top: 6px;
+              color: #333;
+            }
+            
+            .payment-section {
+              margin: 10px 0;
+              padding: 8px;
+              background: #f0f0f0;
+              border-radius: 2px;
+              border: 1px solid #ddd;
+              font-size: 10px;
+            }
+            
+            .payment-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 4px;
+              align-items: center;
+            }
+            
+            .bill-footer {
+              text-align: center;
+              margin-top: 15px;
+              padding-top: 10px;
+              border-top: 1px dashed #000;
+              font-size: 8px;
+            }
+            
+            .bill-footer p {
+              margin-bottom: 2px;
+              color: #666;
+            }
+            
+            .change-amount {
+              font-weight: bold;
+              color: ${paidAmount >= total ? '#28a745' : '#dc3545'};
+              font-size: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="billPaper">
+            <div class="bill-header">
+              <h1>BRAIN TECH</h1>
+              <p>123 Main Street, City - 400001</p>
+              <p>Ph: +91 98765 43210</p>
+              <p>GST: 27ABCDE1234F1Z5</p>
+            </div>
+            
+            <div class="bill-info">
+              <div class="bill-info-row">
+                <span>Bill No:</span>
+                <span class="bill-number">${billNumber}</span>
+              </div>
+              <div class="bill-info-row">
+                <span>Date:</span>
+                <span>${currentDate}</span>
+              </div>
+              <div class="bill-info-row">
+                <span>Time:</span>
+                <span>${currentTime}</span>
+              </div>
+            </div>
+            
+            <div class="customer-section">
+              <div class="customer-row">
+                <span class="customer-label">Customer Type:</span>
+                <span class="customer-type-badge ${customerType === 'internal' ? 'internal-badge' : 'external-badge'}">
+                  ${customerType === 'internal' ? '🏢 INTERNAL' : '👤 EXTERNAL'}
+                </span>
+              </div>
+              
+              <div class="customer-row">
+                <span class="customer-label">Name:</span>
+                <span class="customer-value">${customerName}</span>
+              </div>
+              
+              ${customerPhone ? `
+              <div class="customer-row">
+                <span class="customer-label">Phone:</span>
+                <span class="customer-value">${customerPhone}</span>
+              </div>
+              ` : ''}
+              
+              ${customerEmail ? `
+              <div class="customer-row">
+                <span class="customer-label">Email:</span>
+                <span class="customer-value">${customerEmail}</span>
+              </div>
+              ` : ''}
+              
+              ${customerAddress ? `
+              <div class="customer-row">
+                <span class="customer-label">Address:</span>
+                <span class="customer-value">${customerAddress}</span>
+              </div>
+              ` : ''}
+              
+              ${customerGST ? `
+              <div class="customer-row">
+                <span class="customer-label">GST:</span>
+                <span class="customer-value">${customerGST}</span>
+              </div>
+              ` : ''}
+            </div>
+            
+            ${discount > 0 ? `
+            <div class="discount-section">
+              <div class="discount-amount">
+                Discount Amount: -₹${discountAmount.toFixed(2)}
+                ${!manualDiscount && customerType === 'internal' ? ' (Staff discount)' : ''}
+              </div>
+            </div>
+            ` : ''}
+            
+            <div class="bill-items">
+              <div class="bill-items-header">
+                <span>Item</span>
+                <span>Price</span>
+                <span>Qty</span>
+                <span>Total</span>
+              </div>
+              <div>
+                ${activeProducts.length === 0 ? `
+                  <div class="bill-item-empty">
+                    <span>--- No items in bill ---</span>
+                  </div>
+                ` : activeProducts.map(product => `
+                  <div class="bill-item">
+                    <span class="bill-item-name">
+                      ${product.name.length > 12 ? product.name.substring(0, 10) + '...' : product.name}
+                      ${product.model ? `<small class="bill-item-small">${product.model}</small>` : ''}
+                    </span>
+                    <span>₹${product.sellPrice}</span>
+                    <span>${product.quantity}</span>
+                    <span>₹${product.total.toFixed(2)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            
+            <div class="bill-summary">
+              <div class="summary-row">
+                <span>Subtotal:</span>
+                <span>₹${subtotal.toFixed(2)}</span>
+              </div>
+              
+              ${discount > 0 ? `
+              <div class="summary-row">
+                <span>Discount (${discount}${discountType === 'percentage' ? '%' : '₹'}):</span>
+                <span>-₹${discountAmount.toFixed(2)}</span>
+              </div>
+              ` : ''}
+              
+              <div class="summary-row">
+                <span>After Discount:</span>
+                <span>₹${(subtotal - discountAmount).toFixed(2)}</span>
+              </div>
+              
+              ${tax > 0 ? `
+              <div class="summary-row">
+                <span>Tax (${tax}${taxType === 'percentage' ? '%' : '₹'}):</span>
+                <span>+₹${taxAmount.toFixed(2)}</span>
+              </div>
+              ` : ''}
+              
+              <div class="summary-row summary-row-total">
+                <span>Total:</span>
+                <span>₹${total.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div class="payment-section">
+              <div class="payment-row">
+                <span>Payment Method:</span>
+                <span>${paymentMethod.toUpperCase()}</span>
+              </div>
+              
+              <div class="payment-row">
+                <span>Paid Amount:</span>
+                <span>₹${paidAmount.toFixed(2)}</span>
+              </div>
+              
+              <div class="payment-row">
+                <span>Payment Status:</span>
+                <span style="color: ${paymentStatus === 'paid' ? '#28a745' : paymentStatus === 'partial' ? '#ffc107' : '#dc3545'}; font-weight: bold;">
+                  ${paymentStatus.toUpperCase()}
+                </span>
+              </div>
+              
+              ${due > 0 && paymentStatus !== 'pending' ? `
+              <div class="payment-row">
+                <span>Due Amount:</span>
+                <span>₹${due.toFixed(2)}</span>
+              </div>
+              ` : ''}
+              
+              ${paymentMethod === 'cash' && paidAmount >= total ? `
+              <div class="payment-row">
+                <span>Change:</span>
+                <span class="change-amount">₹${change.toFixed(2)}</span>
+              </div>
+              ` : ''}
+            </div>
+            
+            <div class="bill-footer">
+              <p>Thank you for your purchase!</p>
+              <p>Goods once sold not returnable</p>
+              <p>** Computer generated bill **</p>
+              ${paymentMethod !== 'cash' && transactionId ? `
+              <p>${paymentMethod.toUpperCase()}: ${transactionId}</p>
+              ` : ''}
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  // Download bill as HTML file
+  const downloadBill = () => {
+    const subtotal = calculateSubtotal();
+    if (subtotal === 0) {
+      setError('No items with quantity > 0 to download!');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
+    const billHTML = generateBillHTML();
+    const blob = new Blob([billHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Bill_${billNumber.replace(/[\/\\]/g, '-')}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setLastGeneratedBill({
+      billNumber,
+      customerPhone,
+      customerName
+    });
+    setShowWhatsApp(true);
+    setSuccess('Bill downloaded successfully!');
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
+  // Handle WhatsApp share
+  const handleWhatsAppShare = () => {
+    if (!customerPhone) {
+      setError('Please enter customer phone number to share via WhatsApp');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    // Clean phone number (remove non-digits)
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    
+    // Check if phone number is valid
+    if (cleanPhone.length < 10) {
+      setError('Please enter a valid 10-digit phone number');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    // Format phone number for WhatsApp (add country code if not present)
+    const whatsappNumber = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+
+    // Create message
+    const subtotal = calculateSubtotal();
+    const discountAmount = calculateDiscountAmount();
+    const taxAmount = calculateTaxAmount();
+    const total = calculateTotal();
+    const due = calculateDue();
+    const activeProducts = selectedProducts.filter(p => p.quantity > 0);
+
+    let message = `*BRAIN TECH BILL*\n`;
+    message += `Bill No: ${billNumber}\n`;
+    message += `Date: ${currentDate} ${currentTime}\n`;
+    message += `Customer: ${customerName}\n`;
+    message += `Type: ${customerType === 'internal' ? 'INTERNAL' : 'EXTERNAL'}\n`;
+    message += `================\n`;
+    message += `ITEMS:\n`;
+    
+    activeProducts.forEach(p => {
+      message += `${p.name.substring(0, 15)}... ${p.quantity}x ₹${p.sellPrice} = ₹${p.total.toFixed(2)}\n`;
+    });
+    
+    message += `================\n`;
+    message += `Subtotal: ₹${subtotal.toFixed(2)}\n`;
+    if (discountAmount > 0) message += `Discount: -₹${discountAmount.toFixed(2)}\n`;
+    if (taxAmount > 0) message += `Tax: +₹${taxAmount.toFixed(2)}\n`;
+    message += `*TOTAL: ₹${total.toFixed(2)}*\n`;
+    message += `================\n`;
+    message += `Payment: ${paymentMethod.toUpperCase()}\n`;
+    message += `Paid: ₹${paidAmount.toFixed(2)}\n`;
+    message += `Status: ${paymentStatus.toUpperCase()}\n`;
+    if (due > 0) message += `Due: ₹${due.toFixed(2)}\n`;
+    message += `================\n`;
+    message += `Thank you for shopping with us!\n`;
+    message += `Goods once sold not returnable`;
+
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, '_blank');
+  };
+
+  // Handle payment completion
+  const handlePaymentComplete = () => {
     const subtotal = calculateSubtotal();
     if (subtotal === 0) {
       setError('No items with quantity > 0 in bill!');
@@ -1206,99 +1722,8 @@ const Bill = () => {
       return;
     }
 
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    const discountAmount = calculateDiscountAmount();
-    const taxAmount = calculateTaxAmount();
-    const total = calculateTotal();
-    const changeAmount = calculateChange();
-    const dueAmount = calculateDue();
-
-    // Prepare payment details based on method
-    const paymentDetails = {
-      method: paymentMethod,
-      amount: paidAmount,
-      status: paymentStatus,
-      change: changeAmount,
-      due: dueAmount
-    };
-
-    // Add method-specific details
-    switch(paymentMethod) {
-      case 'cash':
-        paymentDetails.cashReceived = cashReceived;
-        break;
-      case 'card':
-        paymentDetails.cardNumber = cardNumber;
-        paymentDetails.cardHolderName = cardHolderName;
-        paymentDetails.transactionId = transactionId;
-        break;
-      case 'upi':
-        paymentDetails.upiId = upiId;
-        paymentDetails.transactionId = transactionId;
-        break;
-      case 'cheque':
-        paymentDetails.chequeNumber = chequeNumber;
-        paymentDetails.bankName = bankName;
-        break;
-      default:
-        break;
-    }
-
-    const billData = {
-      customerName,
-      customerPhone,
-      customerEmail,
-      customerGST,
-      customerAddress,
-      customerType,
-      customerDiscount: customerDiscount,
-      subtotal,
-      discount: discountAmount,
-      discountType,
-      discountValue: discount,
-      manualDiscount,
-      tax: taxAmount,
-      taxType,
-      taxValue: tax,
-      total,
-      paidAmount: parseFloat(paidAmount) || 0,
-      changeAmount,
-      dueAmount,
-      paymentMethod,
-      paymentStatus,
-      paymentDetails,
-      items: selectedProducts
-        .filter(p => p.quantity > 0) // Only include items with quantity > 0
-        .map(p => ({
-          productId: p.id,
-          productName: p.name,
-          productModel: p.model,
-          sellPrice: p.sellPrice,
-          quantity: p.quantity,
-          total: p.total
-        }))
-    };
-
-    try {
-      const response = await api.post('/billing/bills', billData);
-      
-      setSuccess('Bill saved successfully!');
-      setBillNumber(response.data.billNumber);
-      setBillSaved(true);
-      
-      setTimeout(() => {
-        handlePrint();
-      }, 500);
-      
-    } catch (err) {
-      console.error('Save error:', err);
-      setError(err.response?.data?.error || 'Failed to save bill');
-    } finally {
-      setLoading(false);
-    }
+    // Download bill automatically
+    downloadBill();
   };
 
   // Clear bill
@@ -1330,6 +1755,8 @@ const Bill = () => {
       setError('');
       setSuccess('');
       setBillSaved(false);
+      setShowWhatsApp(false);
+      setLastGeneratedBill(null);
       generateBillNumber();
     }
   };
@@ -2181,10 +2608,10 @@ const Bill = () => {
                 ...baseStyles.btnSuccess,
                 ...(loading || activeProducts.length === 0 ? baseStyles.btnDisabled : {})
               }}
-              onClick={saveBill}
+              onClick={handlePaymentComplete}
               disabled={loading || activeProducts.length === 0}
             >
-              {loading ? '💾 Saving...' : '💾 Save'}
+              {loading ? '⏳ Processing...' : '💰 Pay & Download'}
             </button>
             <button
               style={{
@@ -2209,8 +2636,24 @@ const Bill = () => {
               🗑️ Clear
             </button>
           </div>
+
+          {/* WhatsApp Share Button */}
+          {showWhatsApp && lastGeneratedBill && (
+            <button
+              style={baseStyles.whatsappButton}
+              onClick={handleWhatsAppShare}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#128C7E'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#25D366'}
+            >
+              <span>📱</span>
+              Share Bill on WhatsApp
+            </button>
+          )}
         </div>
       </div>
+      
+      {/* Hidden download link */}
+      <a ref={downloadLinkRef} style={baseStyles.downloadLink}></a>
     </div>
   );
 };

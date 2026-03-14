@@ -86,7 +86,7 @@ const Sidebar = ({ isOpen }) => {
   return (
     <div style={styles.sidebar}>
       <div style={styles.logoSection}>
-        {isOpen ? "Avva Inventry" : "AI"}
+        {isOpen ? "Avva Inventory" : "AI"}
       </div>
 
       <div style={styles.navContainer}>
@@ -138,6 +138,16 @@ const Sidebar = ({ isOpen }) => {
         <NavLink to="/stockout" style={getLinkStyle}>
           <FaArrowUp style={styles.icon} />
           <span style={styles.text}>Stock Out</span>
+        </NavLink>
+
+        <NavLink to="/quotation" style={getLinkStyle}>
+          <FaArrowUp style={styles.icon} />
+          <span style={styles.text}>Quotation</span>
+        </NavLink>
+    
+        <NavLink to="/invoice" style={getLinkStyle}>
+          <FaArrowUp style={styles.icon} />
+          <span style={styles.text}>Invoice</span>
         </NavLink>
       </div>
     </div>

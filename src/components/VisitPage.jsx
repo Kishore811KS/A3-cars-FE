@@ -41,7 +41,8 @@ import {
   TrendingUp,
   Wallet,
   Banknote,
-  Landmark
+  Landmark,
+  MessageCircle // Added for WhatsApp
 } from 'lucide-react';
 
 // Crown icon component for VIP customers
@@ -70,6 +71,7 @@ const VisitBillPage = () => {
   const [showBillModal, setShowBillModal] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [copiedBillNo, setCopiedBillNo] = useState(null);
+  const [whatsappStatus, setWhatsappStatus] = useState({}); // Track WhatsApp sending status per bill
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -410,6 +412,111 @@ const VisitBillPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // WhatsApp share function
+  const handleWhatsAppShare = (bill) => {
+    if (!bill.customerPhone) {
+      showMessage("error", "❌ No phone number available for this customer");
+      return;
+    }
+
+    // Show sending status
+    setWhatsappStatus(prev => ({ ...prev, [bill.id]: 'sending' }));
+
+    // Clean phone number (remove non-digits)
+    const cleanPhone = bill.customerPhone.replace(/\D/g, '');
+    
+    // Check if phone number is valid
+    if (cleanPhone.length < 10) {
+      showMessage("error", "❌ Please enter a valid 10-digit phone number");
+      setWhatsappStatus(prev => ({ ...prev, [bill.id]: 'error' }));
+      setTimeout(() => {
+        setWhatsappStatus(prev => ({ ...prev, [bill.id]: null }));
+      }, 2000);
+      return;
+    }
+
+    // Format phone number for WhatsApp (add country code if not present)
+    const whatsappNumber = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+
+    // Create message
+    const dueAmount = (bill.total || 0) - (bill.paidAmount || 0);
+    const items = bill.items || [];
+    
+    let message = `*BRAIN TECH - BILL DETAILS*\n`;
+    message += `═══════════════════════\n`;
+    message += `*Bill No:* ${bill.billNumber}\n`;
+    message += `*Date:* ${new Date(bill.createdAt).toLocaleDateString()}\n`;
+    message += `*Time:* ${new Date(bill.createdAt).toLocaleTimeString()}\n`;
+    message += `*Customer:* ${bill.customerName || 'Walk-in Customer'}\n`;
+    message += `*Type:* ${(bill.customerType || 'external').toUpperCase()}\n`;
+    
+    if (bill.customerPhone) {
+      message += `*Phone:* ${bill.customerPhone}\n`;
+    }
+    
+    message += `═══════════════════════\n`;
+    message += `*ITEMS PURCHASED:*\n`;
+    
+    items.slice(0, 5).forEach(item => {
+      const productName = item.productName || item.product_name || 'Unknown';
+      const qty = item.quantity || 0;
+      const price = parseFloat(item.sellPrice || item.sell_price || 0);
+      const total = parseFloat(item.total || 0);
+      message += `• ${productName.substring(0, 20)}${productName.length > 20 ? '...' : ''}\n`;
+      message += `  ${qty} x ₹${price.toFixed(2)} = ₹${total.toFixed(2)}\n`;
+    });
+    
+    if (items.length > 5) {
+      message += `  ...and ${items.length - 5} more items\n`;
+    }
+    
+    message += `═══════════════════════\n`;
+    message += `*Subtotal:* ₹${(bill.subtotal || 0).toFixed(2)}\n`;
+    
+    if (bill.discountAmount > 0) {
+      if (bill.discountType === 'percentage') {
+        message += `*Discount:* ${bill.discountValue}% (₹${bill.discountAmount.toFixed(2)})\n`;
+      } else {
+        message += `*Discount:* ₹${bill.discountAmount.toFixed(2)}\n`;
+      }
+    }
+    
+    if (bill.tax > 0) {
+      message += `*Tax:* ₹${(bill.tax || 0).toFixed(2)}\n`;
+    }
+    
+    message += `*TOTAL AMOUNT:* ₹${(bill.total || 0).toFixed(2)}\n`;
+    message += `*Paid:* ₹${(bill.paidAmount || 0).toFixed(2)}\n`;
+    
+    if (dueAmount > 0) {
+      message += `*Due:* ₹${dueAmount.toFixed(2)}\n`;
+    }
+    
+    if (bill.changeAmount > 0) {
+      message += `*Change:* ₹${bill.changeAmount.toFixed(2)}\n`;
+    }
+    
+    message += `*Payment Method:* ${(bill.paymentMethod || 'cash').toUpperCase()}\n`;
+    message += `═══════════════════════\n`;
+    message += `Thank you for shopping with us!\n`;
+    message += `Goods once sold will not be taken back\n`;
+    message += `** Computer generated bill **\n`;
+
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, '_blank');
+    
+    // Update status
+    setWhatsappStatus(prev => ({ ...prev, [bill.id]: 'sent' }));
+    showMessage("success", "✅ WhatsApp opened successfully!");
+    
+    setTimeout(() => {
+      setWhatsappStatus(prev => ({ ...prev, [bill.id]: null }));
+    }, 3000);
   };
 
   const applyFilters = () => {
@@ -1131,6 +1238,19 @@ const VisitBillPage = () => {
       alignItems: "center",
       justifyContent: "center",
     },
+    whatsappButton: {
+      padding: "6px 10px",
+      margin: "0 2px",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+      transition: "all 0.2s",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#25D366",
+      color: "white",
+    },
     message: {
       padding: "12px 20px",
       borderRadius: "6px",
@@ -1648,7 +1768,7 @@ const VisitBillPage = () => {
                         <Eye size={14} />
                       </button>
                       <button
-                        style={{...styles.actionButton, backgroundColor: '#059669', color: 'white'}}
+                        style={{...styles.actionButton, backgroundColor: '#059669', color: 'white', marginRight: '4px'}}
                         onClick={() => handlePrintBill(bill)}
                         title="Print Bill"
                         onMouseEnter={(e) => {
@@ -1661,6 +1781,37 @@ const VisitBillPage = () => {
                         }}
                       >
                         <Printer size={14} />
+                      </button>
+                      <button
+                        style={{
+                          ...styles.whatsappButton,
+                          opacity: whatsappStatus[bill.id] === 'sending' ? 0.7 : 1,
+                          cursor: whatsappStatus[bill.id] === 'sending' ? 'wait' : 'pointer',
+                          backgroundColor: whatsappStatus[bill.id] === 'sent' ? '#059669' : '#25D366'
+                        }}
+                        onClick={() => handleWhatsAppShare(bill)}
+                        title="Share on WhatsApp"
+                        disabled={whatsappStatus[bill.id] === 'sending'}
+                        onMouseEnter={(e) => {
+                          if (!whatsappStatus[bill.id]) {
+                            e.currentTarget.style.backgroundColor = '#128C7E';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!whatsappStatus[bill.id]) {
+                            e.currentTarget.style.backgroundColor = '#25D366';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }
+                        }}
+                      >
+                        {whatsappStatus[bill.id] === 'sending' ? (
+                          <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                        ) : whatsappStatus[bill.id] === 'sent' ? (
+                          <CheckCircle size={14} />
+                        ) : (
+                          <MessageCircle size={14} />
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -1770,7 +1921,7 @@ const VisitBillPage = () => {
         </div>
       )}
 
-      {/* Bill Details Modal - UPDATED: Removed discount and payment summary */}
+      {/* Bill Details Modal */}
       {showBillModal && selectedBill && (
         <div style={styles.modal} onClick={() => setShowBillModal(false)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -1892,8 +2043,6 @@ const VisitBillPage = () => {
               </tbody>
             </table>
 
-            {/* Payment Summary Section - COMPLETELY REMOVED */}
-
             {/* Payment History if available */}
             {selectedBill.payments && selectedBill.payments.length > 0 && (
               <div style={{marginTop: '20px'}}>
@@ -1937,6 +2086,25 @@ const VisitBillPage = () => {
                 <Printer size={16} /> Print Bill
               </button>
               <button
+                style={{...styles.actionButton, backgroundColor: '#25D366', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
+                onClick={() => {
+                  setShowBillModal(false);
+                  handleWhatsAppShare(selectedBill);
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#128C7E';
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#25D366';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+                disabled={!selectedBill.customerPhone}
+                title={!selectedBill.customerPhone ? "No phone number available" : "Share on WhatsApp"}
+              >
+                <MessageCircle size={16} /> WhatsApp
+              </button>
+              <button
                 style={{...styles.actionButton, backgroundColor: '#374151', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
                 onClick={() => setShowBillModal(false)}
                 onMouseEnter={(e) => {
@@ -1954,6 +2122,16 @@ const VisitBillPage = () => {
           </div>
         </div>
       )}
+
+      {/* Add keyframe animation for spinner */}
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };
