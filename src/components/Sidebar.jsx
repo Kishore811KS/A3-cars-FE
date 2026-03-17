@@ -33,43 +33,53 @@ const Sidebar = ({ isOpen }) => {
       left: 0,
       transition: "all 0.3s ease",
       overflowY: "auto",
+      overflowX: "hidden",
       display: "flex",
       flexDirection: "column",
       boxShadow: "4px 0 20px rgba(0,0,0,0.4)",
+      scrollbarWidth: "thin",
+      scrollbarColor: "#4da6ff #1f2937",
     },
 
     logoSection: {
-      marginBottom: "30px",
-      fontSize: "17px",
+      marginBottom: "25px",
+      fontSize: isOpen ? "18px" : "14px",
       fontWeight: "600",
       letterSpacing: "1px",
       textAlign: "center",
-      transition: "0.3s",
+      padding: "8px 4px",
+      color: "#4da6ff",
+      borderBottom: "1px solid rgba(77, 166, 255, 0.2)",
+      whiteSpace: "nowrap",
+      transition: "all 0.3s ease",
     },
 
     navContainer: {
       display: "flex",
       flexDirection: "column",
-      gap: "8px",
+      gap: "4px",
+      flex: 1,
     },
 
     link: {
       display: "flex",
       alignItems: "center",
       justifyContent: isOpen ? "flex-start" : "center",
-      gap: "15px",
-      padding: "12px",
+      gap: "12px",
+      padding: "10px 12px",
       color: "#9ca3af",
       textDecoration: "none",
-      borderRadius: "10px",
-      transition: "all 0.3s ease",
+      borderRadius: "8px",
+      transition: "all 0.2s ease",
       fontSize: "14px",
+      fontWeight: "500",
+      whiteSpace: "nowrap",
+      minHeight: "40px",
     },
 
     activeLink: {
       background: "rgba(77, 166, 255, 0.15)",
       color: "#4da6ff",
-      boxShadow: "0 0 10px rgba(77,166,255,0.4)",
     },
 
     icon: {
@@ -79,9 +89,43 @@ const Sidebar = ({ isOpen }) => {
 
     text: {
       display: isOpen ? "inline" : "none",
-      fontWeight: "500",
+      opacity: isOpen ? 1 : 0,
+      transition: "opacity 0.2s ease",
+    },
+
+    divider: {
+      height: "1px",
+      background: "rgba(255,255,255,0.1)",
+      margin: "12px 0",
+    },
+
+    sectionTitle: {
+      fontSize: "11px",
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: "0.5px",
+      color: "#6b7280",
+      padding: "8px 12px 4px",
+      display: isOpen ? "block" : "none",
     },
   };
+
+  // Custom scrollbar styles for webkit browsers
+  const scrollbarStyles = `
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sidebar::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+      background: #4da6ff;
+      border-radius: 4px;
+    }
+    .sidebar::-webkit-scrollbar-thumb:hover {
+      background: #3b82f6;
+    }
+  `;
 
   const getLinkStyle = ({ isActive }) =>
     isActive
@@ -89,84 +133,108 @@ const Sidebar = ({ isOpen }) => {
       : styles.link;
 
   return (
-    <div style={styles.sidebar}>
-      <div style={styles.logoSection}>
-        {isOpen ? "Avva Inventory" : "AI"}
+    <>
+      <style>{scrollbarStyles}</style>
+      <div style={styles.sidebar} className="sidebar">
+        <div style={styles.logoSection}>
+          {isOpen ? "AVVA INVENTORY" : "AV"}
+        </div>
+
+        <div style={styles.navContainer}>
+          {/* Main Navigation */}
+          <div style={styles.sectionTitle}>Main</div>
+          <NavLink to="/dashboard" style={getLinkStyle}>
+            <FaTachometerAlt style={styles.icon} />
+            <span style={styles.text}>Dashboard</span>
+          </NavLink>
+
+          {/* Inventory Management */}
+          <div style={styles.sectionTitle}>Inventory</div>
+          <NavLink to="/product" style={getLinkStyle}>
+            <FaBoxes style={styles.icon} />
+            <span style={styles.text}>Products</span>
+          </NavLink>
+
+          <NavLink to="/type" style={getLinkStyle}>
+            <FaTags style={styles.icon} />
+            <span style={styles.text}>Category</span>
+          </NavLink>
+
+          <NavLink to="/itemlist" style={getLinkStyle}>
+            <FaArrowDown style={styles.icon} />
+            <span style={styles.text}>Stock In</span>
+          </NavLink>
+
+          <NavLink to="/stockout" style={getLinkStyle}>
+            <FaArrowUp style={styles.icon} />
+            <span style={styles.text}>Stock Out</span>
+          </NavLink>
+
+          <NavLink to="/lowstock" style={getLinkStyle}>
+            <FaExclamationTriangle style={styles.icon} />
+            <span style={styles.text}>Low Stock</span>
+          </NavLink>
+
+          {/* Billing Section */}
+          <div style={styles.sectionTitle}>Billing</div>
+          <NavLink to="/bill" style={getLinkStyle}>
+            <FaFileInvoiceDollar style={styles.icon} />
+            <span style={styles.text}>Create Bill</span>
+          </NavLink>
+
+          <NavLink to="/billreport" style={getLinkStyle}>
+            <FaFileInvoice style={styles.icon} />
+            <span style={styles.text}>Bill Reports</span>
+          </NavLink>
+
+          <NavLink to="/service" style={getLinkStyle}>
+            <FaShoppingCart style={styles.icon} />
+            <span style={styles.text}>Service Bill</span>
+          </NavLink>
+
+          <NavLink to="/serviceBillView" style={getLinkStyle}>
+            <FaShoppingCart style={styles.icon} />
+            <span style={styles.text}>Service Bills</span>
+          </NavLink>
+
+          <NavLink to="/quotation" style={getLinkStyle}>
+            <FaClipboardList style={styles.icon} />
+            <span style={styles.text}>Quotations</span>
+          </NavLink>
+
+          <NavLink to="/invoice" style={getLinkStyle}>
+            <FaFileInvoiceDollar style={styles.icon} />
+            <span style={styles.text}>Invoices</span>
+          </NavLink>
+
+          {/* Supplier Section */}
+          <div style={styles.sectionTitle}>Suppliers</div>
+          <NavLink to="/supplier" style={getLinkStyle}>
+            <FaTruck style={styles.icon} />
+            <span style={styles.text}>Add Supplier</span>
+          </NavLink>
+
+          <NavLink to="/supplierList" style={getLinkStyle}>
+            <FaUsers style={styles.icon} />
+            <span style={styles.text}>Supplier List</span>
+          </NavLink>
+        </div>
+
+        {/* Optional: Add version or footer */}
+        {isOpen && (
+          <div style={{
+            fontSize: "10px",
+            color: "#6b7280",
+            textAlign: "center",
+            padding: "16px 0 8px",
+            borderTop: "1px solid rgba(255,255,255,0.1)",
+            marginTop: "auto"
+          }}>
+            v1.0.0
+          </div>
+        )}
       </div>
-
-      <div style={styles.navContainer}>
-        <NavLink to="/dashboard" style={getLinkStyle}>
-          <FaTachometerAlt style={styles.icon} />
-          <span style={styles.text}>Dashboard</span>
-        </NavLink>
-
-        <NavLink to="/product" style={getLinkStyle}>
-          <FaBoxes style={styles.icon} />
-          <span style={styles.text}>Products</span>
-        </NavLink>
-
-        <NavLink to="/bill" style={getLinkStyle}>
-          <FaFileInvoiceDollar style={styles.icon} />
-          <span style={styles.text}>Bill</span>
-        </NavLink>
-
-        <NavLink to="/billreport" style={getLinkStyle}>
-          <FaFileInvoice style={styles.icon} />
-          <span style={styles.text}>Complete Bill</span>
-        </NavLink>
-
-        <NavLink to="/supplier" style={getLinkStyle}>
-          <FaTruck style={styles.icon} />
-          <span style={styles.text}>Supplier</span>
-        </NavLink>
-
-        <NavLink to="/supplierList" style={getLinkStyle}>
-          <FaUsers style={styles.icon} />
-          <span style={styles.text}>Supplier Details</span>
-        </NavLink>
-
-        <NavLink to="/itemlist" style={getLinkStyle}>
-          <FaArrowDown style={styles.icon} />
-          <span style={styles.text}>Stock In</span>
-        </NavLink>
-
-        <NavLink to="/type" style={getLinkStyle}>
-          <FaTags style={styles.icon} />
-          <span style={styles.text}>Category</span>
-        </NavLink>
-
-        <NavLink to="/lowstock" style={getLinkStyle}>
-          <FaExclamationTriangle style={styles.icon} />
-          <span style={styles.text}>Low Stock</span>
-        </NavLink>
-
-        <NavLink to="/stockout" style={getLinkStyle}>
-          <FaArrowUp style={styles.icon} />
-          <span style={styles.text}>Stock Out</span>
-        </NavLink>
-
-        <NavLink to="/service" style={getLinkStyle}>
-          <FaShoppingCart style={styles.icon} />
-          <span style={styles.text}>ServiceBill</span>
-        </NavLink>
-
-        <NavLink to="/quotation" style={getLinkStyle}>
-          <FaClipboardList style={styles.icon} />
-          <span style={styles.text}>Quotation</span>
-        </NavLink>
-
-        <NavLink to="/serviceBillView" style={getLinkStyle}>
-          <FaShoppingCart style={styles.icon} />
-          <span style={styles.text}>ServiceBillView</span>
-        </NavLink>
-    
-        <NavLink to="/invoice/serviceBillView" style={getLinkStyle}>
-          <FaShoppingCart style={styles.icon} />
-          <span style={styles.text}>Invoice</span>
-        </NavLink>
-
-      </div>
-    </div>
+    </>
   );
 };
 

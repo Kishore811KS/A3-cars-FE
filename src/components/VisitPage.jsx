@@ -88,11 +88,11 @@ const VisitBillPage = () => {
 
   const API_BASE_URL = 'http://localhost:5000/api';
 
-  // Shop details
+  // Shop details - UPDATED ADDRESS
   const shopDetails = {
-    name: "BRAIN TECH (Sales & Service)",
-    address: "Rayar Complex, Soap Company Stop, Idayarpalayam",
-    city: "Coimbatore - 641025",
+    name: "Hi Print Solutions",
+    address: "No.71, M.T.H.road (Opp padi post office), Padi",
+    city: "Chennai - 600 050",
     phone: "98657 09626"
   };
 
@@ -452,7 +452,7 @@ const VisitBillPage = () => {
     // Format phone number for WhatsApp (add country code if not present)
     const whatsappNumber = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-    // Create message
+    // Create message - UPDATED ADDRESS
     const dueAmount = (bill.total || 0) - (bill.paidAmount || 0);
     const items = bill.items || [];
     
