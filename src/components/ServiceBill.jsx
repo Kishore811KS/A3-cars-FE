@@ -1,13 +1,17 @@
-// Bill.jsx
+// ServiceBill.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-const Bill = () => {
+const ServiceBill = () => {
   // State management
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [barcode, setBarcode] = useState('');
+  const [manualServices, setManualServices] = useState([]);
+  
+  // New service entry form
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServiceDescription, setNewServiceDescription] = useState('');
+  const [newServicePrice, setNewServicePrice] = useState('');
+  const [newServiceGST, setNewServiceGST] = useState('18');
+  const [newServiceCategory, setNewServiceCategory] = useState('General');
   
   // Bill information
   const [billNumber, setBillNumber] = useState('');
@@ -20,24 +24,19 @@ const Bill = () => {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerGST, setCustomerGST] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [customerType, setCustomerType] = useState('external'); // 'internal' or 'external'
-  const [customerDiscount, setCustomerDiscount] = useState(0); // Default discount for customer type
+  const [customerType, setCustomerType] = useState('regular'); // Changed from 'external' to 'regular'
   
   // Discount information
   const [discount, setDiscount] = useState(0);
-  const [discountType, setDiscountType] = useState('percentage'); // 'percentage' or 'fixed'
-  const [manualDiscount, setManualDiscount] = useState(false); // Track if discount is manually set
-  
-  // Tax information
-  const [tax, setTax] = useState(0);
-  const [taxType, setTaxType] = useState('percentage'); // 'percentage' or 'fixed'
+  const [discountType, setDiscountType] = useState('percentage');
+  const [manualDiscount, setManualDiscount] = useState(false);
   
   // Payment information
   const [paidAmount, setPaidAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentStatus, setPaymentStatus] = useState('pending');
   
-  // Payment details for different methods
+  // Payment details
   const [cashReceived, setCashReceived] = useState(0);
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolderName, setCardHolderName] = useState('');
@@ -48,63 +47,97 @@ const Bill = () => {
   
   // UI states
   const [loading, setLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [billSaved, setBillSaved] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [showDiscountInput, setShowDiscountInput] = useState(false);
   const [lastGeneratedBill, setLastGeneratedBill] = useState(null);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [savedBillId, setSavedBillId] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
 
-  // Shop details
+  // Service categories
+  const serviceCategories = [
+    'General',
+    'Repair',
+    'Maintenance',
+    'Installation',
+    'Software',
+    'Hardware',
+    'Networking',
+    'Security',
+    'Data Recovery',
+    'Consulting',
+    'Training',
+    'Other'
+  ];
+
+  // Shop details - HI PRINT SOLUTIONS
   const shopDetails = {
     name: 'HI PRINT SOLUTIONS',
-    address: 'No.71, M.T.H.road (Opp padi post office), ',
-    city: 'Padi, Chennai - 600 050',
+    phone: '+91 72993 00400',
+    address: 'No.71, M.T.H.road (Opp padi post office), Padi',
+    city: 'Chennai - 600 050',
+    gst: '33ABCDE1234F1Z5'
   };
 
   // Refs
   const billPaperRef = useRef(null);
   const downloadLinkRef = useRef(null);
+  const serviceNameInputRef = useRef(null);
 
-  // Create axios instance with credentials
+  // Create axios instance with better configuration
   const api = axios.create({
     baseURL: 'http://localhost:5000/api',
-    withCredentials: true,
     headers: {
-      'Content-Type': 'application/json'
-    }
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    timeout: 10000 // Increased timeout to 10 seconds
   });
 
   // Add request interceptor for debugging
   api.interceptors.request.use(request => {
-    console.log('Starting Request:', request.url);
+    console.log('🚀 Starting Service Request:', {
+      url: request.url,
+      method: request.method,
+      data: request.data,
+      headers: request.headers
+    });
     return request;
   });
 
   // Add response interceptor for error handling
   api.interceptors.response.use(
     response => {
-      console.log('Response:', response.status);
+      console.log('✅ Service Response:', {
+        status: response.status,
+        data: response.data
+      });
       return response;
     },
     error => {
-      console.log('Response Error:', error.response?.status, error.response?.data);
-      if (error.response?.status === 401) {
-        setIsAuthenticated(false);
-        setError('Session expired. Please login again.');
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 2000);
+      console.log('❌ Service Response Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // Handle different error scenarios
+      if (error.code === 'ECONNABORTED') {
+        setError('Request timeout. Please check if server is running.');
+      } else if (!error.response) {
+        setError('Network error. Cannot connect to server.');
+      } else {
+        setError(error.response?.data?.error || error.message || 'An error occurred');
       }
+      
       return Promise.reject(error);
     }
   );
 
-  // Base styles (without dynamic values)
+  // Base styles (keeping your existing styles - I'll just show the changes needed)
   const baseStyles = {
     container: {
       display: 'grid',
@@ -135,7 +168,6 @@ const Bill = () => {
       borderRadius: '5px',
       marginBottom: '20px',
       fontWeight: 'bold',
-      animation: 'slideIn 0.3s ease',
     },
     alertError: {
       background: '#f8d7da',
@@ -147,110 +179,84 @@ const Bill = () => {
       color: '#155724',
       border: '1px solid #c3e6cb',
     },
-    searchSection: {
+    alertWarning: {
+      background: '#fff3cd',
+      color: '#856404',
+      border: '1px solid #ffeeba',
+    },
+    manualEntrySection: {
       background: '#f8f9fa',
       padding: '20px',
       borderRadius: '8px',
       marginBottom: '20px',
       border: '1px solid #e9ecef',
     },
-    searchBox: {
+    manualEntryTitle: {
       marginBottom: '15px',
-      position: 'relative',
+      color: '#333',
+      borderBottom: '1px solid #ddd',
+      paddingBottom: '8px',
+      fontSize: '18px',
+      fontWeight: 'bold',
     },
-    searchLabel: {
+    formGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '10px',
+      marginBottom: '15px',
+    },
+    formGroup: {
+      marginBottom: '10px',
+    },
+    formLabel: {
       display: 'block',
       marginBottom: '5px',
       fontWeight: 'bold',
       color: '#333',
-      fontSize: '14px',
-    },
-    searchInput: {
-      width: '100%',
-      padding: '12px',
-      border: '2px solid #ddd',
-      borderRadius: '5px',
-      fontSize: '16px',
-      fontFamily: "'Courier New', monospace",
-      transition: 'border-color 0.3s, box-shadow 0.3s',
-      outline: 'none',
-    },
-    searchLoading: {
-      position: 'absolute',
-      right: '10px',
-      top: '40px',
-      color: '#666',
       fontSize: '12px',
-      background: 'white',
-      padding: '2px 8px',
-      borderRadius: '3px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
     },
-    barcodeInput: {
-      display: 'flex',
-      gap: '10px',
-    },
-    barcodeField: {
-      flex: 1,
-      padding: '12px',
+    formInput: {
+      width: '100%',
+      padding: '8px 10px',
       border: '2px solid #ddd',
       borderRadius: '5px',
-      fontSize: '16px',
+      fontSize: '14px',
       fontFamily: "'Courier New', monospace",
       outline: 'none',
     },
-    barcodeButton: {
-      padding: '12px 20px',
+    formInputError: {
+      border: '2px solid #dc3545',
+    },
+    formTextarea: {
+      width: '100%',
+      padding: '8px 10px',
+      border: '2px solid #ddd',
+      borderRadius: '5px',
+      fontSize: '14px',
+      fontFamily: "'Courier New', monospace",
+      resize: 'vertical',
+      minHeight: '60px',
+    },
+    formSelect: {
+      width: '100%',
+      padding: '8px 10px',
+      border: '2px solid #ddd',
+      borderRadius: '5px',
+      fontSize: '14px',
+      fontFamily: "'Courier New', monospace",
+      background: 'white',
+    },
+    addButton: {
       background: '#28a745',
       color: 'white',
       border: 'none',
+      padding: '10px 20px',
       borderRadius: '5px',
-      cursor: 'pointer',
+      fontSize: '14px',
       fontWeight: 'bold',
-      transition: 'background 0.3s, transform 0.1s',
-    },
-    barcodeButtonDisabled: {
-      background: '#6c757d',
-      cursor: 'not-allowed',
-      opacity: 0.7,
-    },
-    searchResults: {
-      background: 'white',
-      border: '1px solid #ddd',
-      borderRadius: '5px',
-      maxHeight: '300px',
-      overflowY: 'auto',
+      cursor: 'pointer',
+      width: '100%',
       marginTop: '10px',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-      position: 'absolute',
-      width: 'calc(100% - 40px)',
-      zIndex: 1000,
-    },
-    searchResultItem: {
-      padding: '12px',
-      borderBottom: '1px solid #eee',
-      cursor: 'pointer',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      transition: 'background 0.2s',
-    },
-    resultInfo: {
-      flex: 1,
-    },
-    resultName: {
-      fontWeight: 'bold',
-      color: '#333',
-    },
-    resultDetails: {
-      fontSize: '12px',
-      color: '#666',
-      marginTop: '2px',
-    },
-    resultPrice: {
-      fontWeight: 'bold',
-      color: '#28a745',
-      fontSize: '16px',
     },
     selectedProducts: {
       marginTop: '20px',
@@ -284,7 +290,6 @@ const Bill = () => {
       borderRadius: '5px',
       alignItems: 'center',
       border: '1px solid #e9ecef',
-      transition: 'transform 0.2s, box-shadow 0.2s',
     },
     itemInfo: {
       display: 'flex',
@@ -294,17 +299,26 @@ const Bill = () => {
       fontWeight: 'bold',
       color: '#333',
     },
-    itemModel: {
-      fontSize: '11px',
+    itemCategory: {
+      fontSize: '10px',
+      color: '#17a2b8',
+    },
+    itemDescription: {
+      fontSize: '9px',
       color: '#666',
+      fontStyle: 'italic',
+    },
+    itemGSTRate: {
+      fontSize: '8px',
+      color: '#dc3545',
     },
     itemPrice: {
       fontWeight: 'bold',
-      color: '#28a745',
+      color: '#17a2b8',
     },
     itemTotal: {
       fontWeight: 'bold',
-      color: '#28a745',
+      color: '#17a2b8',
     },
     itemQuantity: {
       width: '70px',
@@ -326,7 +340,6 @@ const Bill = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      transition: 'background 0.3s, transform 0.1s',
     },
     billPanel: {
       background: 'white',
@@ -388,7 +401,7 @@ const Bill = () => {
     },
     billNumber: {
       fontWeight: 'bold',
-      color: '#007bff',
+      color: '#17a2b8',
     },
     customerSection: {
       margin: '10px 0',
@@ -435,7 +448,6 @@ const Bill = () => {
       borderRadius: '2px',
       fontFamily: "'Courier New', monospace",
       fontSize: '10px',
-      transition: 'border-color 0.3s',
     },
     customerTypeSelect: {
       width: '100%',
@@ -481,6 +493,10 @@ const Bill = () => {
     billItemSmall: {
       fontSize: '7px',
       color: '#666',
+    },
+    billItemGST: {
+      fontSize: '6px',
+      color: '#dc3545',
     },
     billSummary: {
       margin: '10px 0',
@@ -640,8 +656,6 @@ const Bill = () => {
       fontWeight: 'bold',
       cursor: 'pointer',
       fontSize: '14px',
-      transition: 'background 0.3s',
-      textDecoration: 'none',
       width: '100%',
     },
     btn: {
@@ -651,7 +665,6 @@ const Bill = () => {
       fontWeight: 'bold',
       cursor: 'pointer',
       fontSize: '12px',
-      transition: 'all 0.3s',
       fontFamily: "'Courier New', monospace",
       display: 'flex',
       alignItems: 'center',
@@ -663,7 +676,7 @@ const Bill = () => {
       cursor: 'not-allowed',
     },
     btnPrimary: {
-      background: '#007bff',
+      background: '#17a2b8',
       color: 'white',
     },
     btnSuccess: {
@@ -689,21 +702,22 @@ const Bill = () => {
     downloadLink: {
       display: 'none',
     },
+    serviceTag: {
+      background: '#17a2b8',
+      color: 'white',
+      padding: '2px 6px',
+      borderRadius: '3px',
+      fontSize: '9px',
+      marginLeft: '5px',
+    },
+    errorText: {
+      fontSize: '10px',
+      color: '#dc3545',
+      marginTop: '2px',
+    },
   };
 
-  // Check authentication on mount
-  useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (!user) {
-      setIsAuthenticated(false);
-      setError('Please login first');
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
-    }
-  }, []);
-
-  // Generate random bill number (for display only, backend will generate unique)
+  // Generate random bill number
   const generateBillNumber = () => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
@@ -716,7 +730,7 @@ const Bill = () => {
       random += randomChars.charAt(Math.floor(Math.random() * randomChars.length));
     }
     
-    setBillNumber(`BT-${year}${month}${day}-${random}`);
+    setBillNumber(`HPS-SV-${year}${month}${day}-${random}`);
   };
 
   // Update date and time
@@ -743,19 +757,6 @@ const Bill = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Search products with debounce
-  useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      if (searchQuery.length >= 2) {
-        searchProducts();
-      } else {
-        setSearchResults([]);
-      }
-    }, 500);
-
-    return () => clearTimeout(delayDebounce);
-  }, [searchQuery]);
-
   // Update payment status when paid amount changes
   useEffect(() => {
     const total = calculateTotal();
@@ -766,22 +767,7 @@ const Bill = () => {
     } else if (paidAmount >= total) {
       setPaymentStatus('paid');
     }
-  }, [paidAmount, selectedProducts, discount, tax, discountType, taxType]);
-
-  // Set discount based on customer type (only if not manually set)
-  useEffect(() => {
-    if (!manualDiscount) {
-      if (customerType === 'internal') {
-        setCustomerDiscount(10); // 10% discount for internal customers
-        setDiscount(10);
-        setDiscountType('percentage');
-      } else {
-        setCustomerDiscount(0);
-        setDiscount(0);
-        setDiscountType('percentage');
-      }
-    }
-  }, [customerType, manualDiscount]);
+  }, [paidAmount, manualServices, discount]);
 
   // Add thermal print styles
   useEffect(() => {
@@ -955,143 +941,143 @@ const Bill = () => {
     }
   }, [paymentMethod]);
 
-  // Search products API call
-  const searchProducts = async () => {
-    if (!isAuthenticated) return;
-    
-    setSearchLoading(true);
-    setError('');
-    
-    try {
-      const response = await api.get(`/billing/search-products?q=${encodeURIComponent(searchQuery)}`);
-      setSearchResults(response.data);
-    } catch (err) {
-      console.error('Search error:', err);
-      if (err.response?.status === 401) {
-        setError('Session expired. Please login again.');
-      } else {
-        setError(err.response?.data?.error || 'Failed to search products');
-      }
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
+  // Focus on service name input when component mounts
+  useEffect(() => {
+    if (serviceNameInputRef.current) {
+      serviceNameInputRef.current.focus();
     }
-  };
+  }, []);
 
-  // Get product by barcode
-  const getProductByBarcode = async () => {
-    if (!isAuthenticated) return;
-    if (!barcode.trim()) return;
+  // Validate form before saving
+  const validateForm = () => {
+    const errors = {};
     
-    setLoading(true);
-    setError('');
-    
-    try {
-      const response = await api.get(`/billing/product/barcode/${barcode}`);
-      addProductToBill(response.data);
-      setBarcode('');
-    } catch (err) {
-      console.error('Barcode error:', err);
-      if (err.response?.status === 401) {
-        setError('Session expired. Please login again.');
-      } else {
-        setError(err.response?.data?.error || 'Product not found');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Add product to bill
-  const addProductToBill = (product) => {
-    const existingProduct = selectedProducts.find(p => p.id === product.id);
-    
-    if (existingProduct) {
-      if (existingProduct.quantity < product.quantity) {
-        const updatedProducts = selectedProducts.map(p =>
-          p.id === product.id
-            ? { 
-                ...p, 
-                quantity: p.quantity + 1, 
-                total: (p.quantity + 1) * p.sellPrice 
-              }
-            : p
-        );
-        setSelectedProducts(updatedProducts);
-        setSuccess(`Added another ${product.name}`);
-        setTimeout(() => setSuccess(''), 2000);
-      } else {
-        setError(`Insufficient stock! Max available: ${product.quantity}`);
-        setTimeout(() => setError(''), 3000);
-      }
-    } else {
-      if (product.quantity > 0) {
-        setSelectedProducts([
-          ...selectedProducts,
-          {
-            id: product.id,
-            name: product.name,
-            model: product.model || '',
-            sellPrice: product.sellPrice,
-            quantity: 1,
-            total: product.sellPrice,
-            maxQuantity: product.quantity
-          }
-        ]);
-        setSuccess(`${product.name} added to bill`);
-        setTimeout(() => setSuccess(''), 2000);
-      } else {
-        setError('Out of stock!');
-        setTimeout(() => setError(''), 3000);
-      }
+    if (!customerName || customerName.trim() === '') {
+      errors.customerName = 'Customer name is required';
     }
     
-    setSearchQuery('');
-    setSearchResults([]);
-  };
-
-  // Update quantity - Now sets to 0 instead of deleting
-  const updateQuantity = (productId, newQuantity) => {
-    const product = selectedProducts.find(p => p.id === productId);
-    
-    if (product) {
-      newQuantity = parseInt(newQuantity) || 0;
-      
-      // Allow quantity to be 0 (will show as 0 quantity item)
-      if (newQuantity >= 0 && newQuantity <= product.maxQuantity) {
-        const updatedProducts = selectedProducts.map(p =>
-          p.id === productId
-            ? { ...p, quantity: newQuantity, total: newQuantity * p.sellPrice }
-            : p
-        );
-        setSelectedProducts(updatedProducts);
-        
-        if (newQuantity === 0) {
-          setSuccess(`${product.name} quantity set to 0`);
-        } else {
-          setSuccess(`Updated ${product.name} quantity`);
-        }
-        setTimeout(() => setSuccess(''), 2000);
-      } else if (newQuantity > product.maxQuantity) {
-        setError(`Invalid quantity! Max available: ${product.maxQuantity}`);
-        setTimeout(() => setError(''), 3000);
-      }
+    const activeServices = manualServices.filter(s => s.quantity > 0);
+    if (activeServices.length === 0) {
+      errors.services = 'At least one service with quantity > 0 is required';
     }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
-  // Remove product - Only for complete removal (separate function)
-  const removeProduct = (productId) => {
-    const product = selectedProducts.find(p => p.id === productId);
-    setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
-    setSuccess(`${product.name} removed from bill`);
+  // Add manual service to bill
+  const addManualService = () => {
+    // Validate
+    if (!newServiceName.trim()) {
+      setError('Please enter service name');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    const price = parseFloat(newServicePrice);
+    if (isNaN(price) || price <= 0) {
+      setError('Please enter a valid price');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    const gstRate = parseFloat(newServiceGST) || 0;
+    
+    // Generate a temporary ID
+    const tempId = Date.now() + Math.floor(Math.random() * 1000);
+    
+    // Calculate GST and total
+    const gstAmount = (price * gstRate / 100);
+    const total = price + gstAmount;
+    
+    // Add to manual services
+    setManualServices([
+      ...manualServices,
+      {
+        id: tempId,
+        name: newServiceName.trim(),
+        description: newServiceDescription.trim(),
+        category: newServiceCategory,
+        price: price,
+        gstRate: gstRate,
+        gstAmount: gstAmount,
+        quantity: 1,
+        total: total,
+        isManual: true
+      }
+    ]);
+    
+    // Clear form
+    setNewServiceName('');
+    setNewServiceDescription('');
+    setNewServicePrice('');
+    setNewServiceGST('18');
+    setNewServiceCategory('General');
+    
+    // Focus back on service name
+    setTimeout(() => {
+      if (serviceNameInputRef.current) {
+        serviceNameInputRef.current.focus();
+      }
+    }, 100);
+    
+    setSuccess('Service added to bill');
     setTimeout(() => setSuccess(''), 2000);
   };
 
-  // Calculate subtotal (only items with quantity > 0)
+  // Update quantity
+  const updateQuantity = (serviceId, newQuantity) => {
+    const service = manualServices.find(s => s.id === serviceId);
+    
+    if (service) {
+      newQuantity = parseInt(newQuantity) || 0;
+      
+      if (newQuantity >= 0) {
+        const gstAmount = (service.price * service.gstRate / 100) * newQuantity;
+        const total = (service.price * newQuantity) + gstAmount;
+        
+        const updatedServices = manualServices.map(s =>
+          s.id === serviceId
+            ? { 
+                ...s, 
+                quantity: newQuantity,
+                gstAmount: gstAmount,
+                total: total
+              }
+            : s
+        );
+        setManualServices(updatedServices);
+        
+        if (newQuantity === 0) {
+          setSuccess(`${service.name} quantity set to 0`);
+        } else {
+          setSuccess(`Updated ${service.name} quantity`);
+        }
+        setTimeout(() => setSuccess(''), 2000);
+      }
+    }
+  };
+
+  // Remove service
+  const removeService = (serviceId) => {
+    const service = manualServices.find(s => s.id === serviceId);
+    setManualServices(manualServices.filter(s => s.id !== serviceId));
+    setSuccess(`${service.name} removed from bill`);
+    setTimeout(() => setSuccess(''), 2000);
+  };
+
+  // Calculate subtotal (services only, before GST)
   const calculateSubtotal = () => {
-    return selectedProducts
-      .filter(p => p.quantity > 0)
-      .reduce((sum, p) => sum + p.total, 0);
+    return manualServices
+      .filter(s => s.quantity > 0)
+      .reduce((sum, s) => sum + (s.price * s.quantity), 0);
+  };
+
+  // Calculate total GST amount
+  const calculateTotalGST = () => {
+    return manualServices
+      .filter(s => s.quantity > 0)
+      .reduce((sum, s) => sum + s.gstAmount, 0);
   };
 
   // Calculate discount amount
@@ -1102,29 +1088,15 @@ const Bill = () => {
     if (discountType === 'percentage') {
       return (subtotal * discount) / 100;
     }
-    return Math.min(discount, subtotal); // Fixed amount cannot exceed subtotal
+    return Math.min(discount, subtotal);
   };
 
-  // Calculate tax amount (applied after discount)
-  const calculateTaxAmount = () => {
-    const subtotal = calculateSubtotal();
-    const discountAmount = calculateDiscountAmount();
-    const afterDiscount = subtotal - discountAmount;
-    
-    if (afterDiscount <= 0) return 0;
-    
-    if (taxType === 'percentage') {
-      return (afterDiscount * tax) / 100;
-    }
-    return Math.min(tax, afterDiscount); // Fixed tax cannot exceed after discount amount
-  };
-
-  // Calculate total (subtotal - discount + tax)
+  // Calculate total (subtotal + GST - discount)
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
+    const totalGST = calculateTotalGST();
     const discountAmount = calculateDiscountAmount();
-    const taxAmount = calculateTaxAmount();
-    return Math.max(0, subtotal - discountAmount + taxAmount);
+    return Math.max(0, subtotal + totalGST - discountAmount);
   };
 
   // Calculate change
@@ -1141,11 +1113,10 @@ const Bill = () => {
 
   // Handle discount change
   const handleDiscountChange = (value) => {
-    setManualDiscount(true); // Mark as manually set
+    setManualDiscount(true);
     const numValue = parseFloat(value) || 0;
     const subtotal = calculateSubtotal();
     
-    // Validate based on discount type
     if (discountType === 'percentage') {
       if (numValue > 100) {
         setError('Percentage discount cannot exceed 100%');
@@ -1166,19 +1137,16 @@ const Bill = () => {
       }
     }
     
-    // Clear error after 3 seconds
     setTimeout(() => setError(''), 3000);
   };
 
   // Handle discount type change
   const handleDiscountTypeChange = (type) => {
-    setManualDiscount(true); // Mark as manually set
+    setManualDiscount(true);
     const subtotal = calculateSubtotal();
     setDiscountType(type);
     
-    // Convert discount value when type changes
     if (type === 'percentage') {
-      // If switching to percentage, convert fixed amount to percentage
       if (discountType === 'fixed' && subtotal > 0) {
         const percentage = (discount / subtotal) * 100;
         setDiscount(Math.min(100, Math.round(percentage * 100) / 100));
@@ -1186,25 +1154,12 @@ const Bill = () => {
         setDiscount(100);
       }
     } else {
-      // If switching to fixed, convert percentage to fixed amount
       if (discountType === 'percentage' && subtotal > 0) {
         const fixed = (subtotal * discount) / 100;
         setDiscount(Math.min(subtotal, Math.round(fixed * 100) / 100));
       } else if (discount > subtotal) {
         setDiscount(subtotal);
       }
-    }
-  };
-
-  // Reset discount to customer default
-  const resetDiscountToDefault = () => {
-    setManualDiscount(false);
-    if (customerType === 'internal') {
-      setDiscount(10);
-      setDiscountType('percentage');
-    } else {
-      setDiscount(0);
-      setDiscountType('percentage');
     }
   };
 
@@ -1224,47 +1179,57 @@ const Bill = () => {
     }
   };
 
-  // Save bill to database
+  // Save service bill to database
   const saveBillToDatabase = async () => {
-    const activeProducts = selectedProducts.filter(p => p.quantity > 0);
+    // Validate form
+    if (!validateForm()) {
+      setError('Please fix validation errors');
+      return null;
+    }
+
+    const activeServices = manualServices.filter(s => s.quantity > 0);
     
-    if (activeProducts.length === 0) {
-      setError('No items with quantity > 0 to save!');
+    if (activeServices.length === 0) {
+      setError('No services with quantity > 0 to save!');
       return null;
     }
 
     setLoading(true);
     setError('');
+    setValidationErrors({});
 
     try {
-      // Prepare bill data for API
+      // Prepare bill data with correct field names for backend
       const billData = {
-        customerName: customerName,
-        customerPhone: customerPhone,
-        customerEmail: customerEmail,
-        customerGST: customerGST,
-        customerAddress: customerAddress,
-        customerType: customerType === 'internal' ? 'internal' : 'regular', // Map to backend enum
-        discount: discount,
+        customerName: customerName.trim() || 'Walk-in Customer',
+        customerPhone: customerPhone.trim() || '',
+        customerEmail: customerEmail.trim() || '',
+        customerGST: customerGST.trim() || '',
+        customerAddress: customerAddress.trim() || '',
+        customerType: customerType === 'internal' ? 'internal' : 'regular',
+        discount: parseFloat(discount) || 0,
         discountType: discountType === 'percentage' ? 'percentage' : 'amount',
-        tax: tax,
-        taxType: taxType === 'percentage' ? 'percentage' : 'amount',
-        paidAmount: paidAmount,
+        paidAmount: parseFloat(paidAmount) || 0,
         paymentMethod: paymentMethod,
-        items: activeProducts.map(p => ({
-          productId: p.id,
-          quantity: p.quantity
+        items: activeServices.map(s => ({
+          serviceName: s.name,
+          serviceDescription: s.description || '',
+          quantity: s.quantity,
+          price: s.price,
+          gst_rate: s.gstRate, // Using gst_rate as expected by backend
+          category: s.category || 'General'
         }))
       };
 
-      console.log('Saving bill:', billData);
+      console.log('📤 Saving service bill:', JSON.stringify(billData, null, 2));
 
-      const response = await api.post('/billing/bills', billData);
-
+      // Use the service-bills endpoint
+      const response = await api.post('/service-bills', billData);
+      
       if (response.data.success) {
-        setSuccess('Bill saved successfully!');
+        setSuccess('✅ Service bill saved successfully!');
         setSavedBillId(response.data.billId);
-        setBillNumber(response.data.billNumber); // Update with actual bill number from backend
+        setBillNumber(response.data.billNumber);
         setLastGeneratedBill({
           billNumber: response.data.billNumber,
           customerPhone: customerPhone,
@@ -1272,6 +1237,8 @@ const Bill = () => {
         });
         setShowWhatsApp(true);
         setBillSaved(true);
+        
+        console.log('✅ Bill saved with ID:', response.data.billId);
         
         return {
           billId: response.data.billId,
@@ -1281,29 +1248,38 @@ const Bill = () => {
         throw new Error(response.data.error || 'Failed to save bill');
       }
     } catch (err) {
-      console.error('Save bill error:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to save bill');
+      console.error('❌ Save service bill error:', err);
+      
+      // Handle specific error cases
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Failed to save bill. Please try again.');
+      }
+      
       return null;
     } finally {
       setLoading(false);
     }
   };
 
-  // Generate HTML content for bill with updated shop details
+  // Generate HTML content for service bill
   const generateBillHTML = () => {
     const subtotal = calculateSubtotal();
+    const totalGST = calculateTotalGST();
     const discountAmount = calculateDiscountAmount();
-    const taxAmount = calculateTaxAmount();
     const total = calculateTotal();
     const due = calculateDue();
     const change = calculateChange();
-    const activeProducts = selectedProducts.filter(p => p.quantity > 0);
+    const activeServices = manualServices.filter(s => s.quantity > 0);
 
     return `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Bill - ${billNumber}</title>
+          <title>Service Bill - ${billNumber}</title>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
@@ -1345,13 +1321,6 @@ const Bill = () => {
               font-weight: bold;
             }
             
-            .bill-header .owner {
-              font-size: 10px;
-              font-weight: bold;
-              color: #333;
-              margin: 2px 0;
-            }
-            
             .bill-header p {
               font-size: 9px;
               color: #666;
@@ -1375,7 +1344,16 @@ const Bill = () => {
             
             .bill-number {
               font-weight: bold;
-              color: #007bff;
+              color: #17a2b8;
+            }
+            
+            .bill-type {
+              background: #17a2b8;
+              color: white;
+              padding: 2px 5px;
+              border-radius: 3px;
+              font-size: 8px;
+              font-weight: bold;
             }
             
             .customer-section {
@@ -1404,24 +1382,6 @@ const Bill = () => {
               text-align: right;
             }
             
-            .customer-type-badge {
-              padding: 2px 6px;
-              border-radius: 3px;
-              font-size: 9px;
-              font-weight: bold;
-              text-transform: uppercase;
-            }
-            
-            .internal-badge {
-              background: #cce5ff;
-              color: #004085;
-            }
-            
-            .external-badge {
-              background: #fff3cd;
-              color: #856404;
-            }
-            
             .bill-items {
               margin: 10px 0;
             }
@@ -1446,14 +1406,6 @@ const Bill = () => {
               padding-left: 2px;
             }
             
-            .bill-item-empty {
-              text-align: center;
-              color: #999;
-              padding: 10px;
-              font-style: italic;
-              font-size: 10px;
-            }
-            
             .bill-item-name {
               display: flex;
               flex-direction: column;
@@ -1462,6 +1414,11 @@ const Bill = () => {
             .bill-item-small {
               font-size: 7px;
               color: #666;
+            }
+            
+            .bill-item-gst {
+              font-size: 6px;
+              color: #dc3545;
             }
             
             .bill-summary {
@@ -1515,10 +1472,18 @@ const Bill = () => {
               color: #666;
             }
             
-            .change-amount {
+            .service-tag {
+              background: #17a2b8;
+              color: white;
+              padding: 1px 3px;
+              border-radius: 2px;
+              font-size: 6px;
+              margin-left: 2px;
+            }
+            
+            .gst-highlight {
+              color: #dc3545;
               font-weight: bold;
-              color: ${paidAmount >= total ? '#28a745' : '#dc3545'};
-              font-size: 10px;
             }
           </style>
         </head>
@@ -1530,6 +1495,7 @@ const Bill = () => {
               <p>${shopDetails.city}</p>
               <p>Ph: ${shopDetails.phone}</p>
               <p>GST: ${shopDetails.gst}</p>
+              <p><span class="bill-type">SERVICE BILL</span></p>
             </div>
             
             <div class="bill-info">
@@ -1549,14 +1515,7 @@ const Bill = () => {
             
             <div class="customer-section">
               <div class="customer-row">
-                <span class="customer-label">Customer Type:</span>
-                <span class="customer-type-badge ${customerType === 'internal' ? 'internal-badge' : 'external-badge'}">
-                  ${customerType === 'internal' ? '🏢 INTERNAL' : '👤 EXTERNAL'}
-                </span>
-              </div>
-              
-              <div class="customer-row">
-                <span class="customer-label">Name:</span>
+                <span class="customer-label">Customer:</span>
                 <span class="customer-value">${customerName}</span>
               </div>
               
@@ -1574,13 +1533,6 @@ const Bill = () => {
               </div>
               ` : ''}
               
-              ${customerAddress ? `
-              <div class="customer-row">
-                <span class="customer-label">Address:</span>
-                <span class="customer-value">${customerAddress}</span>
-              </div>
-              ` : ''}
-              
               ${customerGST ? `
               <div class="customer-row">
                 <span class="customer-label">GST:</span>
@@ -1589,36 +1541,28 @@ const Bill = () => {
               ` : ''}
             </div>
             
-            ${discount > 0 ? `
-            <div class="discount-section">
-              <div class="discount-amount">
-                Discount Amount: -₹${discountAmount.toFixed(2)}
-                ${!manualDiscount && customerType === 'internal' ? ' (Staff discount)' : ''}
-              </div>
-            </div>
-            ` : ''}
-            
             <div class="bill-items">
               <div class="bill-items-header">
-                <span>Item</span>
+                <span>Service</span>
                 <span>Price</span>
                 <span>Qty</span>
                 <span>Total</span>
               </div>
               <div>
-                ${activeProducts.length === 0 ? `
+                ${activeServices.length === 0 ? `
                   <div class="bill-item-empty">
-                    <span>--- No items in bill ---</span>
+                    <span>--- No services in bill ---</span>
                   </div>
-                ` : activeProducts.map(product => `
+                ` : activeServices.map(service => `
                   <div class="bill-item">
                     <span class="bill-item-name">
-                      ${product.name.length > 12 ? product.name.substring(0, 10) + '...' : product.name}
-                      ${product.model ? `<small class="bill-item-small">${product.model}</small>` : ''}
+                      ${service.name.length > 12 ? service.name.substring(0, 10) + '...' : service.name}
+                      ${service.description ? `<small class="bill-item-small">${service.description.substring(0, 15)}${service.description.length > 15 ? '...' : ''}</small>` : ''}
+                      ${service.gstRate > 0 ? `<small class="bill-item-gst">GST: ${service.gstRate}%</small>` : ''}
                     </span>
-                    <span>₹${product.sellPrice}</span>
-                    <span>${product.quantity}</span>
-                    <span>₹${product.total.toFixed(2)}</span>
+                    <span>₹${service.price.toFixed(2)}</span>
+                    <span>${service.quantity}</span>
+                    <span>₹${service.total.toFixed(2)}</span>
                   </div>
                 `).join('')}
               </div>
@@ -1630,22 +1574,15 @@ const Bill = () => {
                 <span>₹${subtotal.toFixed(2)}</span>
               </div>
               
+              <div class="summary-row">
+                <span>GST Total:</span>
+                <span class="gst-highlight">+₹${totalGST.toFixed(2)}</span>
+              </div>
+              
               ${discount > 0 ? `
               <div class="summary-row">
                 <span>Discount (${discount}${discountType === 'percentage' ? '%' : '₹'}):</span>
                 <span>-₹${discountAmount.toFixed(2)}</span>
-              </div>
-              ` : ''}
-              
-              <div class="summary-row">
-                <span>After Discount:</span>
-                <span>₹${(subtotal - discountAmount).toFixed(2)}</span>
-              </div>
-              
-              ${tax > 0 ? `
-              <div class="summary-row">
-                <span>Tax (${tax}${taxType === 'percentage' ? '%' : '₹'}):</span>
-                <span>+₹${taxAmount.toFixed(2)}</span>
               </div>
               ` : ''}
               
@@ -1673,7 +1610,7 @@ const Bill = () => {
                 </span>
               </div>
               
-              ${due > 0 && paymentStatus !== 'pending' ? `
+              ${due > 0 ? `
               <div class="payment-row">
                 <span>Due Amount:</span>
                 <span>₹${due.toFixed(2)}</span>
@@ -1683,18 +1620,15 @@ const Bill = () => {
               ${paymentMethod === 'cash' && paidAmount >= total ? `
               <div class="payment-row">
                 <span>Change:</span>
-                <span class="change-amount">₹${change.toFixed(2)}</span>
+                <span>₹${change.toFixed(2)}</span>
               </div>
               ` : ''}
             </div>
             
             <div class="bill-footer">
-              <p>Thank you for your purchase!</p>
-              <p>Goods once sold not returnable</p>
-              <p>** Computer generated bill **</p>
-              ${paymentMethod !== 'cash' && transactionId ? `
-              <p>${paymentMethod.toUpperCase()}: ${transactionId}</p>
-              ` : ''}
+              <p>Thank you for using our services!</p>
+              <p>For service queries, call ${shopDetails.phone}</p>
+              <p>** Computer generated service bill **</p>
             </div>
           </div>
         </body>
@@ -1706,7 +1640,7 @@ const Bill = () => {
   const downloadBill = () => {
     const subtotal = calculateSubtotal();
     if (subtotal === 0) {
-      setError('No items with quantity > 0 to download!');
+      setError('No services with quantity > 0 to download!');
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -1716,52 +1650,46 @@ const Bill = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Bill_${billNumber.replace(/[\/\\]/g, '-')}.html`;
+    link.download = `ServiceBill_${billNumber.replace(/[\/\\]/g, '-')}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    setSuccess('Bill downloaded successfully!');
+    setSuccess('Service bill downloaded successfully!');
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  // Handle payment completion - Save to DB then download/print
+  // Handle payment completion
   const handlePaymentComplete = async () => {
     const subtotal = calculateSubtotal();
     if (subtotal === 0) {
-      setError('No items with quantity > 0 in bill!');
+      setError('No services with quantity > 0 in bill!');
       setTimeout(() => setError(''), 3000);
       return;
     }
 
-    // Save to database first
     const savedData = await saveBillToDatabase();
     
     if (savedData) {
-      // Then download the bill
       downloadBill();
     }
   };
 
-  // Handle print - Save to DB then print
+  // Handle print
   const handlePrint = async () => {
     const subtotal = calculateSubtotal();
     if (subtotal === 0) {
-      setError('No items with quantity > 0 to print!');
+      setError('No services with quantity > 0 to print!');
       setTimeout(() => setError(''), 3000);
       return;
     }
 
-    // Save to database first
     const savedData = await saveBillToDatabase();
     
     if (savedData) {
-      // Then print
-      // Get the bill content
       const billContent = billPaperRef.current.outerHTML;
       
-      // Create a new window for printing
       const printWindow = window.open('', '_blank');
       
       if (printWindow) {
@@ -1769,151 +1697,22 @@ const Bill = () => {
           <!DOCTYPE html>
           <html>
             <head>
-              <title>Bill - ${billNumber}</title>
+              <title>Service Bill - ${billNumber}</title>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <style>
-                * {
-                  margin: 0;
-                  padding: 0;
-                  box-sizing: border-box;
-                  border: none;
-                  background: none;
-                  box-shadow: none;
-                  outline: none;
-                }
-                
-                body {
-                  margin: 0;
-                  padding: 0;
-                  width: 80mm;
-                  font-family: 'Courier New', monospace;
-                  font-size: 11px;
-                  line-height: 1.3;
-                  background: white;
-                }
-                
-                #billPaper {
-                  width: 280px;
-                  margin: 0 auto;
-                  padding: 12px;
-                  background: white;
-                  border: none;
-                }
-                
-                .bill-header {
-                  text-align: center;
-                  margin-bottom: 12px;
-                  padding-bottom: 8px;
-                  border-bottom: 1px dashed #000 !important;
-                }
-                
-                .bill-info {
-                  margin: 10px 0;
-                  padding: 6px 0;
-                  border-top: 1px dashed #000 !important;
-                  border-bottom: 1px dashed #000 !important;
-                }
-                
-                .customer-section {
-                  margin: 10px 0;
-                  padding: 6px;
-                  border: 1px solid #ddd !important;
-                }
-                
-                .customer-row {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 3px;
-                  font-size: 10px;
-                }
-                
-                .customer-type-badge {
-                  padding: 2px 6px;
-                  border-radius: 3px;
-                  font-size: 9px;
-                  font-weight: bold;
-                }
-                
-                .internal-badge {
-                  background: #cce5ff !important;
-                  color: #004085 !important;
-                }
-                
-                .external-badge {
-                  background: #fff3cd !important;
-                  color: #856404 !important;
-                }
-                
-                .bill-items-header {
-                  display: grid;
-                  grid-template-columns: 2fr 1fr 1fr 1.5fr;
-                  font-weight: bold;
-                  padding: 4px 0;
-                  border-bottom: 1px solid #000 !important;
-                  font-size: 10px;
-                }
-                
-                .bill-item {
-                  display: grid;
-                  grid-template-columns: 2fr 1fr 1fr 1.5fr;
-                  padding: 3px 0;
-                  border-bottom: 1px dotted #000 !important;
-                  font-size: 9px;
-                }
-                
-                .bill-summary {
-                  margin: 10px 0;
-                  padding: 8px 0;
-                  border-top: 1px solid #000 !important;
-                }
-                
-                .summary-row {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 3px;
-                  font-size: 10px;
-                }
-                
-                .summary-row-total {
-                  font-weight: bold;
-                  font-size: 12px;
-                  border-top: 1px dashed #000 !important;
-                  padding-top: 6px;
-                  margin-top: 6px;
-                }
-                
-                .bill-footer {
-                  text-align: center;
-                  margin-top: 15px;
-                  padding-top: 10px;
-                  border-top: 1px dashed #000 !important;
-                  font-size: 8px;
-                }
-                
-                input, select, button, textarea {
-                  display: none !important;
-                }
-                
-                .payment-section {
-                  display: none !important;
-                }
-                
-                .discount-section {
-                  display: none !important;
-                }
-                
-                * {
-                  background: white !important;
-                  color: black !important;
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                
-                @page {
-                  size: 80mm auto;
-                  margin: 0;
-                }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { margin: 0; padding: 0; width: 80mm; font-family: 'Courier New', monospace; }
+                #billPaper { width: 280px; margin: 0 auto; padding: 12px; }
+                .bill-header { text-align: center; border-bottom: 1px dashed #000; }
+                .bill-info { border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
+                .bill-items-header { border-bottom: 1px solid #000; }
+                .bill-item { border-bottom: 1px dotted #000; }
+                .bill-summary { border-top: 1px solid #000; }
+                .bill-footer { border-top: 1px dashed #000; }
+                input, select, button { display: none !important; }
+                .payment-section { display: none !important; }
+                @page { size: 80mm auto; margin: 0; }
               </style>
             </head>
             <body>
@@ -1922,9 +1721,7 @@ const Bill = () => {
                 window.onload = function() {
                   setTimeout(function() {
                     window.print();
-                    setTimeout(function() {
-                      window.close();
-                    }, 500);
+                    setTimeout(function() { window.close(); }, 500);
                   }, 200);
                 };
               </script>
@@ -1946,46 +1743,43 @@ const Bill = () => {
       return;
     }
 
-    // Clean phone number (remove non-digits)
     const cleanPhone = customerPhone.replace(/\D/g, '');
     
-    // Check if phone number is valid
     if (cleanPhone.length < 10) {
       setError('Please enter a valid 10-digit phone number');
       setTimeout(() => setError(''), 3000);
       return;
     }
 
-    // Format phone number for WhatsApp (add country code if not present)
     const whatsappNumber = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-    // Create message
     const subtotal = calculateSubtotal();
+    const totalGST = calculateTotalGST();
     const discountAmount = calculateDiscountAmount();
-    const taxAmount = calculateTaxAmount();
     const total = calculateTotal();
     const due = calculateDue();
-    const activeProducts = selectedProducts.filter(p => p.quantity > 0);
+    const activeServices = manualServices.filter(s => s.quantity > 0);
 
-    let message = `*${shopDetails.name}*\n`;
+    let message = `*${shopDetails.name} - SERVICE BILL*\n`;
     message += `${shopDetails.address}\n`;
     message += `${shopDetails.city}\n`;
     message += `Ph: ${shopDetails.phone}\n`;
     message += `Bill No: ${billNumber}\n`;
     message += `Date: ${currentDate} ${currentTime}\n`;
     message += `Customer: ${customerName}\n`;
-    message += `Type: ${customerType === 'internal' ? 'INTERNAL' : 'EXTERNAL'}\n`;
     message += `================\n`;
-    message += `ITEMS:\n`;
+    message += `SERVICES:\n`;
     
-    activeProducts.forEach(p => {
-      message += `${p.name.substring(0, 15)}... ${p.quantity}x ₹${p.sellPrice} = ₹${p.total.toFixed(2)}\n`;
+    activeServices.forEach(s => {
+      message += `${s.name.substring(0, 15)}... ${s.quantity}x ₹${s.price.toFixed(2)}`;
+      if (s.gstRate > 0) message += ` (GST: ${s.gstRate}%)`;
+      message += ` = ₹${s.total.toFixed(2)}\n`;
     });
     
     message += `================\n`;
     message += `Subtotal: ₹${subtotal.toFixed(2)}\n`;
+    message += `GST: +₹${totalGST.toFixed(2)}\n`;
     if (discountAmount > 0) message += `Discount: -₹${discountAmount.toFixed(2)}\n`;
-    if (taxAmount > 0) message += `Tax: +₹${taxAmount.toFixed(2)}\n`;
     message += `*TOTAL: ₹${total.toFixed(2)}*\n`;
     message += `================\n`;
     message += `Payment: ${paymentMethod.toUpperCase()}\n`;
@@ -1993,35 +1787,28 @@ const Bill = () => {
     message += `Status: ${paymentStatus.toUpperCase()}\n`;
     if (due > 0) message += `Due: ₹${due.toFixed(2)}\n`;
     message += `================\n`;
-    message += `Thank you for shopping with us!\n`;
-    message += `Goods once sold not returnable`;
+    message += `Thank you for choosing ${shopDetails.name}!\n`;
+    message += `For service support, call ${shopDetails.phone}`;
 
-    // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
-    
-    // Open WhatsApp with customer's number
     window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, '_blank');
     
-    setSuccess('WhatsApp opened with bill details!');
+    setSuccess('WhatsApp opened with service bill details!');
     setTimeout(() => setSuccess(''), 3000);
   };
 
   // Clear bill
   const clearBill = () => {
-    if (window.confirm('Clear all items?')) {
-      setSelectedProducts([]);
+    if (window.confirm('Clear all services?')) {
+      setManualServices([]);
       setCustomerName('Walk-in Customer');
       setCustomerPhone('');
       setCustomerEmail('');
       setCustomerGST('');
       setCustomerAddress('');
-      setCustomerType('external');
-      setCustomerDiscount(0);
       setDiscount(0);
       setDiscountType('percentage');
       setManualDiscount(false);
-      setTax(0);
-      setTaxType('percentage');
       setPaidAmount(0);
       setCashReceived(0);
       setPaymentMethod('cash');
@@ -2038,6 +1825,7 @@ const Bill = () => {
       setShowWhatsApp(false);
       setLastGeneratedBill(null);
       setSavedBillId(null);
+      setValidationErrors({});
       generateBillNumber();
     }
   };
@@ -2047,38 +1835,24 @@ const Bill = () => {
     clearBill();
   };
 
-  // Handle key press for barcode
-  const handleBarcodeKeyPress = (e) => {
+  // Handle Enter key in form
+  const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
-      getProductByBarcode();
+      e.preventDefault();
+      addManualService();
     }
   };
 
-  // Test API connection
-  const testAPIConnection = async () => {
-    try {
-      const response = await api.get('/health');
-      console.log('API Health:', response.data);
-    } catch (err) {
-      console.error('API Health Check Failed:', err);
-    }
-  };
-
-  // Run API test on mount
-  useEffect(() => {
-    testAPIConnection();
-  }, []);
-
-  // Filter out items with quantity 0 for display in bill summary
-  const activeProducts = selectedProducts.filter(p => p.quantity > 0);
+  // Filter active services
+  const activeServices = manualServices.filter(s => s.quantity > 0);
   const subtotal = calculateSubtotal();
+  const totalGST = calculateTotalGST();
   const discountAmount = calculateDiscountAmount();
-  const taxAmount = calculateTaxAmount();
   const total = calculateTotal();
   const due = calculateDue();
   const change = calculateChange();
 
-  // Dynamic styles that depend on state
+  // Dynamic styles
   const dynamicStyles = {
     changeAmount: {
       fontWeight: 'bold',
@@ -2091,29 +1865,11 @@ const Bill = () => {
     }
   };
 
-  // Show login required message if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div style={{...baseStyles.container, justifyContent: 'center', alignItems: 'center'}}>
-        <div style={{background: 'white', padding: '40px', borderRadius: '10px', textAlign: 'center'}}>
-          <h2>🔒 Authentication Required</h2>
-          <p style={{color: '#dc3545', margin: '20px 0'}}>{error || 'Please login to access billing'}</p>
-          <button 
-            style={{...baseStyles.btn, ...baseStyles.btnPrimary, padding: '10px 30px'}}
-            onClick={() => window.location.href = '/login'}
-          >
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={baseStyles.container}>
-      {/* Left Panel - Product Selection */}
+      {/* Left Panel - Manual Service Entry */}
       <div style={baseStyles.productPanel} className="no-print">
-        <h2 style={baseStyles.productPanelTitle}>🧾 Create New Bill</h2>
+        <h2 style={baseStyles.productPanelTitle}>🔧 Create Service Bill - HI PRINT SOLUTIONS</h2>
         
         {error && (
           <div style={{...baseStyles.alert, ...baseStyles.alertError}}>
@@ -2127,106 +1883,144 @@ const Bill = () => {
           </div>
         )}
         
-        <div style={baseStyles.searchSection}>
-          <div style={baseStyles.searchBox}>
-            <label style={baseStyles.searchLabel}>🔍 Search Products:</label>
-            <input
-              type="text"
-              style={baseStyles.searchInput}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Type product name or model..."
-              autoComplete="off"
-              onFocus={(e) => e.target.style.borderColor = '#007bff'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-            />
-            {searchLoading && <div style={baseStyles.searchLoading}>Searching...</div>}
-          </div>
+        <div style={baseStyles.manualEntrySection}>
+          <h3 style={baseStyles.manualEntryTitle}>➕ Add Service Manually</h3>
           
-          <div style={baseStyles.barcodeInput}>
-            <input
-              type="text"
-              style={baseStyles.barcodeField}
-              value={barcode}
-              onChange={(e) => setBarcode(e.target.value)}
-              onKeyPress={handleBarcodeKeyPress}
-              placeholder="📱 Scan barcode..."
-              onFocus={(e) => e.target.style.borderColor = '#28a745'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-            />
-            <button
-              style={{
-                ...baseStyles.barcodeButton,
-                ...(loading ? baseStyles.barcodeButtonDisabled : {})
-              }}
-              onClick={getProductByBarcode}
-              disabled={loading}
-            >
-              {loading ? 'Adding...' : 'Add'}
-            </button>
-          </div>
-          
-          {searchResults.length > 0 && (
-            <div style={baseStyles.searchResults}>
-              {searchResults.map(product => (
-                <div
-                  key={product.id}
-                  style={baseStyles.searchResultItem}
-                  onClick={() => addProductToBill(product)}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f0f7ff'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <div style={baseStyles.resultInfo}>
-                    <div style={baseStyles.resultName}>{product.name}</div>
-                    <div style={baseStyles.resultDetails}>
-                      {product.model || ''} | Stock: {product.quantity}
-                    </div>
-                  </div>
-                  <div style={baseStyles.resultPrice}>₹{product.sellPrice}</div>
-                </div>
-              ))}
+          <div style={baseStyles.formGrid}>
+            <div style={baseStyles.formGroup}>
+              <label style={baseStyles.formLabel}>Service Name *</label>
+              <input
+                ref={serviceNameInputRef}
+                type="text"
+                style={{
+                  ...baseStyles.formInput,
+                  ...(validationErrors.services ? baseStyles.formInputError : {})
+                }}
+                value={newServiceName}
+                onChange={(e) => setNewServiceName(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="e.g., Printer Repair, Scanner Service"
+                autoComplete="off"
+              />
             </div>
-          )}
+            
+            <div style={baseStyles.formGroup}>
+              <label style={baseStyles.formLabel}>Category</label>
+              <select
+                style={baseStyles.formSelect}
+                value={newServiceCategory}
+                onChange={(e) => setNewServiceCategory(e.target.value)}
+              >
+                {serviceCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div style={baseStyles.formGroup}>
+            <label style={baseStyles.formLabel}>Description (Optional)</label>
+            <textarea
+              style={baseStyles.formTextarea}
+              value={newServiceDescription}
+              onChange={(e) => setNewServiceDescription(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Brief description of the service"
+              rows="2"
+            />
+          </div>
+          
+          <div style={baseStyles.formGrid}>
+            <div style={baseStyles.formGroup}>
+              <label style={baseStyles.formLabel}>Price (₹) *</label>
+              <input
+                type="number"
+                style={baseStyles.formInput}
+                value={newServicePrice}
+                onChange={(e) => setNewServicePrice(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            
+            <div style={baseStyles.formGroup}>
+              <label style={baseStyles.formLabel}>GST Rate (%)</label>
+              <select
+                style={baseStyles.formSelect}
+                value={newServiceGST}
+                onChange={(e) => setNewServiceGST(e.target.value)}
+              >
+                <option value="0">0% (No GST)</option>
+                <option value="5">5%</option>
+                <option value="12">12%</option>
+                <option value="18">18%</option>
+                <option value="28">28%</option>
+              </select>
+            </div>
+          </div>
+          
+          <button
+            style={baseStyles.addButton}
+            onClick={addManualService}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#218838'}
+            onMouseLeave={(e) => e.currentTarget.style.background = '#28a745'}
+          >
+            ➕ Add Service to Bill
+          </button>
+          
+          <p style={{fontSize: '11px', color: '#666', marginTop: '10px', textAlign: 'center'}}>
+            Press Enter to quickly add service
+          </p>
         </div>
         
         <div style={baseStyles.selectedProducts}>
           <h3 style={baseStyles.selectedProductsTitle}>
-            🛒 Current Bill Items ({activeProducts.length} active / {selectedProducts.length} total)
+            🛠️ Services in Bill ({activeServices.length} active / {manualServices.length} total)
           </h3>
           <div style={baseStyles.selectedItemsList}>
-            {selectedProducts.length === 0 ? (
-              <p style={baseStyles.noItems}>No items added yet. Search or scan products to add.</p>
+            {manualServices.length === 0 ? (
+              <p style={baseStyles.noItems}>No services added yet. Fill the form above to add services.</p>
             ) : (
-              selectedProducts.map(product => (
+              manualServices.map(service => (
                 <div 
-                  key={product.id} 
+                  key={service.id} 
                   style={{
                     ...baseStyles.selectedItem,
-                    ...(product.quantity === 0 ? dynamicStyles.zeroQuantity : {})
+                    ...(service.quantity === 0 ? dynamicStyles.zeroQuantity : {})
                   }}
                 >
                   <div style={baseStyles.itemInfo}>
-                    <span style={baseStyles.itemName}>{product.name}</span>
-                    {product.model && (
-                      <span style={baseStyles.itemModel}>{product.model}</span>
+                    <span style={baseStyles.itemName}>
+                      {service.name}
+                      <span style={baseStyles.itemCategory}> [{service.category}]</span>
+                    </span>
+                    {service.description && (
+                      <span style={baseStyles.itemDescription}>
+                        {service.description.substring(0, 20)}
+                        {service.description.length > 20 ? '...' : ''}
+                      </span>
                     )}
-                    {product.quantity === 0 && (
+                    {service.gstRate > 0 && (
+                      <span style={baseStyles.itemGSTRate}>GST: {service.gstRate}%</span>
+                    )}
+                    {service.quantity === 0 && (
                       <span style={{fontSize: '9px', color: '#856404'}}>(Zero quantity)</span>
                     )}
                   </div>
-                  <div style={baseStyles.itemPrice}>₹{product.sellPrice}</div>
+                  <div style={baseStyles.itemPrice}>₹{service.price.toFixed(2)}</div>
                   <input
                     type="number"
                     style={baseStyles.itemQuantity}
-                    value={product.quantity}
+                    value={service.quantity}
                     min="0"
-                    max={product.maxQuantity}
-                    onChange={(e) => updateQuantity(product.id, e.target.value)}
+                    onChange={(e) => updateQuantity(service.id, e.target.value)}
                   />
-                  <div style={baseStyles.itemTotal}>₹{product.total.toFixed(2)}</div>
+                  <div style={baseStyles.itemTotal}>₹{service.total.toFixed(2)}</div>
                   <button
                     style={baseStyles.removeBtn}
-                    onClick={() => removeProduct(product.id)}
+                    onClick={() => removeService(service.id)}
                     onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
                     onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
                     title="Remove completely"
@@ -2237,12 +2031,20 @@ const Bill = () => {
               ))
             )}
           </div>
-          {selectedProducts.length > 0 && (
+          {manualServices.length > 0 && (
             <p style={{fontSize: '11px', color: '#666', marginTop: '10px', textAlign: 'center'}}>
-              💡 Set quantity to 0 to keep item in list (will not be billed)
+              💡 Set quantity to 0 to keep service in list (will not be billed)
             </p>
           )}
         </div>
+        
+        {/* Validation Errors */}
+        {validationErrors.customerName && (
+          <p style={baseStyles.errorText}>⚠️ {validationErrors.customerName}</p>
+        )}
+        {validationErrors.services && (
+          <p style={baseStyles.errorText}>⚠️ {validationErrors.services}</p>
+        )}
       </div>
       
       {/* Right Panel - Thermal Bill */}
@@ -2259,6 +2061,9 @@ const Bill = () => {
               <p style={baseStyles.billHeaderP}>{shopDetails.city}</p>
               <p style={baseStyles.billHeaderP}>Ph: {shopDetails.phone}</p>
               <p style={baseStyles.billHeaderP}>GST: {shopDetails.gst}</p>
+              <p style={{...baseStyles.billHeaderP, fontWeight: 'bold', color: '#17a2b8'}}>
+                🔧 SERVICE BILL
+              </p>
             </div>
             
             <div className="bill-info">
@@ -2278,20 +2083,8 @@ const Bill = () => {
             
             <div className="customer-section">
               <div style={baseStyles.customerRow}>
-                <span style={baseStyles.customerLabel}>Customer Type:</span>
-                <span 
-                  style={{
-                    ...baseStyles.customerTypeBadge,
-                    ...(customerType === 'internal' ? baseStyles.internalBadge : baseStyles.externalBadge)
-                  }}
-                >
-                  {customerType === 'internal' ? '🏢 INTERNAL' : '👤 EXTERNAL'}
-                </span>
-              </div>
-              
-              <div style={baseStyles.customerRow}>
-                <span style={baseStyles.customerLabel}>Name:</span>
-                <span style={baseStyles.customerValue}>{customerName}</span>
+                <span style={baseStyles.customerLabel}>Customer:</span>
+                <span style={baseStyles.customerValue}>{customerName || 'Walk-in Customer'}</span>
               </div>
               
               {customerPhone && (
@@ -2308,13 +2101,6 @@ const Bill = () => {
                 </div>
               )}
               
-              {customerAddress && (
-                <div style={baseStyles.customerRow}>
-                  <span style={baseStyles.customerLabel}>Address:</span>
-                  <span style={baseStyles.customerValue}>{customerAddress}</span>
-                </div>
-              )}
-              
               {customerGST && (
                 <div style={baseStyles.customerRow}>
                   <span style={baseStyles.customerLabel}>GST:</span>
@@ -2324,24 +2110,15 @@ const Bill = () => {
             </div>
             
             <div style={baseStyles.customerSection} className="no-print">
-              <select
-                style={baseStyles.customerTypeSelect}
-                value={customerType}
-                onChange={(e) => {
-                  setCustomerType(e.target.value);
-                  setManualDiscount(false); // Reset manual discount flag when customer type changes
-                }}
-              >
-                <option value="external">👤 External Customer</option>
-                <option value="internal">🏢 Internal (Staff)</option>
-              </select>
-              
               <input
                 type="text"
-                style={baseStyles.customerInput}
+                style={{
+                  ...baseStyles.customerInput,
+                  ...(validationErrors.customerName ? baseStyles.formInputError : {})
+                }}
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Customer Name"
+                placeholder="Customer Name *"
               />
               
               <input
@@ -2377,14 +2154,14 @@ const Bill = () => {
               />
             </div>
             
-            {/* Discount Section - Enhanced */}
+            {/* Discount Section */}
             <div style={baseStyles.discountSection} className="no-print">
               <div 
                 style={baseStyles.discountHeader}
                 onClick={() => setShowDiscountInput(!showDiscountInput)}
               >
                 <span style={baseStyles.discountTitle}>
-                  {manualDiscount ? '✏️ Manual Discount' : '💰 Default Discount'}
+                  {manualDiscount ? '✏️ Manual Discount' : '💰 Apply Discount'}
                 </span>
                 <span style={baseStyles.discountToggle}>
                   {showDiscountInput ? '▼' : '▶'}
@@ -2417,57 +2194,36 @@ const Bill = () => {
               
               <div style={baseStyles.discountAmount}>
                 Discount Amount: -₹{discountAmount.toFixed(2)}
-                {!manualDiscount && customerType === 'internal' && (
-                  <span style={{fontSize: '8px', marginLeft: '5px', color: '#666'}}>
-                    (Staff discount)
-                  </span>
-                )}
               </div>
-              
-              {manualDiscount && (
-                <button
-                  style={{
-                    ...baseStyles.btn,
-                    ...baseStyles.btnSecondary,
-                    fontSize: '9px',
-                    padding: '2px 5px',
-                    marginTop: '5px',
-                    width: '100%'
-                  }}
-                  onClick={resetDiscountToDefault}
-                >
-                  Reset to Default
-                </button>
-              )}
             </div>
             
             <div className="bill-items">
               <div className="bill-items-header">
-                <span>Item</span>
+                <span>Service</span>
                 <span>Price</span>
                 <span>Qty</span>
                 <span>Total</span>
               </div>
               <div>
-                {activeProducts.length === 0 ? (
+                {activeServices.length === 0 ? (
                   <div style={baseStyles.billItemEmpty}>
-                    <span>--- No items in bill ---</span>
+                    <span>--- No services in bill ---</span>
                   </div>
                 ) : (
-                  activeProducts.map(product => (
-                    <div key={product.id} className="bill-item">
+                  activeServices.map(service => (
+                    <div key={service.id} className="bill-item">
                       <span style={baseStyles.billItemName}>
-                        {product.name.length > 12 
-                          ? product.name.substring(0, 10) + '...' 
-                          : product.name
+                        {service.name.length > 12 
+                          ? service.name.substring(0, 10) + '...' 
+                          : service.name
                         }
-                        {product.model && (
-                          <small style={baseStyles.billItemSmall}>{product.model}</small>
+                        {service.gstRate > 0 && (
+                          <small style={baseStyles.billItemGST}>GST: {service.gstRate}%</small>
                         )}
                       </span>
-                      <span>₹{product.sellPrice}</span>
-                      <span>{product.quantity}</span>
-                      <span>₹{product.total.toFixed(2)}</span>
+                      <span>₹{service.price.toFixed(2)}</span>
+                      <span>{service.quantity}</span>
+                      <span>₹{service.total.toFixed(2)}</span>
                     </div>
                   ))
                 )}
@@ -2481,33 +2237,14 @@ const Bill = () => {
               </div>
               
               <div className="summary-row">
-                <span>
-                  Discount 
-                  {discount > 0 && (
-                    <span style={{fontSize: '8px', color: '#666'}}>
-                      {' '}({discount}{discountType === 'percentage' ? '%' : '₹'})
-                    </span>
-                  )}:
-                </span>
-                <span>-₹{discountAmount.toFixed(2)}</span>
+                <span>GST Total:</span>
+                <span style={{color: '#dc3545'}}>+₹{totalGST.toFixed(2)}</span>
               </div>
               
-              <div className="summary-row">
-                <span>After Discount:</span>
-                <span>₹{(subtotal - discountAmount).toFixed(2)}</span>
-              </div>
-              
-              {tax > 0 && (
+              {discount > 0 && (
                 <div className="summary-row">
-                  <span>
-                    Tax 
-                    {tax > 0 && (
-                      <span style={{fontSize: '8px', color: '#666'}}>
-                        {' '}({tax}{taxType === 'percentage' ? '%' : '₹'})
-                      </span>
-                    )}:
-                  </span>
-                  <span>+₹{taxAmount.toFixed(2)}</span>
+                  <span>Discount ({discount}{discountType === 'percentage' ? '%' : '₹'}):</span>
+                  <span>-₹{discountAmount.toFixed(2)}</span>
                 </div>
               )}
               
@@ -2529,7 +2266,6 @@ const Bill = () => {
                   <option value="card">💳 Card</option>
                   <option value="upi">📱 UPI</option>
                   <option value="cheque">📝 Cheque</option>
-                  <option value="mixed">🔄 Mixed</option>
                 </select>
               </div>
               
@@ -2619,12 +2355,6 @@ const Bill = () => {
                       />
                     </>
                   )}
-                  
-                  {paymentMethod === 'mixed' && (
-                    <div style={{fontSize: '9px', color: '#666'}}>
-                      <p>Mixed payment - Please enter details in POS</p>
-                    </div>
-                  )}
                 </div>
               )}
               
@@ -2651,7 +2381,7 @@ const Bill = () => {
                 </span>
               </div>
               
-              {due > 0 && paymentStatus !== 'pending' && (
+              {due > 0 && (
                 <div style={baseStyles.paymentRow}>
                   <span>Due Amount:</span>
                   <span>₹{due.toFixed(2)}</span>
@@ -2673,14 +2403,9 @@ const Bill = () => {
             </div>
             
             <div className="bill-footer">
-              <p style={baseStyles.billFooterP}>Thank you for your purchase!</p>
-              <p style={baseStyles.billFooterP}>Goods once sold not returnable</p>
-              <p style={baseStyles.billFooterP}>** Computer generated bill **</p>
-              {paymentMethod !== 'cash' && transactionId && (
-                <p style={baseStyles.billFooterP}>
-                  {paymentMethod.toUpperCase()}: {transactionId}
-                </p>
-              )}
+              <p style={baseStyles.billFooterP}>Thank you for choosing {shopDetails.name}!</p>
+              <p style={baseStyles.billFooterP}>For service support, call {shopDetails.phone}</p>
+              <p style={baseStyles.billFooterP}>** Computer generated service bill **</p>
             </div>
           </div>
           
@@ -2689,10 +2414,10 @@ const Bill = () => {
               style={{
                 ...baseStyles.btn,
                 ...baseStyles.btnPrimary,
-                ...(loading || activeProducts.length === 0 ? baseStyles.btnDisabled : {})
+                ...(loading || activeServices.length === 0 ? baseStyles.btnDisabled : {})
               }}
               onClick={handlePrint}
-              disabled={loading || activeProducts.length === 0}
+              disabled={loading || activeServices.length === 0}
             >
               {loading ? '⏳ Saving...' : '🖨️ Print'}
             </button>
@@ -2700,10 +2425,10 @@ const Bill = () => {
               style={{
                 ...baseStyles.btn,
                 ...baseStyles.btnSuccess,
-                ...(loading || activeProducts.length === 0 ? baseStyles.btnDisabled : {})
+                ...(loading || activeServices.length === 0 ? baseStyles.btnDisabled : {})
               }}
               onClick={handlePaymentComplete}
-              disabled={loading || activeProducts.length === 0}
+              disabled={loading || activeServices.length === 0}
             >
               {loading ? '⏳ Saving...' : '💰 Pay & Download'}
             </button>
@@ -2731,7 +2456,7 @@ const Bill = () => {
             </button>
           </div>
 
-          {/* WhatsApp Share Button - Always visible when bill is saved */}
+          {/* WhatsApp Share Button */}
           {showWhatsApp && lastGeneratedBill && (
             <button
               style={baseStyles.whatsappButton}
@@ -2740,13 +2465,13 @@ const Bill = () => {
               onMouseLeave={(e) => e.currentTarget.style.background = '#25D366'}
             >
               <span>📱</span>
-              Share Bill on WhatsApp to {customerPhone || 'Customer'}
+              Share Service Bill on WhatsApp
             </button>
           )}
 
           {billSaved && (
             <p style={{fontSize: '10px', color: '#28a745', textAlign: 'center', marginTop: '5px'}}>
-              ✓ Bill saved to database
+              ✓ Service bill saved to database
             </p>
           )}
         </div>
@@ -2758,4 +2483,4 @@ const Bill = () => {
   );
 };
 
-export default Bill;
+export default ServiceBill;

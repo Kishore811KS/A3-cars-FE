@@ -27,7 +27,7 @@ const SupplierDuplicatePage = () => {
   const [itemsPerPage] = useState(10);
 
   // Base URL for API
-  const BASE_URL = 'http://127.0.0.1:5000';
+  const BASE_URL = 'http://localhost:5000';
 
   // Check authentication status on mount
   useEffect(() => {

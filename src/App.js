@@ -21,6 +21,8 @@ import LowStock from "./components/Lowstock";
 import StockOut from "./components/StockOut";
 import Quotation from "./components/Quotation";
 import Invoice from "./components/Invoice";
+import Service from "./components/ServiceBill";
+import ServiceBillView from "./components/ServiceBillView";
 
 function Layout() {
   const location = useLocation();
@@ -68,6 +70,9 @@ function Layout() {
           <Route path="/stockout" element={<StockOut />} />
           <Route path="/quotation" element={<Quotation />} />
           <Route path="/invoice" element={<Invoice />} />
+          <Route path="/service" element={<Service/>}/>
+          <Route path="/serviceBillView" element={<ServiceBillView/>}/>
+
           
 
         </Routes>

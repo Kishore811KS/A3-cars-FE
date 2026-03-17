@@ -8,9 +8,9 @@ import {
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-const API_URL = "http://127.0.0.1:5000/api/products";
-const SUPPLIER_API_URL = "http://127.0.0.1:5000/api";
-const BILLING_API_URL = "http://127.0.0.1:5000/api/billing";
+const API_URL = "http://localhost:5000/api/products";
+const SUPPLIER_API_URL = "http://localhost:5000/api";
+const BILLING_API_URL = "http://localhost:5000/api/billing";
 
 export default function ItemsPage() {
   const [items, setItems] = useState([]);

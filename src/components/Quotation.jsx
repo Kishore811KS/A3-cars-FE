@@ -40,13 +40,22 @@ const QuotationPage = () => {
     }
   );
 
+  // Company details
+  const companyDetails = {
+    name: "HI PRINT SOLUTIONS",
+    address: "No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050",
+    phone: "98657 09626",
+    email: "hiprintsolutions@gmail.com",
+    gstin: "33ABCDE1234F1Z5"
+  };
+
   // State for quotations list
   const [quotations, setQuotations] = useState([]);
   const [filteredQuotations, setFilteredQuotations] = useState([]);
   const [quotationsLoading, setQuotationsLoading] = useState(true);
   const [pagination, setPagination] = useState({
     page: 1,
-    per_page: 10, // Fixed to 10 per page
+    per_page: 10,
     total: 0,
     pages: 1
   });
@@ -59,11 +68,11 @@ const QuotationPage = () => {
     start: '',
     end: ''
   });
-  const [sortBy, setSortBy] = useState('newest'); // newest, oldest, highest, lowest
+  const [sortBy, setSortBy] = useState('newest');
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [modalStep, setModalStep] = useState(1); // 1: Customer, 2: Items
+  const [modalStep, setModalStep] = useState(1);
 
   // Form data
   const [customer, setCustomer] = useState({ name: "", phone: "", email: "", address: "", gstin: "" });
@@ -120,7 +129,6 @@ const QuotationPage = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (modalRef.current && !modalRef.current.contains(event.target)) {
-        // Don't close if in the middle of process
         if (items.length > 0 || customer.name || customer.phone) {
           if (window.confirm("Are you sure you want to close? Your progress will be lost.")) {
             resetForm();
@@ -132,7 +140,6 @@ const QuotationPage = () => {
         }
       }
       
-      // Handle view modal click outside
       if (viewModalRef.current && !viewModalRef.current.contains(event.target) && showViewModal) {
         setShowViewModal(false);
         setViewingQuotation(null);
@@ -178,7 +185,7 @@ const QuotationPage = () => {
     setQuotationsLoading(true);
     
     try {
-      let url = `/quotation?page=${pagination.page}&per_page=10`; // Fixed to 10 per page
+      let url = `/quotation?page=${pagination.page}&per_page=10`;
       
       const response = await api.get(url);
       
@@ -188,7 +195,7 @@ const QuotationPage = () => {
         setFilteredQuotations(quotationsData);
         setPagination({
           page: response.data.current_page || 1,
-          per_page: 10, // Fixed to 10
+          per_page: 10,
           total: response.data.total || 0,
           pages: response.data.pages || 1
         });
@@ -206,7 +213,6 @@ const QuotationPage = () => {
   const applyFilters = () => {
     let filtered = [...quotations];
 
-    // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(q => 
@@ -218,7 +224,6 @@ const QuotationPage = () => {
       );
     }
 
-    // Date range filter
     if (dateRange.start && dateRange.end) {
       const start = new Date(dateRange.start);
       start.setHours(0, 0, 0, 0);
@@ -231,7 +236,6 @@ const QuotationPage = () => {
       });
     }
 
-    // Sorting
     filtered.sort((a, b) => {
       switch(sortBy) {
         case 'newest':
@@ -380,14 +384,12 @@ const QuotationPage = () => {
     try {
       const response = await api.get(`/billing/search-products?q=${encodeURIComponent(search)}`);
       
-      // Check if response.data is an array
       if (Array.isArray(response.data)) {
         setProducts(response.data);
         if (response.data.length === 0) {
           setSearchError("No products found matching your search");
         }
       } else if (response.data.items && Array.isArray(response.data.items)) {
-        // Handle paginated response
         setProducts(response.data.items);
         if (response.data.items.length === 0) {
           setSearchError("No products found matching your search");
@@ -591,7 +593,6 @@ const QuotationPage = () => {
     setError('');
     setSuccess('');
 
-    // Prepare the payload
     const payload = {
       customerName: customer.name.trim(),
       customerPhone: customer.phone.replace(/\D/g, ''),
@@ -621,12 +622,9 @@ const QuotationPage = () => {
       setSavedQuotation(res.data.quotation);
       setSuccess(`✅ Quotation Created Successfully!\nQuotation Number: ${res.data.quotationNumber}`);
       
-      // Refresh the quotations list
       fetchQuotations();
       
-      // Show success message for 3 seconds then close modal
       setTimeout(() => {
-        // Ask if user wants to print
         if (window.confirm(`Quotation ${res.data.quotationNumber} saved successfully!\n\nDo you want to print it?`)) {
           handlePrintQuotation(res.data.quotation);
         }
@@ -680,10 +678,10 @@ const QuotationPage = () => {
     if (printWindow) {
       const itemsHtml = quotation.items.map(item => `
         <tr>
-          <td>${item.productName} ${item.productModel ? `(${item.productModel})` : ''}</td>
-          <td>${item.quantity}</td>
-          <td>₹${item.price.toFixed(2)}</td>
-          <td>₹${item.total.toFixed(2)}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${item.productName} ${item.productModel ? `(${item.productModel})` : ''}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₹${item.price.toFixed(2)}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₹${item.total.toFixed(2)}</td>
         </tr>
       `).join('');
 
@@ -693,49 +691,149 @@ const QuotationPage = () => {
         <head>
           <title>Quotation ${quotation.quotationNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .company-name { font-size: 24px; font-weight: bold; }
-            .quotation-details { margin: 20px 0; }
-            .customer-details { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .summary { margin: 20px 0; text-align: right; }
-            .total { font-size: 18px; font-weight: bold; color: #28a745; }
-            .footer { margin-top: 30px; text-align: center; font-size: 12px; }
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 30px; 
+              color: #333;
+              line-height: 1.6;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px; 
+              border-bottom: 2px solid #3b82f6;
+              padding-bottom: 20px;
+            }
+            .company-name { 
+              font-size: 28px; 
+              font-weight: bold; 
+              color: #3b82f6;
+              margin-bottom: 5px;
+            }
+            .company-details {
+              font-size: 14px;
+              color: #666;
+            }
+            .document-title {
+              font-size: 24px;
+              font-weight: bold;
+              text-align: center;
+              margin: 20px 0;
+              color: #1e293b;
+            }
+            .details-container {
+              display: flex;
+              justify-content: space-between;
+              margin: 20px 0;
+            }
+            .left-details, .right-details {
+              width: 48%;
+            }
+            .detail-box {
+              background: #f8fafc;
+              padding: 15px;
+              border-radius: 8px;
+              border: 1px solid #e2e8f0;
+            }
+            .detail-box h3 {
+              margin-top: 0;
+              margin-bottom: 10px;
+              color: #3b82f6;
+              font-size: 16px;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin: 20px 0; 
+            }
+            th { 
+              background-color: #3b82f6; 
+              color: white; 
+              padding: 10px; 
+              text-align: left; 
+              font-size: 14px;
+            }
+            td { 
+              padding: 8px; 
+              border: 1px solid #ddd; 
+            }
+            .summary { 
+              margin: 20px 0; 
+              text-align: right; 
+            }
+            .summary-item {
+              margin-bottom: 5px;
+            }
+            .total { 
+              font-size: 18px; 
+              font-weight: bold; 
+              color: #22c55e; 
+              margin-top: 10px;
+              padding-top: 10px;
+              border-top: 2px solid #333;
+            }
+            .notes {
+              margin-top: 30px;
+              padding: 15px;
+              background: #f8fafc;
+              border-left: 4px solid #3b82f6;
+            }
+            .footer { 
+              margin-top: 50px; 
+              text-align: center; 
+              font-size: 12px; 
+              color: #666;
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+            }
+            .signature {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 40px;
+            }
+            .signature-line {
+              width: 200px;
+              border-bottom: 1px solid #333;
+              margin-top: 5px;
+            }
           </style>
         </head>
         <body>
           <div class="header">
-            <div class="company-name">YOUR COMPANY NAME</div>
-            <div>123 Business Street, City - 400001</div>
-            <div>Phone: +91 98765 43210 | Email: info@company.com</div>
-            <div>GST: 27ABCDE1234F1Z5</div>
-          </div>
+            <div class="company-name">HI PRINT SOLUTIONS</div>
+            <div class="company-details">No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050</div>
+            <div class="company-details">Phone: 98657 09626 | Email: hiprintsolutions@gmail.com | GST: 33ABCDE1234F1Z5</div>
+          </div>       
           
-          <h2>QUOTATION</h2>
+          <div class="document-title">QUOTATION</div>
           
-          <div class="quotation-details">
-            <p><strong>Quotation No:</strong> ${quotation.quotationNumber}</p>
-            <p><strong>Date:</strong> ${new Date(quotation.quotationDate).toLocaleDateString()}</p>
-            <p><strong>Valid Until:</strong> ${new Date(quotation.validUntil).toLocaleDateString()}</p>
-          </div>
-          
-          <div class="customer-details">
-            <h3>Customer Details</h3>
-            <p><strong>Name:</strong> ${quotation.customerName}</p>
-            <p><strong>Phone:</strong> ${quotation.customerPhone}</p>
-            ${quotation.customerEmail ? `<p><strong>Email:</strong> ${quotation.customerEmail}</p>` : ''}
-            ${quotation.customerAddress ? `<p><strong>Address:</strong> ${quotation.customerAddress}</p>` : ''}
-            ${quotation.customerGstin ? `<p><strong>GSTIN:</strong> ${quotation.customerGstin}</p>` : ''}
+          <div class="details-container">
+            <div class="left-details">
+              <div class="detail-box">
+                <h3>Bill To:</h3>
+                <p><strong>${quotation.customerName}</strong></p>
+                <p>Phone: ${quotation.customerPhone}</p>
+                ${quotation.customerEmail ? `<p>Email: ${quotation.customerEmail}</p>` : ''}
+                ${quotation.customerAddress ? `<p>Address: ${quotation.customerAddress}</p>` : ''}
+                ${quotation.customerGstin ? `<p>GSTIN: ${quotation.customerGstin}</p>` : ''}
+              </div>
+            </div>
+            
+            <div class="right-details">
+              <div class="detail-box">
+                <h3>Quotation Details:</h3>
+                <p><strong>Quotation No:</strong> ${quotation.quotationNumber}</p>
+                <p><strong>Date:</strong> ${new Date(quotation.quotationDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                <p><strong>Valid Until:</strong> ${new Date(quotation.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                <p><strong>Prepared By:</strong> ${JSON.parse(localStorage.getItem('user'))?.username || 'Admin'}</p>
+              </div>
+            </div>
           </div>
           
           <table>
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Quantity</th>
+                <th>Product Description</th>
+                <th>Qty</th>
                 <th>Unit Price</th>
                 <th>Total</th>
               </tr>
@@ -746,17 +844,40 @@ const QuotationPage = () => {
           </table>
           
           <div class="summary">
-            <p><strong>Subtotal:</strong> ₹${quotation.subtotal.toFixed(2)}</p>
-            ${quotation.discount > 0 ? `<p><strong>Discount:</strong> -₹${quotation.discount.toFixed(2)}</p>` : ''}
-            <p class="total"><strong>Total:</strong> ₹${quotation.total.toFixed(2)}</p>
+            <div class="summary-item"><strong>Subtotal:</strong> ₹${quotation.subtotal.toFixed(2)}</div>
+            ${quotation.discount > 0 ? `<div class="summary-item"><strong>Discount:</strong> -₹${quotation.discount.toFixed(2)}</div>` : ''}
+            <div class="total"><strong>Total Amount:</strong> ₹${quotation.total.toFixed(2)}</div>
+            <div class="summary-item"><em>(Inclusive of all taxes)</em></div>
           </div>
           
           ${quotation.notes ? `
             <div class="notes">
-              <h4>Notes / Terms & Conditions:</h4>
+              <h4 style="margin-top:0; color:#3b82f6;">Terms & Conditions:</h4>
               <p>${quotation.notes}</p>
             </div>
-          ` : ''}
+          ` : `
+            <div class="notes">
+              <h4 style="margin-top:0; color:#3b82f6;">Terms & Conditions:</h4>
+              <ul style="margin:0; padding-left:20px;">
+                <li>Quotation valid for 7 days from the date of issue</li>
+                <li>Prices are subject to change without prior notice</li>
+                <li>Payment terms: 100% advance or as agreed</li>
+                <li>Delivery: As per availability</li>
+              </ul>
+            </div>
+          `}
+          
+          <div class="signature">
+            <div>
+              <p><strong>For HI PRINT SOLUTIONS</strong></p>
+              <div class="signature-line"></div>
+              <p>Authorized Signatory</p>
+            </div>
+            <div>
+              <p><strong>Customer Signature</strong></p>
+              <div class="signature-line"></div>
+            </div>
+          </div>
           
           <div class="footer">
             <p>This is a computer generated quotation. Valid until specified date.</p>
@@ -774,7 +895,7 @@ const QuotationPage = () => {
         printWindow.print();
       }, 500);
     } else {
-      window.print();
+      alert('Please allow pop-ups to print the quotation');
     }
   };
 
@@ -813,6 +934,13 @@ const QuotationPage = () => {
             title="Export to Excel"
           >
             📊 Excel
+          </button>
+          <button 
+            style={styles.exportButton}
+            onClick={handleExportPDF}
+            title="Export to PDF"
+          >
+            📄 PDF
           </button>
           <button 
             style={styles.createButton}
@@ -985,7 +1113,7 @@ const QuotationPage = () => {
       {/* View Quotation Modal */}
       {showViewModal && viewingQuotation && (
         <div style={styles.modalOverlay}>
-          <div style={{...styles.modal, maxWidth: '800px'}} ref={viewModalRef}>
+          <div style={{...styles.modal, maxWidth: '900px'}} ref={viewModalRef}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>
                 Quotation Details - {viewingQuotation.quotationNumber}
@@ -1002,68 +1130,93 @@ const QuotationPage = () => {
             </div>
             
             <div style={styles.modalContent}>
-              <div style={styles.viewSection}>
-                <h4 style={styles.viewSectionTitle}>Customer Details</h4>
-                <div style={styles.viewGrid}>
-                  <div><strong>Name:</strong> {viewingQuotation.customerName}</div>
-                  <div><strong>Phone:</strong> {viewingQuotation.customerPhone}</div>
-                  {viewingQuotation.customerEmail && <div><strong>Email:</strong> {viewingQuotation.customerEmail}</div>}
-                  {viewingQuotation.customerAddress && <div><strong>Address:</strong> {viewingQuotation.customerAddress}</div>}
-                  {viewingQuotation.customerGstin && <div><strong>GSTIN:</strong> {viewingQuotation.customerGstin}</div>}
-                </div>
+              {/* Company Header */}
+              <div style={styles.viewCompanyHeader}>
+                <h3 style={{color: '#3b82f6', margin: 0}}>{companyDetails.name}</h3>
+                <p style={{margin: '5px 0', color: '#94a3b8'}}>{companyDetails.address}</p>
+                <p style={{margin: 0, color: '#94a3b8'}}>Phone: {companyDetails.phone} | Email: {companyDetails.email}</p>
               </div>
 
-              <div style={styles.viewSection}>
-                <h4 style={styles.viewSectionTitle}>Quotation Details</h4>
-                <div style={styles.viewGrid}>
-                  <div><strong>Date:</strong> {new Date(viewingQuotation.quotationDate).toLocaleDateString()}</div>
-                  <div><strong>Valid Until:</strong> {new Date(viewingQuotation.validUntil).toLocaleDateString()}</div>
+              <div style={styles.viewTwoColumn}>
+                <div style={styles.viewColumn}>
+                  <div style={styles.viewSection}>
+                    <h4 style={styles.viewSectionTitle}>Bill To:</h4>
+                    <div style={styles.viewCard}>
+                      <p><strong>{viewingQuotation.customerName}</strong></p>
+                      <p>Phone: {viewingQuotation.customerPhone}</p>
+                      {viewingQuotation.customerEmail && <p>Email: {viewingQuotation.customerEmail}</p>}
+                      {viewingQuotation.customerAddress && <p>Address: {viewingQuotation.customerAddress}</p>}
+                      {viewingQuotation.customerGstin && <p>GSTIN: {viewingQuotation.customerGstin}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={styles.viewColumn}>
+                  <div style={styles.viewSection}>
+                    <h4 style={styles.viewSectionTitle}>Quotation Details:</h4>
+                    <div style={styles.viewCard}>
+                      <p><strong>Quotation No:</strong> {viewingQuotation.quotationNumber}</p>
+                      <p><strong>Date:</strong> {new Date(viewingQuotation.quotationDate).toLocaleDateString('en-IN')}</p>
+                      <p><strong>Valid Until:</strong> {new Date(viewingQuotation.validUntil).toLocaleDateString('en-IN')}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div style={styles.viewSection}>
                 <h4 style={styles.viewSectionTitle}>Items</h4>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Product</th>
-                      <th style={styles.th}>Price</th>
-                      <th style={styles.th}>Qty</th>
-                      <th style={styles.th}>GST</th>
-                      <th style={styles.th}>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {viewingQuotation.items?.map((item, index) => (
-                      <tr key={index}>
-                        <td style={styles.td}>
-                          <div>{item.productName}</div>
-                          {item.productModel && <small>{item.productModel}</small>}
-                        </td>
-                        <td style={styles.td}>₹{item.price.toFixed(2)}</td>
-                        <td style={styles.td}>{item.quantity}</td>
-                        <td style={styles.td}>{item.gst}%</td>
-                        <td style={styles.td}>₹{item.total.toFixed(2)}</td>
+                <div style={styles.tableContainer}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Product</th>
+                        <th style={styles.th}>Price</th>
+                        <th style={styles.th}>Qty</th>
+                        <th style={styles.th}>GST</th>
+                        <th style={styles.th}>Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {viewingQuotation.items?.map((item, index) => (
+                        <tr key={index}>
+                          <td style={styles.td}>
+                            <div>{item.productName}</div>
+                            {item.productModel && <small style={{color: '#94a3b8'}}>{item.productModel}</small>}
+                          </td>
+                          <td style={styles.td}>₹{item.price.toFixed(2)}</td>
+                          <td style={styles.td}>{item.quantity}</td>
+                          <td style={styles.td}>{item.gst}%</td>
+                          <td style={styles.td}>₹{item.total.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div style={styles.viewSummary}>
-                <div style={styles.viewRow}><strong>Subtotal:</strong> ₹{viewingQuotation.subtotal?.toFixed(2)}</div>
+                <div style={styles.viewSummaryItem}>
+                  <span>Subtotal:</span>
+                  <span>₹{viewingQuotation.subtotal?.toFixed(2)}</span>
+                </div>
                 {viewingQuotation.discount > 0 && (
-                  <div style={styles.viewRow}><strong>Discount:</strong> -₹{viewingQuotation.discount?.toFixed(2)}</div>
+                  <div style={styles.viewSummaryItem}>
+                    <span>Discount:</span>
+                    <span style={{color: '#ef4444'}}>-₹{viewingQuotation.discount?.toFixed(2)}</span>
+                  </div>
                 )}
-                <div style={{...styles.viewRow, fontSize: '18px', color: '#22c55e'}}>
-                  <strong>Total:</strong> ₹{viewingQuotation.total?.toFixed(2)}
+                <div style={{...styles.viewSummaryItem, ...styles.viewTotal}}>
+                  <span>Total:</span>
+                  <span>₹{viewingQuotation.total?.toFixed(2)}</span>
                 </div>
               </div>
 
               {viewingQuotation.notes && (
                 <div style={styles.viewSection}>
-                  <h4 style={styles.viewSectionTitle}>Notes</h4>
-                  <p style={styles.notes}>{viewingQuotation.notes}</p>
+                  <h4 style={styles.viewSectionTitle}>Notes / Terms</h4>
+                  <div style={styles.viewCard}>
+                    <p style={{margin: 0, whiteSpace: 'pre-wrap'}}>{viewingQuotation.notes}</p>
+                  </div>
                 </div>
               )}
 
@@ -1072,7 +1225,7 @@ const QuotationPage = () => {
                   style={styles.printButton}
                   onClick={() => handlePrintQuotation(viewingQuotation)}
                 >
-                  Print Quotation
+                  🖨️ Print Quotation
                 </button>
               </div>
             </div>
@@ -1113,13 +1266,13 @@ const QuotationPage = () => {
             {/* Modal Content */}
             <div style={styles.modalContent}>
               {error && (
-                <div style={{...styles.alert, ...styles.alertError}}>
+                <div style={{...styles.alert, ...styles.alertError, marginBottom: '16px'}}>
                   ⚠️ {error}
                 </div>
               )}
               
               {success && (
-                <div style={{...styles.alert, ...styles.alertSuccess}}>
+                <div style={{...styles.alert, ...styles.alertSuccess, marginBottom: '16px'}}>
                   ✅ {success}
                 </div>
               )}
@@ -1672,7 +1825,6 @@ const styles = {
   alert: {
     padding: '12px',
     borderRadius: '5px',
-    marginBottom: '20px',
     fontWeight: 'bold',
   },
   alertError: {
@@ -1988,7 +2140,6 @@ const styles = {
       backgroundColor: "#16a34a",
     },
   },
-  // Action buttons for table
   actionButtons: {
     display: "flex",
     gap: "6px",
@@ -2020,7 +2171,6 @@ const styles = {
       backgroundColor: "#475569",
     },
   },
-  // Pagination
   pagination: {
     display: "flex",
     justifyContent: "center",
@@ -2052,6 +2202,23 @@ const styles = {
     fontSize: "14px",
   },
   // View modal styles
+  viewCompanyHeader: {
+    textAlign: "center",
+    marginBottom: "24px",
+    padding: "16px",
+    background: "#0f172a",
+    borderRadius: "8px",
+    border: "1px solid #334155",
+  },
+  viewTwoColumn: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "20px",
+    marginBottom: "24px",
+  },
+  viewColumn: {
+    width: "100%",
+  },
   viewSection: {
     marginBottom: "20px",
   },
@@ -2061,26 +2228,32 @@ const styles = {
     fontWeight: "600",
     marginBottom: "10px",
   },
-  viewGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
-    gap: "12px",
+  viewCard: {
     background: "#0f172a",
     padding: "16px",
     borderRadius: "8px",
-  },
-  viewRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "8px",
-    padding: "4px 0",
+    border: "1px solid #334155",
   },
   viewSummary: {
     background: "#0f172a",
-    padding: "16px",
+    padding: "20px",
     borderRadius: "8px",
     marginBottom: "20px",
+    border: "1px solid #334155",
+  },
+  viewSummaryItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "8px",
+    color: "#e2e8f0",
+  },
+  viewTotal: {
+    marginTop: "12px",
+    paddingTop: "12px",
+    borderTop: "2px solid #334155",
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#22c55e",
   },
   viewActions: {
     display: "flex",

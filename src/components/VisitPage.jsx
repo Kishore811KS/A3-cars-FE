@@ -1,4 +1,3 @@
-// VisitBillPage.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -42,7 +41,7 @@ import {
   Wallet,
   Banknote,
   Landmark,
-  MessageCircle // Added for WhatsApp
+  MessageCircle
 } from 'lucide-react';
 
 // Crown icon component for VIP customers
@@ -71,7 +70,7 @@ const VisitBillPage = () => {
   const [showBillModal, setShowBillModal] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [copiedBillNo, setCopiedBillNo] = useState(null);
-  const [whatsappStatus, setWhatsappStatus] = useState({}); // Track WhatsApp sending status per bill
+  const [whatsappStatus, setWhatsappStatus] = useState({});
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,6 +87,14 @@ const VisitBillPage = () => {
   const [sortBy, setSortBy] = useState('newest');
 
   const API_BASE_URL = 'http://localhost:5000/api';
+
+  // Shop details
+  const shopDetails = {
+    name: "BRAIN TECH (Sales & Service)",
+    address: "Rayar Complex, Soap Company Stop, Idayarpalayam",
+    city: "Coimbatore - 641025",
+    phone: "98657 09626"
+  };
 
   // Payment method icons and colors
   const paymentMethodMap = {
@@ -221,8 +228,8 @@ const VisitBillPage = () => {
           customerAddress: bill.customerAddress || bill.customer_address || bill.customer?.address || '',
           customerType: bill.customerType || bill.customer_type || bill.customer?.type || 'external',
           subtotal: subtotal,
-          discountValue: discountValue, // Original discount value (percentage or amount)
-          discountAmount: discountAmount, // Calculated discount amount in rupees
+          discountValue: discountValue,
+          discountAmount: discountAmount,
           discountType: discountType,
           tax: parseFloat(bill.tax || bill.taxAmount || 0),
           taxType: bill.taxType || bill.tax_type || 'percentage',
@@ -262,12 +269,17 @@ const VisitBillPage = () => {
         bill.dueAmount = bill.total - bill.paidAmount;
       });
       
-      console.log('Processed Bills:', processedBills);
+      // Filter to show only bills with bill numbers starting with "BT"
+      const btBills = processedBills.filter(bill => 
+        bill.billNumber && bill.billNumber.toUpperCase().startsWith('BT')
+      );
       
-      setBills(processedBills);
-      setFilteredBills(processedBills);
+      console.log('Processed Bills (BT only):', btBills);
       
-      showMessage("success", `✅ Loaded ${processedBills.length} bills successfully!`);
+      setBills(btBills);
+      setFilteredBills(btBills);
+      
+      showMessage("success", `✅ Loaded ${btBills.length} BT bills successfully!`);
     } catch (err) {
       console.error('Error fetching bills:', err);
       setError(err.response?.data?.message || err.message || 'Failed to load bills. Please try again.');
@@ -444,7 +456,12 @@ const VisitBillPage = () => {
     const dueAmount = (bill.total || 0) - (bill.paidAmount || 0);
     const items = bill.items || [];
     
-    let message = `*BRAIN TECH - BILL DETAILS*\n`;
+    let message = `*${shopDetails.name}*\n`;
+    message += `${shopDetails.address}\n`;
+    message += `${shopDetails.city}\n`;
+    message += `Ph: ${shopDetails.phone}\n`;
+    message += `═══════════════════════\n`;
+    message += `*BILL DETAILS*\n`;
     message += `═══════════════════════\n`;
     message += `*Bill No:* ${bill.billNumber}\n`;
     message += `*Date:* ${new Date(bill.createdAt).toLocaleDateString()}\n`;
@@ -781,8 +798,13 @@ const VisitBillPage = () => {
             }
             .header h1 { 
               font-size: 24px; 
-              margin-bottom: 5px; 
+              margin-bottom: 2px; 
               color: #000; 
+            }
+            .header h3 {
+              font-size: 14px;
+              margin: 2px 0;
+              color: #333;
             }
             .header p { 
               margin: 2px 0; 
@@ -874,14 +896,17 @@ const VisitBillPage = () => {
               font-weight: bold;
               color: ${processedBill.dueAmount > 0 ? '#dc2626' : '#059669'};
             }
+            .shop-details {
+              margin-bottom: 5px;
+            }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>BRAIN TECH</h1>
-            <p>123 Main Street, City - 400001</p>
-            <p>Phone: +91 98765 43210</p>
-            <p>GST: 27ABCDE1234F1Z5</p>
+            <h1>${shopDetails.name}</h1>
+            <p>${shopDetails.address}</p>
+            <p>${shopDetails.city}</p>
+            <p>Phone: ${shopDetails.phone}</p>
           </div>
           
           <div class="info">
@@ -1036,6 +1061,43 @@ const VisitBillPage = () => {
       minHeight: "100vh",
       color: "#e5e7eb",
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    },
+    shopHeader: {
+      backgroundColor: "#1f2937",
+      padding: "20px",
+      borderRadius: "8px",
+      border: "1px solid #374151",
+      marginBottom: "20px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    shopInfo: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+    },
+    shopName: {
+      fontSize: "24px",
+      fontWeight: "600",
+      color: "#6366f1",
+      margin: 0,
+    },
+    shopAddress: {
+      fontSize: "14px",
+      color: "#d1d5db",
+      margin: 0,
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+    },
+    shopContact: {
+      fontSize: "14px",
+      color: "#d1d5db",
+      margin: 0,
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
     },
     header: {
       display: "flex",
@@ -1437,7 +1499,7 @@ const VisitBillPage = () => {
       <div style={styles.container}>
         <div style={styles.loadingSpinner}>
           <RefreshCw size={30} style={{ animation: 'spin 1s linear infinite', marginBottom: '10px' }} />
-          <div>Loading bills...</div>
+          <div>Loading BT bills...</div>
         </div>
       </div>
     );
@@ -1445,6 +1507,37 @@ const VisitBillPage = () => {
 
   return (
     <div style={styles.container}>
+      {/* Shop Header */}
+      <div style={styles.shopHeader}>
+        <div style={styles.shopInfo}>
+          <h1 style={styles.shopName}>{shopDetails.name}</h1>
+          <p style={styles.shopAddress}>
+            <MapPin size={14} color="#9ca3af" />
+            {shopDetails.address}, {shopDetails.city}
+          </p>
+          <p style={styles.shopContact}>
+            <Phone size={14} color="#9ca3af" />
+            {shopDetails.phone}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <span style={{
+            padding: '8px 16px',
+            backgroundColor: '#6366f1',
+            color: '#fff',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <Receipt size={16} />
+            BT Bills Only
+          </span>
+        </div>
+      </div>
+
       {/* Message Display */}
       {message.text && (
         <div style={{
@@ -1465,7 +1558,7 @@ const VisitBillPage = () => {
         <div style={styles.headerTitle}>
           <h1 style={styles.title}>
             <Receipt size={32} color="#6366f1" />
-            Visit Bills
+            Visit Bills (BT Series)
           </h1>
           <button 
             style={styles.refreshButton}
@@ -1627,7 +1720,7 @@ const VisitBillPage = () => {
                   {searchTerm || filterPaymentMethod !== 'all' || filterCustomerType !== 'all' || dateRange.start 
                     ? <div>
                         <Filter size={30} style={{marginBottom: '10px', opacity: 0.5}} />
-                        <div>No bills match your filters</div>
+                        <div>No BT bills match your filters</div>
                         <button 
                           onClick={resetFilters}
                           style={{...styles.button, marginTop: '15px', display: 'inline-flex'}}
@@ -1645,7 +1738,7 @@ const VisitBillPage = () => {
                       </div>
                     : <div>
                         <Receipt size={30} style={{marginBottom: '10px', opacity: 0.5}} />
-                        <div>No bills found</div>
+                        <div>No BT bills found</div>
                       </div>}
                 </td>
               </tr>
@@ -1826,7 +1919,7 @@ const VisitBillPage = () => {
       {filteredBills.length > 0 && (
         <div style={styles.pagination}>
           <div style={styles.paginationInfo}>
-            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredBills.length)} of {filteredBills.length} bills
+            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredBills.length)} of {filteredBills.length} BT bills
           </div>
           
           <div style={styles.paginationControls}>

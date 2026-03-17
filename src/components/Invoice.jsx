@@ -10,29 +10,24 @@ const InvoicePage = () => {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     },
-    timeout: 10000 // 10 second timeout
+    timeout: 10000
   });
 
   // Add request interceptor for debugging
   api.interceptors.request.use(request => {
     console.log('Starting Request:', request.method.toUpperCase(), request.url);
-    console.log('Request params:', request.params);
     return request;
   });
 
   // Add response interceptor for error handling
   api.interceptors.response.use(
     response => {
-      console.log('Response:', response.status, response.statusText);
-      console.log('Response data:', response.data);
+      console.log('Response:', response.status);
       return response;
     },
     error => {
       console.log('Response Error:', error.message);
       if (error.response) {
-        console.log('Error status:', error.response.status);
-        console.log('Error data:', error.response.data);
-        
         if (error.response.status === 401) {
           setIsAuthenticated(false);
           setError('Session expired. Please login again.');
@@ -40,16 +35,23 @@ const InvoicePage = () => {
             window.location.href = '/login';
           }, 2000);
         }
-      } else if (error.request) {
-        console.log('No response received:', error.request);
-        setError('Cannot connect to server. Please check if the server is running.');
       }
       return Promise.reject(error);
     }
   );
 
+  // Company details
+  const companyDetails = {
+    name: "HI PRINT SOLUTIONS",
+    address: "No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050",
+    phone: "98657 09626",
+    email: "hiprintsolutions@gmail.com",
+    gstin: "33ABCDE1234F1Z5"
+  };
+
   // State for invoices list
   const [invoices, setInvoices] = useState([]);
+  const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -61,9 +63,18 @@ const InvoicePage = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [dashboardStats, setDashboardStats] = useState(null);
 
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState({
+    start: '',
+    end: ''
+  });
+  const [filterStatus, setFilterStatus] = useState('all'); // all, paid, unpaid, partial
+  const [sortBy, setSortBy] = useState('newest'); // newest, oldest, highest, lowest
+
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [modalStep, setModalStep] = useState(1); // 1: Customer, 2: Items, 3: Payment
+  const [modalStep, setModalStep] = useState(1);
 
   // Form data
   const [customer, setCustomer] = useState({ name: "", phone: "", email: "", address: "", gstin: "" });
@@ -100,9 +111,8 @@ const InvoicePage = () => {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Invalid Date';
-      return date.toLocaleDateString();
+      return date.toLocaleDateString('en-IN');
     } catch (error) {
-      console.error('Error formatting date:', error);
       return 'Invalid Date';
     }
   };
@@ -124,24 +134,9 @@ const InvoicePage = () => {
         window.location.href = '/login';
       }, 2000);
     } else {
-      // Test connection to backend
       testBackendConnection();
     }
   }, []);
-
-  // Test backend connection
-  const testBackendConnection = async () => {
-    try {
-      console.log('Testing backend connection...');
-      const response = await api.get('/invoice?page=1&per_page=1');
-      console.log('Backend connection successful:', response.data);
-      fetchInvoices();
-      fetchDashboardStats();
-    } catch (err) {
-      console.error('Backend connection failed:', err);
-      setError('Cannot connect to backend server. Please make sure it\'s running on port 5000.');
-    }
-  };
 
   // Fetch invoices when page changes
   useEffect(() => {
@@ -149,6 +144,13 @@ const InvoicePage = () => {
       fetchInvoices();
     }
   }, [pagination.page]);
+
+  // Apply filters
+  useEffect(() => {
+    if (invoices.length > 0) {
+      applyFilters();
+    }
+  }, [invoices, searchTerm, dateRange, filterStatus, sortBy]);
 
   // Handle click outside to close modal
   useEffect(() => {
@@ -203,6 +205,20 @@ const InvoicePage = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Test backend connection
+  const testBackendConnection = async () => {
+    try {
+      console.log('Testing backend connection...');
+      const response = await api.get('/invoice?page=1&per_page=1');
+      console.log('Backend connection successful:', response.data);
+      fetchInvoices();
+      fetchDashboardStats();
+    } catch (err) {
+      console.error('Backend connection failed:', err);
+      setError('Cannot connect to backend server. Please make sure it\'s running on port 5000.');
+    }
+  };
+
   // Fetch invoices from backend
   const fetchInvoices = async () => {
     if (!isAuthenticated) return;
@@ -211,47 +227,96 @@ const InvoicePage = () => {
     setError('');
     
     try {
-      console.log('Fetching invoices for page:', pagination.page);
       const url = `/invoice?page=${pagination.page}&per_page=${pagination.per_page}`;
-      console.log('Request URL:', url);
-      
       const response = await api.get(url);
-      console.log('Invoices response:', response.data);
       
       if (response.data && response.data.success) {
         setInvoices(response.data.items || []);
+        setFilteredInvoices(response.data.items || []);
         setPagination({
           page: response.data.page || 1,
           per_page: response.data.per_page || 10,
           total: response.data.total || 0,
           pages: response.data.pages || 1
         });
-        console.log('Invoices loaded:', response.data.items?.length || 0);
       } else {
-        console.error('Response indicates failure:', response.data);
         setError(response.data?.error || 'Failed to load invoices');
       }
     } catch (err) {
       console.error('Error fetching invoices:', err);
-      if (err.code === 'ECONNABORTED') {
-        setError('Request timeout. Server is taking too long to respond.');
-      } else if (err.message.includes('Network Error')) {
-        setError('Network error. Please check if the backend server is running on port 5000.');
-      } else {
-        setError(err.response?.data?.error || err.message || 'Failed to load invoices');
-      }
+      setError(err.response?.data?.error || err.message || 'Failed to load invoices');
     } finally {
       setInvoicesLoading(false);
     }
   };
 
+  // Apply filters to invoices
+  const applyFilters = () => {
+    let filtered = [...invoices];
+
+    // Search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(inv => 
+        (inv.invoice_number?.toLowerCase().includes(term)) ||
+        (inv.customer_name?.toLowerCase().includes(term)) ||
+        (inv.customer_phone?.toLowerCase().includes(term)) ||
+        (inv.customer_email?.toLowerCase().includes(term))
+      );
+    }
+
+    // Date range filter
+    if (dateRange.start && dateRange.end) {
+      const start = new Date(dateRange.start);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(dateRange.end);
+      end.setHours(23, 59, 59, 999);
+      
+      filtered = filtered.filter(inv => {
+        const invDate = new Date(inv.invoice_date);
+        return invDate >= start && invDate <= end;
+      });
+    }
+
+    // Status filter
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(inv => 
+        (inv.payment_status || inv.paymentStatus) === filterStatus
+      );
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      switch(sortBy) {
+        case 'newest':
+          return new Date(b.invoice_date) - new Date(a.invoice_date);
+        case 'oldest':
+          return new Date(a.invoice_date) - new Date(b.invoice_date);
+        case 'highest':
+          return (b.total || 0) - (a.total || 0);
+        case 'lowest':
+          return (a.total || 0) - (b.total || 0);
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredInvoices(filtered);
+  };
+
+  // Reset filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setDateRange({ start: '', end: '' });
+    setFilterStatus('all');
+    setSortBy('newest');
+    setFilteredInvoices(invoices);
+  };
+
   // Fetch dashboard stats
   const fetchDashboardStats = async () => {
     try {
-      console.log('Fetching dashboard stats...');
       const response = await api.get('/invoice/stats/dashboard');
-      console.log('Dashboard stats response:', response.data);
-      
       if (response.data && response.data.success) {
         setDashboardStats(response.data.stats);
       }
@@ -267,9 +332,7 @@ const InvoicePage = () => {
     setSearchError("");
     
     try {
-      console.log('Searching products for:', search);
       const response = await api.get(`/billing/search-products?q=${encodeURIComponent(search)}`);
-      console.log('Search response:', response.data);
       
       if (Array.isArray(response.data)) {
         setProducts(response.data);
@@ -282,25 +345,12 @@ const InvoicePage = () => {
           setSearchError("No products found matching your search");
         }
       } else {
-        console.error("Unexpected response format:", response.data);
         setSearchError("Received unexpected data format from server");
         setProducts([]);
       }
     } catch (err) {
       console.error('Search error:', err);
-      if (err.response) {
-        if (err.response.status === 401) {
-          setSearchError('Session expired. Please login again.');
-        } else if (err.response.status === 404) {
-          setSearchError('Search endpoint not found. Please check API configuration.');
-        } else {
-          setSearchError(err.response.data?.error || `Failed to search products (Status: ${err.response.status})`);
-        }
-      } else if (err.request) {
-        setSearchError('No response from server. Please check your connection.');
-      } else {
-        setSearchError('Error setting up search request. Please try again.');
-      }
+      setSearchError('Failed to search products');
       setProducts([]);
     } finally {
       setSearchLoading(false);
@@ -310,15 +360,10 @@ const InvoicePage = () => {
   // Fetch single invoice details
   const fetchInvoiceDetails = async (id) => {
     try {
-      console.log('Fetching invoice details for ID:', id);
       const response = await api.get(`/invoice/${id}`);
-      console.log('Invoice details response:', response.data);
-      
       if (response.data && response.data.success) {
         setViewingInvoice(response.data.invoice);
         setShowViewModal(true);
-      } else {
-        setError(response.data?.error || 'Failed to load invoice details');
       }
     } catch (err) {
       console.error('Error fetching invoice details:', err);
@@ -330,12 +375,10 @@ const InvoicePage = () => {
   // Update payment status
   const updatePaymentStatus = async (id, status, method = null) => {
     try {
-      console.log('Updating payment status:', id, status, method);
       const response = await api.patch(`/invoice/${id}/payment`, {
         paymentStatus: status,
         paymentMethod: method
       });
-      console.log('Update payment response:', response.data);
       
       if (response.data && response.data.success) {
         setSuccess('Payment status updated successfully');
@@ -496,11 +539,9 @@ const InvoicePage = () => {
       
       if (gstRate > 0) {
         if (isInterState) {
-          // IGST for interstate
           gstDetails[gstRate].igst += gstAmount;
           igstTotal += gstAmount;
         } else {
-          // CGST + SGST for intrastate
           gstDetails[gstRate].cgst += gstAmount / 2;
           gstDetails[gstRate].sgst += gstAmount / 2;
           cgstTotal += gstAmount / 2;
@@ -536,7 +577,6 @@ const InvoicePage = () => {
     setError('');
     setSuccess('');
 
-    // Prepare the payload
     const payload = {
       customerName: customer.name.trim(),
       customerPhone: customer.phone.replace(/\D/g, ''),
@@ -560,23 +600,17 @@ const InvoicePage = () => {
       }))
     };
 
-    console.log('Saving invoice with payload:', payload);
-
     try {
       const res = await api.post('/invoice', payload);
-      console.log('Invoice saved successfully:', res.data);
       
       if (res.data && res.data.success) {
         setSavedInvoice(res.data.invoice);
         setSuccess(`✅ Invoice Created Successfully!\nInvoice Number: ${res.data.invoiceNumber}`);
         
-        // Refresh the invoices list and dashboard stats
         fetchInvoices();
         fetchDashboardStats();
         
-        // Show success message for 3 seconds then close modal
         setTimeout(() => {
-          // Ask if user wants to print
           if (window.confirm(`Invoice ${res.data.invoiceNumber} saved successfully!\n\nDo you want to print it?`)) {
             handlePrintInvoice(res.data.invoice);
           }
@@ -599,15 +633,6 @@ const InvoicePage = () => {
           errorMessage = "Session expired. Please login again.";
         } else if (err.response.status === 400) {
           errorMessage = err.response.data?.error || "Invalid data. Please check your inputs.";
-          
-          if (err.response.data?.errors) {
-            const fieldErrors = Object.entries(err.response.data.errors)
-              .map(([field, msg]) => `${field}: ${msg}`)
-              .join('\n');
-            errorMessage += `\n${fieldErrors}`;
-          }
-        } else if (err.response.status === 422) {
-          errorMessage = err.response.data?.error || "Validation failed. Please check your inputs.";
         } else if (err.response.status === 500) {
           errorMessage = "Server error. Please try again later.";
         } else {
@@ -672,12 +697,12 @@ const InvoicePage = () => {
     if (printWindow) {
       const itemsHtml = invoice.items?.map(item => `
         <tr>
-          <td>${item.product_name || item.productName} ${item.product_model ? `(${item.product_model})` : ''}</td>
-          <td>${item.hsn_code || item.hsnCode || '-'}</td>
-          <td>${item.quantity}</td>
-          <td>₹${safeNumber(item.price).toFixed(2)}</td>
-          <td>${safeNumber(item.gst_rate || item.gst)}%</td>
-          <td>₹${safeNumber(item.total).toFixed(2)}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${item.product_name || item.productName} ${item.product_model ? `(${item.product_model})` : ''}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.hsn_code || item.hsnCode || '-'}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₹${safeNumber(item.price).toFixed(2)}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${safeNumber(item.gst_rate || item.gst)}%</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₹${safeNumber(item.total).toFixed(2)}</td>
         </tr>
       `).join('') || '';
 
@@ -687,61 +712,169 @@ const InvoicePage = () => {
         <head>
           <title>Invoice ${invoice.invoice_number || invoice.invoiceNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .company-name { font-size: 28px; font-weight: bold; color: #2563eb; }
-            .company-details { color: #666; margin-top: 5px; }
-            h2 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
-            .invoice-details { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; }
-            .customer-details { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th { background: #2563eb; color: white; padding: 12px; text-align: left; }
-            td { border: 1px solid #ddd; padding: 10px; }
-            .summary { background: #f8fafc; padding: 20px; border-radius: 8px; text-align: right; }
-            .total { font-size: 20px; font-weight: bold; color: #2563eb; }
-            .status-badge { padding: 5px 10px; border-radius: 4px; font-weight: bold; }
-            .status-paid { background: #10b981; color: white; }
-            .status-unpaid { background: #ef4444; color: white; }
-            .status-partial { background: #f59e0b; color: white; }
-            .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 40px; 
+              color: #333;
+              line-height: 1.6;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px; 
+              border-bottom: 2px solid #2563eb;
+              padding-bottom: 20px;
+            }
+            .company-name { 
+              font-size: 28px; 
+              font-weight: bold; 
+              color: #2563eb;
+              margin-bottom: 5px;
+            }
+            .company-details {
+              font-size: 14px;
+              color: #666;
+            }
+            .document-title {
+              font-size: 24px;
+              font-weight: bold;
+              text-align: center;
+              margin: 20px 0;
+              color: #2563eb;
+            }
+            .details-container {
+              display: flex;
+              justify-content: space-between;
+              margin: 20px 0;
+            }
+            .left-details, .right-details {
+              width: 48%;
+            }
+            .detail-box {
+              background: #f8fafc;
+              padding: 15px;
+              border-radius: 8px;
+              border: 1px solid #e2e8f0;
+            }
+            .detail-box h3 {
+              margin-top: 0;
+              margin-bottom: 10px;
+              color: #2563eb;
+              font-size: 16px;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin: 20px 0; 
+            }
+            th { 
+              background: #2563eb; 
+              color: white; 
+              padding: 12px; 
+              text-align: left; 
+              font-size: 14px;
+            }
+            td { 
+              padding: 8px; 
+              border: 1px solid #ddd; 
+            }
+            .summary { 
+              background: #f8fafc; 
+              padding: 20px; 
+              border-radius: 8px; 
+              text-align: right; 
+            }
+            .summary-item {
+              margin-bottom: 5px;
+            }
+            .total { 
+              font-size: 20px; 
+              font-weight: bold; 
+              color: #2563eb; 
+              margin-top: 10px;
+              padding-top: 10px;
+              border-top: 2px solid #ddd;
+            }
+            .status-badge { 
+              padding: 5px 10px; 
+              border-radius: 4px; 
+              font-weight: bold; 
+              display: inline-block;
+            }
+            .status-paid { 
+              background: #10b981; 
+              color: white; 
+            }
+            .status-unpaid { 
+              background: #ef4444; 
+              color: white; 
+            }
+            .status-partial { 
+              background: #f59e0b; 
+              color: white; 
+            }
+            .footer { 
+              margin-top: 50px; 
+              text-align: center; 
+              font-size: 12px; 
+              color: #666;
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+            }
+            .signature {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 40px;
+            }
+            .signature-line {
+              width: 200px;
+              border-bottom: 1px solid #333;
+              margin-top: 5px;
+            }
+            .amount-words {
+              font-style: italic;
+              color: #2563eb;
+              margin-top: 10px;
+            }
           </style>
         </head>
         <body>
           <div class="header">
-            <div class="company-name">YOUR COMPANY NAME</div>
-            <div class="company-details">
-              <div>123 Business Street, City - 400001</div>
-              <div>Phone: +91 98765 43210 | Email: info@company.com</div>
-              <div>GST: 27ABCDE1234F1Z5</div>
+            <div class="company-name">HI PRINT SOLUTIONS</div>
+            <div class="company-details">No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050</div>
+            <div class="company-details">Phone: 98657 09626 | Email: hiprintsolutions@gmail.com | GST: 33ABCDE1234F1Z5</div>
+          </div>
+          
+          <div class="document-title">TAX INVOICE</div>
+          
+          <div class="details-container">
+            <div class="left-details">
+              <div class="detail-box">
+                <h3>Bill To:</h3>
+                <p><strong>${invoice.customer_name || invoice.customerName}</strong></p>
+                <p>Phone: ${invoice.customer_phone || invoice.customerPhone}</p>
+                ${(invoice.customer_email || invoice.customerEmail) ? `<p>Email: ${invoice.customer_email || invoice.customerEmail}</p>` : ''}
+                ${(invoice.customer_address || invoice.customerAddress) ? `<p>Address: ${invoice.customer_address || invoice.customerAddress}</p>` : ''}
+                ${(invoice.customer_gstin || invoice.customerGstin) ? `<p>GSTIN: ${invoice.customer_gstin || invoice.customerGstin}</p>` : ''}
+              </div>
             </div>
-          </div>
-          
-          <h2>TAX INVOICE</h2>
-          
-          <div class="invoice-details">
-            <table style="width: auto; background: none;">
-              <tr><td><strong>Invoice No:</strong></td><td>${invoice.invoice_number || invoice.invoiceNumber}</td></tr>
-              <tr><td><strong>Date:</strong></td><td>${formatDate(invoice.invoice_date || invoice.invoiceDate)}</td></tr>
-              <tr><td><strong>Due Date:</strong></td><td>${formatDate(invoice.due_date || invoice.dueDate)}</td></tr>
-              <tr><td><strong>Payment Status:</strong></td><td><span class="status-badge status-${invoice.payment_status || invoice.paymentStatus || 'unpaid'}">${(invoice.payment_status || invoice.paymentStatus || 'UNPAID').toUpperCase()}</span></td></tr>
-            </table>
-          </div>
-          
-          <div class="customer-details">
-            <h3 style="margin-top: 0;">Bill To:</h3>
-            <table style="width: auto; background: none;">
-              <tr><td><strong>Name:</strong></td><td>${invoice.customer_name || invoice.customerName}</td></tr>
-              <tr><td><strong>Phone:</strong></td><td>${invoice.customer_phone || invoice.customerPhone}</td></tr>
-              ${(invoice.customer_email || invoice.customerEmail) ? `<tr><td><strong>Email:</strong></td><td>${invoice.customer_email || invoice.customerEmail}</td></tr>` : ''}
-              ${(invoice.customer_address || invoice.customerAddress) ? `<tr><td><strong>Address:</strong></td><td>${invoice.customer_address || invoice.customerAddress}</td></tr>` : ''}
-              ${(invoice.customer_gstin || invoice.customerGstin) ? `<tr><td><strong>GSTIN:</strong></td><td>${invoice.customer_gstin || invoice.customerGstin}</td></tr>` : ''}
-            </table>
+            
+            <div class="right-details">
+              <div class="detail-box">
+                <h3>Invoice Details:</h3>
+                <p><strong>Invoice No:</strong> ${invoice.invoice_number || invoice.invoiceNumber}</p>
+                <p><strong>Date:</strong> ${formatDate(invoice.invoice_date || invoice.invoiceDate)}</p>
+                <p><strong>Due Date:</strong> ${formatDate(invoice.due_date || invoice.dueDate)}</p>
+                <p><strong>Payment Status:</strong> <span class="status-badge status-${invoice.payment_status || invoice.paymentStatus || 'unpaid'}">${(invoice.payment_status || invoice.paymentStatus || 'UNPAID').toUpperCase()}</span></p>
+                <p><strong>Payment Method:</strong> ${(invoice.payment_method || invoice.paymentMethod || 'cash').toUpperCase()}</p>
+                <p><strong>Transaction Type:</strong> ${safeNumber(invoice.igst_total || invoice.igstTotal) > 0 ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)'}</p>
+              </div>
+            </div>
           </div>
           
           <table>
             <thead>
               <tr>
-                <th>Product</th>
+                <th>Product Description</th>
                 <th>HSN</th>
                 <th>Qty</th>
                 <th>Unit Price</th>
@@ -755,23 +888,45 @@ const InvoicePage = () => {
           </table>
           
           <div class="summary">
-            <p><strong>Subtotal:</strong> ₹${safeNumber(invoice.subtotal).toFixed(2)}</p>
-            ${invoice.discount > 0 ? `<p><strong>Discount:</strong> -₹${safeNumber(invoice.discount).toFixed(2)}</p>` : ''}
-            <p><strong>Taxable Amount:</strong> ₹${(safeNumber(invoice.subtotal) - safeNumber(invoice.discount)).toFixed(2)}</p>
-            ${invoice.cgst_total > 0 ? `<p><strong>CGST:</strong> ₹${safeNumber(invoice.cgst_total).toFixed(2)}</p>` : ''}
-            ${invoice.sgst_total > 0 ? `<p><strong>SGST:</strong> ₹${safeNumber(invoice.sgst_total).toFixed(2)}</p>` : ''}
-            ${invoice.igst_total > 0 ? `<p><strong>IGST:</strong> ₹${safeNumber(invoice.igst_total).toFixed(2)}</p>` : ''}
+            <div class="summary-item"><strong>Subtotal:</strong> ₹${safeNumber(invoice.subtotal).toFixed(2)}</div>
+            ${invoice.discount > 0 ? `<div class="summary-item"><strong>Discount:</strong> -₹${safeNumber(invoice.discount).toFixed(2)}</div>` : ''}
+            <div class="summary-item"><strong>Taxable Amount:</strong> ₹${(safeNumber(invoice.subtotal) - safeNumber(invoice.discount)).toFixed(2)}</div>
+            ${invoice.cgst_total > 0 ? `<div class="summary-item"><strong>CGST:</strong> ₹${safeNumber(invoice.cgst_total).toFixed(2)}</div>` : ''}
+            ${invoice.sgst_total > 0 ? `<div class="summary-item"><strong>SGST:</strong> ₹${safeNumber(invoice.sgst_total).toFixed(2)}</div>` : ''}
+            ${invoice.igst_total > 0 ? `<div class="summary-item"><strong>IGST:</strong> ₹${safeNumber(invoice.igst_total).toFixed(2)}</div>` : ''}
             <hr>
-            <p class="total"><strong>Total:</strong> ₹${safeNumber(invoice.total).toFixed(2)}</p>
-            <p><strong>Amount in Words:</strong> ${numberToWords(safeNumber(invoice.total))}</p>
+            <div class="total"><strong>Total:</strong> ₹${safeNumber(invoice.total).toFixed(2)}</div>
+            <div class="amount-words"><strong>Amount in Words:</strong> ${numberToWords(safeNumber(invoice.total))} Only</div>
           </div>
           
           ${invoice.notes ? `
             <div style="margin-top: 30px; padding: 15px; background: #f8fafc; border-radius: 8px;">
-              <h4 style="margin-top: 0;">Notes / Terms & Conditions:</h4>
+              <h4 style="margin-top: 0; color: #2563eb;">Terms & Conditions:</h4>
               <p>${invoice.notes}</p>
             </div>
-          ` : ''}
+          ` : `
+            <div style="margin-top: 30px; padding: 15px; background: #f8fafc; border-radius: 8px;">
+              <h4 style="margin-top: 0; color: #2563eb;">Terms & Conditions:</h4>
+              <ul style="margin:0; padding-left:20px;">
+                <li>Goods once sold will not be taken back</li>
+                <li>Payment due by due date</li>
+                <li>Interest @ 24% p.a. will be charged on delayed payments</li>
+                <li>Subject to Chennai jurisdiction</li>
+              </ul>
+            </div>
+          `}
+          
+          <div class="signature">
+            <div>
+              <p><strong>For HI PRINT SOLUTIONS</strong></p>
+              <div class="signature-line"></div>
+              <p>Authorized Signatory</p>
+            </div>
+            <div>
+              <p><strong>Customer Signature</strong></p>
+              <div class="signature-line"></div>
+            </div>
+          </div>
           
           <div class="footer">
             <p>This is a computer generated invoice. Valid without signature.</p>
@@ -816,7 +971,7 @@ const InvoicePage = () => {
 
   return (
     <div style={styles.container}>
-      {/* Header with Create Button and Dashboard Stats */}
+      {/* Header with Create Button */}
       <div style={styles.header}>
         <h2 style={styles.title}>Invoices</h2>
         <button 
@@ -829,7 +984,6 @@ const InvoicePage = () => {
           + Create New Invoice
         </button>
       </div>
-
 
       {/* Error/Success Messages */}
       {error && (
@@ -844,11 +998,87 @@ const InvoicePage = () => {
         </div>
       )}
 
+      {/* Search and Filter Bar */}
+      <div style={styles.filterBar}>
+        <div style={styles.searchBox}>
+          <input
+            type="text"
+            style={styles.searchInput}
+            placeholder="Search by invoice #, customer name, phone, email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button 
+              style={styles.clearSearch}
+              onClick={() => setSearchTerm('')}
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <input
+          type="date"
+          style={styles.filterInput}
+          value={dateRange.start}
+          onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+          placeholder="From Date"
+        />
+
+        <input
+          type="date"
+          style={styles.filterInput}
+          value={dateRange.end}
+          onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+          placeholder="To Date"
+        />
+
+        <select
+          style={styles.filterSelect}
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+        >
+          <option value="all">All Status</option>
+          <option value="paid">Paid</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partial">Partial</option>
+        </select>
+
+        <select
+          style={styles.filterSelect}
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+        >
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="highest">Highest Amount</option>
+          <option value="lowest">Lowest Amount</option>
+        </select>
+
+        <button 
+          style={styles.resetButton}
+          onClick={resetFilters}
+        >
+          Reset Filters
+        </button>
+      </div>
+
+      {/* Results count */}
+      {!invoicesLoading && (
+        <div style={styles.resultsCount}>
+          Showing {filteredInvoices.length} of {invoices.length} invoices
+          {filteredInvoices.length !== invoices.length && (
+            <span> (filtered)</span>
+          )}
+        </div>
+      )}
+
       {/* Invoices Table */}
       <div style={styles.tableContainer}>
         {invoicesLoading ? (
           <div style={styles.loadingState}>Loading invoices...</div>
-        ) : invoices.length === 0 ? (
+        ) : filteredInvoices.length === 0 ? (
           <div style={styles.emptyState}>
             <p>No invoices found. Click "Create New Invoice" to get started.</p>
           </div>
@@ -868,7 +1098,7 @@ const InvoicePage = () => {
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((invoice) => (
+                {filteredInvoices.map((invoice) => (
                   <tr key={invoice.id}>
                     <td style={styles.td}>{invoice.invoice_number || invoice.invoiceNumber}</td>
                     <td style={styles.td}>{formatDate(invoice.invoice_date || invoice.invoiceDate)}</td>
@@ -935,7 +1165,7 @@ const InvoicePage = () => {
       {/* View Invoice Modal */}
       {showViewModal && viewingInvoice && (
         <div style={styles.modalOverlay}>
-          <div style={{...styles.modal, maxWidth: '900px'}} ref={viewModalRef}>
+          <div style={{...styles.modal, maxWidth: '1000px'}} ref={viewModalRef}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>
                 Invoice Details - {viewingInvoice.invoice_number || viewingInvoice.invoiceNumber}
@@ -952,8 +1182,16 @@ const InvoicePage = () => {
             </div>
             
             <div style={styles.modalContent}>
+              {/* Company Header */}
+              <div style={styles.viewCompanyHeader}>
+                <h3 style={{color: '#3b82f6', margin: 0}}>{companyDetails.name}</h3>
+                <p style={{margin: '5px 0', color: '#94a3b8'}}>{companyDetails.address}</p>
+                <p style={{margin: 0, color: '#94a3b8'}}>Phone: {companyDetails.phone} | Email: {companyDetails.email}</p>
+              </div>
+
               {/* Status Update Section */}
               <div style={styles.statusUpdateSection}>
+                <h4 style={styles.viewSectionTitle}>Update Payment Status</h4>
                 <div style={styles.statusUpdateRow}>
                   <div style={styles.statusUpdateField}>
                     <label style={styles.label}>Payment Status</label>
@@ -984,88 +1222,102 @@ const InvoicePage = () => {
                 </div>
               </div>
 
-              <div style={styles.viewSection}>
-                <h4 style={styles.viewSectionTitle}>Customer Details</h4>
-                <div style={styles.viewGrid}>
-                  <div><strong>Name:</strong> {viewingInvoice.customer_name || viewingInvoice.customerName}</div>
-                  <div><strong>Phone:</strong> {viewingInvoice.customer_phone || viewingInvoice.customerPhone}</div>
-                  {(viewingInvoice.customer_email || viewingInvoice.customerEmail) && <div><strong>Email:</strong> {viewingInvoice.customer_email || viewingInvoice.customerEmail}</div>}
-                  {(viewingInvoice.customer_address || viewingInvoice.customerAddress) && <div><strong>Address:</strong> {viewingInvoice.customer_address || viewingInvoice.customerAddress}</div>}
-                  {(viewingInvoice.customer_gstin || viewingInvoice.customerGstin) && <div><strong>GSTIN:</strong> {viewingInvoice.customer_gstin || viewingInvoice.customerGstin}</div>}
+              <div style={styles.viewTwoColumn}>
+                <div style={styles.viewColumn}>
+                  <div style={styles.viewSection}>
+                    <h4 style={styles.viewSectionTitle}>Bill To:</h4>
+                    <div style={styles.viewCard}>
+                      <p><strong>{viewingInvoice.customer_name || viewingInvoice.customerName}</strong></p>
+                      <p>Phone: {viewingInvoice.customer_phone || viewingInvoice.customerPhone}</p>
+                      {(viewingInvoice.customer_email || viewingInvoice.customerEmail) && <p>Email: {viewingInvoice.customer_email || viewingInvoice.customerEmail}</p>}
+                      {(viewingInvoice.customer_address || viewingInvoice.customerAddress) && <p>Address: {viewingInvoice.customer_address || viewingInvoice.customerAddress}</p>}
+                      {(viewingInvoice.customer_gstin || viewingInvoice.customerGstin) && <p>GSTIN: {viewingInvoice.customer_gstin || viewingInvoice.customerGstin}</p>}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div style={styles.viewSection}>
-                <h4 style={styles.viewSectionTitle}>Invoice Details</h4>
-                <div style={styles.viewGrid}>
-                  <div><strong>Date:</strong> {formatDate(viewingInvoice.invoice_date || viewingInvoice.invoiceDate)}</div>
-                  <div><strong>Due Date:</strong> {formatDate(viewingInvoice.due_date || viewingInvoice.dueDate)}</div>
-                  <div><strong>Payment Method:</strong> {viewingInvoice.payment_method || viewingInvoice.paymentMethod || 'cash'}</div>
-                  <div><strong>Transaction Type:</strong> {safeNumber(viewingInvoice.igst_total || viewingInvoice.igstTotal) > 0 ? 'Inter-State' : 'Intra-State'}</div>
+                <div style={styles.viewColumn}>
+                  <div style={styles.viewSection}>
+                    <h4 style={styles.viewSectionTitle}>Invoice Details:</h4>
+                    <div style={styles.viewCard}>
+                      <p><strong>Invoice No:</strong> {viewingInvoice.invoice_number || viewingInvoice.invoiceNumber}</p>
+                      <p><strong>Date:</strong> {formatDate(viewingInvoice.invoice_date || viewingInvoice.invoiceDate)}</p>
+                      <p><strong>Due Date:</strong> {formatDate(viewingInvoice.due_date || viewingInvoice.dueDate)}</p>
+                      <p><strong>Payment Method:</strong> {(viewingInvoice.payment_method || viewingInvoice.paymentMethod || 'cash').toUpperCase()}</p>
+                      <p><strong>Transaction Type:</strong> {safeNumber(viewingInvoice.igst_total || viewingInvoice.igstTotal) > 0 ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div style={styles.viewSection}>
                 <h4 style={styles.viewSectionTitle}>Items</h4>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Product</th>
-                      <th style={styles.th}>HSN</th>
-                      <th style={styles.th}>Price</th>
-                      <th style={styles.th}>Qty</th>
-                      <th style={styles.th}>GST%</th>
-                      <th style={styles.th}>CGST</th>
-                      <th style={styles.th}>SGST</th>
-                      <th style={styles.th}>IGST</th>
-                      <th style={styles.th}>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {viewingInvoice.items?.map((item, index) => (
-                      <tr key={index}>
-                        <td style={styles.td}>
-                          <div>{item.product_name || item.productName}</div>
-                          {(item.product_model || item.productModel) && <small style={styles.modelText}>{item.product_model || item.productModel}</small>}
-                        </td>
-                        <td style={styles.td}>{item.hsn_code || item.hsnCode || '-'}</td>
-                        <td style={styles.td}>₹{safeNumber(item.price).toFixed(2)}</td>
-                        <td style={styles.td}>{item.quantity}</td>
-                        <td style={styles.td}>{safeNumber(item.gst_rate || item.gst)}%</td>
-                        <td style={styles.td}>₹{safeNumber(item.cgst).toFixed(2)}</td>
-                        <td style={styles.td}>₹{safeNumber(item.sgst).toFixed(2)}</td>
-                        <td style={styles.td}>₹{safeNumber(item.igst).toFixed(2)}</td>
-                        <td style={styles.td}>₹{safeNumber(item.total).toFixed(2)}</td>
+                <div style={styles.tableContainer}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Product</th>
+                        <th style={styles.th}>HSN</th>
+                        <th style={styles.th}>Price</th>
+                        <th style={styles.th}>Qty</th>
+                        <th style={styles.th}>GST%</th>
+                        <th style={styles.th}>CGST</th>
+                        <th style={styles.th}>SGST</th>
+                        <th style={styles.th}>IGST</th>
+                        <th style={styles.th}>Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {viewingInvoice.items?.map((item, index) => (
+                        <tr key={index}>
+                          <td style={styles.td}>
+                            <div>{item.product_name || item.productName}</div>
+                            {(item.product_model || item.productModel) && <small style={styles.modelText}>{item.product_model || item.productModel}</small>}
+                          </td>
+                          <td style={styles.td}>{item.hsn_code || item.hsnCode || '-'}</td>
+                          <td style={styles.td}>₹{safeNumber(item.price).toFixed(2)}</td>
+                          <td style={styles.td}>{item.quantity}</td>
+                          <td style={styles.td}>{safeNumber(item.gst_rate || item.gst)}%</td>
+                          <td style={styles.td}>₹{safeNumber(item.cgst).toFixed(2)}</td>
+                          <td style={styles.td}>₹{safeNumber(item.sgst).toFixed(2)}</td>
+                          <td style={styles.td}>₹{safeNumber(item.igst).toFixed(2)}</td>
+                          <td style={styles.td}>₹{safeNumber(item.total).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div style={styles.viewSummary}>
-                <div style={styles.viewRow}><strong>Subtotal:</strong> ₹{safeNumber(viewingInvoice.subtotal).toFixed(2)}</div>
+                <div style={styles.viewSummaryItem}><strong>Subtotal:</strong> ₹{safeNumber(viewingInvoice.subtotal).toFixed(2)}</div>
                 {safeNumber(viewingInvoice.discount) > 0 && (
-                  <div style={styles.viewRow}><strong>Discount:</strong> -₹{safeNumber(viewingInvoice.discount).toFixed(2)}</div>
+                  <div style={styles.viewSummaryItem}><strong>Discount:</strong> -₹{safeNumber(viewingInvoice.discount).toFixed(2)}</div>
                 )}
-                <div style={styles.viewRow}><strong>Taxable Amount:</strong> ₹{(safeNumber(viewingInvoice.subtotal) - safeNumber(viewingInvoice.discount)).toFixed(2)}</div>
+                <div style={styles.viewSummaryItem}><strong>Taxable Amount:</strong> ₹{(safeNumber(viewingInvoice.subtotal) - safeNumber(viewingInvoice.discount)).toFixed(2)}</div>
                 {safeNumber(viewingInvoice.cgst_total || viewingInvoice.cgstTotal) > 0 && (
-                  <div style={styles.viewRow}><strong>CGST:</strong> ₹{safeNumber(viewingInvoice.cgst_total || viewingInvoice.cgstTotal).toFixed(2)}</div>
+                  <div style={styles.viewSummaryItem}><strong>CGST:</strong> ₹{safeNumber(viewingInvoice.cgst_total || viewingInvoice.cgstTotal).toFixed(2)}</div>
                 )}
                 {safeNumber(viewingInvoice.sgst_total || viewingInvoice.sgstTotal) > 0 && (
-                  <div style={styles.viewRow}><strong>SGST:</strong> ₹{safeNumber(viewingInvoice.sgst_total || viewingInvoice.sgstTotal).toFixed(2)}</div>
+                  <div style={styles.viewSummaryItem}><strong>SGST:</strong> ₹{safeNumber(viewingInvoice.sgst_total || viewingInvoice.sgstTotal).toFixed(2)}</div>
                 )}
                 {safeNumber(viewingInvoice.igst_total || viewingInvoice.igstTotal) > 0 && (
-                  <div style={styles.viewRow}><strong>IGST:</strong> ₹{safeNumber(viewingInvoice.igst_total || viewingInvoice.igstTotal).toFixed(2)}</div>
+                  <div style={styles.viewSummaryItem}><strong>IGST:</strong> ₹{safeNumber(viewingInvoice.igst_total || viewingInvoice.igstTotal).toFixed(2)}</div>
                 )}
-                <div style={{...styles.viewRow, fontSize: '18px', color: '#22c55e', marginTop: '10px'}}>
+                <div style={{...styles.viewSummaryItem, ...styles.viewTotal}}>
                   <strong>Total:</strong> ₹{safeNumber(viewingInvoice.total).toFixed(2)}
+                </div>
+                <div style={styles.viewAmountWords}>
+                  <strong>Amount in Words:</strong> {numberToWords(safeNumber(viewingInvoice.total))} Only
                 </div>
               </div>
 
               {viewingInvoice.notes && (
                 <div style={styles.viewSection}>
-                  <h4 style={styles.viewSectionTitle}>Notes</h4>
-                  <p style={styles.notes}>{viewingInvoice.notes}</p>
+                  <h4 style={styles.viewSectionTitle}>Terms & Conditions</h4>
+                  <div style={styles.viewCard}>
+                    <p style={{margin: 0, whiteSpace: 'pre-wrap'}}>{viewingInvoice.notes}</p>
+                  </div>
                 </div>
               )}
 
@@ -1074,7 +1326,7 @@ const InvoicePage = () => {
                   style={styles.printButton}
                   onClick={() => handlePrintInvoice(viewingInvoice)}
                 >
-                  Print Invoice
+                  🖨️ Print Invoice
                 </button>
               </div>
             </div>
@@ -1452,6 +1704,10 @@ const InvoicePage = () => {
                         <span>Total:</span>
                         <span style={styles.totalAmount}>₹{total.toFixed(2)}</span>
                       </div>
+
+                      <div style={styles.amountWords}>
+                        <strong>Amount in Words:</strong> {numberToWords(total)} Only
+                      </div>
                     </div>
                   )}
 
@@ -1534,33 +1790,6 @@ const styles = {
     maxWidth: "400px",
     margin: "100px auto",
   },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: "16px",
-    marginBottom: "24px",
-  },
-  statCard: {
-    background: "#1e293b",
-    padding: "20px",
-    borderRadius: "12px",
-    border: "1px solid #334155",
-  },
-  statLabel: {
-    color: "#94a3b8",
-    fontSize: "14px",
-    marginBottom: "8px",
-  },
-  statValue: {
-    fontSize: "24px",
-    fontWeight: "600",
-    color: "#22c55e",
-  },
-  statSubValue: {
-    fontSize: "14px",
-    color: "#94a3b8",
-    marginTop: "4px",
-  },
   createButton: {
     background: "#3b82f6",
     color: "#fff",
@@ -1574,6 +1803,88 @@ const styles = {
     ":hover": {
       backgroundColor: "#2563eb",
     },
+  },
+  filterBar: {
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto",
+    gap: "12px",
+    marginBottom: "20px",
+    padding: "16px",
+    backgroundColor: "#1e293b",
+    borderRadius: "8px",
+    border: "1px solid #334155",
+  },
+  searchBox: {
+    position: "relative",
+  },
+  searchInput: {
+    width: "100%",
+    padding: "10px 12px",
+    paddingRight: "35px",
+    backgroundColor: "#0f172a",
+    border: "1px solid #334155",
+    color: "#fff",
+    borderRadius: "6px",
+    fontSize: "14px",
+    outline: "none",
+    transition: "border-color 0.2s",
+    boxSizing: "border-box",
+    ":focus": {
+      borderColor: "#3b82f6",
+    },
+  },
+  clearSearch: {
+    position: "absolute",
+    right: "8px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "none",
+    border: "none",
+    color: "#94a3b8",
+    fontSize: "20px",
+    cursor: "pointer",
+    padding: "0 4px",
+    ":hover": {
+      color: "#fff",
+    },
+  },
+  filterInput: {
+    padding: "10px",
+    backgroundColor: "#0f172a",
+    border: "1px solid #334155",
+    color: "#fff",
+    borderRadius: "6px",
+    fontSize: "14px",
+    outline: "none",
+  },
+  filterSelect: {
+    padding: "10px",
+    backgroundColor: "#0f172a",
+    border: "1px solid #334155",
+    color: "#fff",
+    borderRadius: "6px",
+    fontSize: "14px",
+    outline: "none",
+    cursor: "pointer",
+  },
+  resetButton: {
+    padding: "10px 16px",
+    backgroundColor: "#475569",
+    border: "none",
+    color: "#fff",
+    borderRadius: "6px",
+    fontSize: "14px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "background-color 0.2s",
+    ":hover": {
+      backgroundColor: "#64748b",
+    },
+  },
+  resultsCount: {
+    marginBottom: "12px",
+    color: "#94a3b8",
+    fontSize: "14px",
   },
   modalOverlay: {
     position: "fixed",
@@ -1684,7 +1995,6 @@ const styles = {
   alert: {
     padding: '12px',
     borderRadius: '5px',
-    marginBottom: '20px',
     fontWeight: 'bold',
   },
   alertError: {
@@ -1729,19 +2039,6 @@ const styles = {
     alignItems: "center",
     gap: "12px",
     marginBottom: "8px",
-  },
-  searchInput: {
-    padding: "12px 16px",
-    borderRadius: "6px",
-    border: "1px solid #334155",
-    backgroundColor: "#0f172a",
-    color: "#fff",
-    fontSize: "14px",
-    width: "100%",
-    outline: "none",
-    ":focus": {
-      borderColor: "#3b82f6",
-    },
   },
   loadingText: {
     color: "#94a3b8",
@@ -2069,9 +2366,9 @@ const styles = {
     background: "#64748b",
     color: "#fff",
     border: "none",
-    padding: "4px 8px",
+    padding: "8px 16px",
     borderRadius: "4px",
-    fontSize: "12px",
+    fontSize: "14px",
     cursor: "pointer",
     transition: "background-color 0.2s",
     ":hover": {
@@ -2116,6 +2413,23 @@ const styles = {
     color: "#fff",
     display: "inline-block",
   },
+  viewCompanyHeader: {
+    textAlign: "center",
+    marginBottom: "24px",
+    padding: "16px",
+    background: "#0f172a",
+    borderRadius: "8px",
+    border: "1px solid #334155",
+  },
+  viewTwoColumn: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "20px",
+    marginBottom: "24px",
+  },
+  viewColumn: {
+    width: "100%",
+  },
   viewSection: {
     marginBottom: "20px",
   },
@@ -2125,26 +2439,39 @@ const styles = {
     fontWeight: "600",
     marginBottom: "10px",
   },
-  viewGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
-    gap: "12px",
+  viewCard: {
     background: "#0f172a",
     padding: "16px",
     borderRadius: "8px",
-  },
-  viewRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "8px",
-    padding: "4px 0",
+    border: "1px solid #334155",
   },
   viewSummary: {
     background: "#0f172a",
-    padding: "16px",
+    padding: "20px",
     borderRadius: "8px",
     marginBottom: "20px",
+    border: "1px solid #334155",
+  },
+  viewSummaryItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "8px",
+    color: "#e2e8f0",
+  },
+  viewTotal: {
+    marginTop: "12px",
+    paddingTop: "12px",
+    borderTop: "2px solid #334155",
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#22c55e",
+  },
+  viewAmountWords: {
+    marginTop: "12px",
+    paddingTop: "8px",
+    color: "#94a3b8",
+    fontSize: "14px",
+    fontStyle: "italic",
   },
   viewActions: {
     display: "flex",
@@ -2157,6 +2484,7 @@ const styles = {
     padding: "16px",
     borderRadius: "8px",
     marginBottom: "20px",
+    border: "1px solid #334155",
   },
   statusUpdateRow: {
     display: "grid",
@@ -2176,6 +2504,12 @@ const styles = {
     color: "#fff",
     fontSize: "14px",
     outline: "none",
+  },
+  amountWords: {
+    marginTop: "8px",
+    color: "#94a3b8",
+    fontSize: "14px",
+    fontStyle: "italic",
   },
 };
 

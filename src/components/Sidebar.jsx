@@ -11,6 +11,11 @@ import {
   FaTags,
   FaExclamationTriangle,
   FaArrowUp,
+  FaClipboardList,
+  FaFileInvoiceDollar,
+  FaUsers,
+  FaBoxes,
+  FaShoppingCart,
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -18,7 +23,7 @@ const Sidebar = ({ isOpen }) => {
 
   const styles = {
     sidebar: {
-      width: isOpen ? "230px" : "60px",   // 👈 reduced collapsed width
+      width: isOpen ? "230px" : "60px",
       height: `calc(100vh - ${HEADER_HEIGHT})`,
       background: "linear-gradient(180deg, #111827, #0f172a)",
       color: "#fff",
@@ -96,17 +101,17 @@ const Sidebar = ({ isOpen }) => {
         </NavLink>
 
         <NavLink to="/product" style={getLinkStyle}>
-          <FaBoxOpen style={styles.icon} />
+          <FaBoxes style={styles.icon} />
           <span style={styles.text}>Products</span>
         </NavLink>
 
         <NavLink to="/bill" style={getLinkStyle}>
-          <FaFileInvoice style={styles.icon} />
+          <FaFileInvoiceDollar style={styles.icon} />
           <span style={styles.text}>Bill</span>
         </NavLink>
 
         <NavLink to="/billreport" style={getLinkStyle}>
-          <FaFileAlt style={styles.icon} />
+          <FaFileInvoice style={styles.icon} />
           <span style={styles.text}>Complete Bill</span>
         </NavLink>
 
@@ -116,7 +121,7 @@ const Sidebar = ({ isOpen }) => {
         </NavLink>
 
         <NavLink to="/supplierList" style={getLinkStyle}>
-          <FaList style={styles.icon} />
+          <FaUsers style={styles.icon} />
           <span style={styles.text}>Supplier Details</span>
         </NavLink>
 
@@ -140,15 +145,26 @@ const Sidebar = ({ isOpen }) => {
           <span style={styles.text}>Stock Out</span>
         </NavLink>
 
+        <NavLink to="/service" style={getLinkStyle}>
+          <FaShoppingCart style={styles.icon} />
+          <span style={styles.text}>ServiceBill</span>
+        </NavLink>
+
         <NavLink to="/quotation" style={getLinkStyle}>
-          <FaArrowUp style={styles.icon} />
+          <FaClipboardList style={styles.icon} />
           <span style={styles.text}>Quotation</span>
         </NavLink>
+
+        <NavLink to="/serviceBillView" style={getLinkStyle}>
+          <FaShoppingCart style={styles.icon} />
+          <span style={styles.text}>ServiceBillView</span>
+        </NavLink>
     
-        <NavLink to="/invoice" style={getLinkStyle}>
-          <FaArrowUp style={styles.icon} />
+        <NavLink to="/invoice/serviceBillView" style={getLinkStyle}>
+          <FaShoppingCart style={styles.icon} />
           <span style={styles.text}>Invoice</span>
         </NavLink>
+
       </div>
     </div>
   );
