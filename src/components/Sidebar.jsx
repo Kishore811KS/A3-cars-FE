@@ -218,6 +218,16 @@ const Sidebar = ({ isOpen }) => {
             <FaUsers style={styles.icon} />
             <span style={styles.text}>Supplier List</span>
           </NavLink>
+
+          <NavLink to="/employee" style={getLinkStyle}>
+            <FaUsers style={styles.icon} />
+            <span style={styles.text}>Employee</span>
+          </NavLink>
+
+          <NavLink to="/usertype" style={getLinkStyle}>
+            <FaUsers style={styles.icon} />
+            <span style={styles.text}>User Type</span>
+          </NavLink>
         </div>
 
         {/* Optional: Add version or footer */}

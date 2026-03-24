@@ -23,6 +23,8 @@ import Quotation from "./components/Quotation";
 import Invoice from "./components/Invoice";
 import Service from "./components/ServiceBill";
 import ServiceBillView from "./components/ServiceBillView";
+import UserType from "./components/UserType";
+import Employee from "./components/Employee";
 
 function Layout() {
   const location = useLocation();
@@ -71,8 +73,9 @@ function Layout() {
           <Route path="/quotation" element={<Quotation />} />
           <Route path="/invoice" element={<Invoice />} />
           <Route path="/service" element={<Service/>}/>
+          <Route path="/usertype" element={<UserType />}/>
           <Route path="/serviceBillView" element={<ServiceBillView/>}/>
-
+          <Route path="/employee" element={<Employee />}/>
           
 
         </Routes>
