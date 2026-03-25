@@ -61,7 +61,7 @@ const Bill = () => {
 
   // Shop details
   const shopDetails = {
-    name: 'HI PRINT SOLUTIONS',
+    name: 'A3Cars',
     address: 'No.71, M.T.H.road (Opp padi post office), ',
     city: 'Padi, Chennai - 600 050',
   };

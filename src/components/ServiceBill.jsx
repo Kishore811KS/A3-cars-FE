@@ -73,9 +73,9 @@ const ServiceBill = () => {
     'Other'
   ];
 
-  // Shop details - HI PRINT SOLUTIONS
+  
   const shopDetails = {
-    name: 'HI PRINT SOLUTIONS',
+    name: 'A3Cars',
     phone: '+91 72993 00400',
     address: 'No.71, M.T.H.road (Opp padi post office), Padi',
     city: 'Chennai - 600 050',
@@ -1869,7 +1869,7 @@ const ServiceBill = () => {
     <div style={baseStyles.container}>
       {/* Left Panel - Manual Service Entry */}
       <div style={baseStyles.productPanel} className="no-print">
-        <h2 style={baseStyles.productPanelTitle}>🔧 Create Service Bill - HI PRINT SOLUTIONS</h2>
+        <h2 style={baseStyles.productPanelTitle}>🔧 Create Service Bill - A3Cars PRINT</h2>
         
         {error && (
           <div style={{...baseStyles.alert, ...baseStyles.alertError}}>

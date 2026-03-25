@@ -90,7 +90,7 @@ const VisitBillPage = () => {
 
   // Shop details - UPDATED ADDRESS
   const shopDetails = {
-    name: "Hi Print Solutions",
+    name: "A3Cars",
     address: "No.71, M.T.H.road (Opp padi post office), Padi",
     city: "Chennai - 600 050",
     phone: "98657 09626"

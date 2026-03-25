@@ -16,6 +16,9 @@ import {
   FaUsers,
   FaBoxes,
   FaShoppingCart,
+  FaUserCheck, // for Attendance
+  FaUserCog,   // for User Settings
+  FaCog,       // alternative for settings
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -227,6 +230,18 @@ const Sidebar = ({ isOpen }) => {
           <NavLink to="/usertype" style={getLinkStyle}>
             <FaUsers style={styles.icon} />
             <span style={styles.text}>User Type</span>
+          </NavLink>
+
+          {/* Attendance Section */}
+          <div style={styles.sectionTitle}>HR Management</div>
+          <NavLink to="/attendance" style={getLinkStyle}>
+            <FaUserCheck style={styles.icon} />
+            <span style={styles.text}>Attendance</span>
+          </NavLink>
+          
+          <NavLink to="/usersettings" style={getLinkStyle}>
+            <FaUserCog style={styles.icon} />
+            <span style={styles.text}>User Settings</span>
           </NavLink>
         </div>
 

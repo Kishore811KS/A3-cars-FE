@@ -25,6 +25,8 @@ import Service from "./components/ServiceBill";
 import ServiceBillView from "./components/ServiceBillView";
 import UserType from "./components/UserType";
 import Employee from "./components/Employee";
+import Attendance from "./components/Attendance";
+import UserSettings from "./components/UserSetting";
 
 function Layout() {
   const location = useLocation();
@@ -76,7 +78,8 @@ function Layout() {
           <Route path="/usertype" element={<UserType />}/>
           <Route path="/serviceBillView" element={<ServiceBillView/>}/>
           <Route path="/employee" element={<Employee />}/>
-          
+          <Route path="/attendance" element={<Attendance />} />
+          <Route path="/userSettings" element={<UserSettings />} />
 
         </Routes>
       </div>

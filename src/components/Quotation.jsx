@@ -42,7 +42,7 @@ const QuotationPage = () => {
 
   // Company details
   const companyDetails = {
-    name: "HI PRINT SOLUTIONS",
+    name: "A3Cars",
     address: "No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050",
     phone: "98657 09626",
     email: "hiprintsolutions@gmail.com",
@@ -799,7 +799,7 @@ const QuotationPage = () => {
         </head>
         <body>
           <div class="header">
-            <div class="company-name">HI PRINT SOLUTIONS</div>
+            <div class="company-name">A3Cars</div>
             <div class="company-details">No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050</div>
             <div class="company-details">Phone: 98657 09626 | Email: hiprintsolutions@gmail.com | GST: 33ABCDE1234F1Z5</div>
           </div>       
@@ -869,7 +869,7 @@ const QuotationPage = () => {
           
           <div class="signature">
             <div>
-              <p><strong>For HI PRINT SOLUTIONS</strong></p>
+              <p><strong>For A3Cars</strong></p>
               <div class="signature-line"></div>
               <p>Authorized Signatory</p>
             </div>
