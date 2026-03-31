@@ -4,6 +4,7 @@ const EmployeeManager = () => {
   // State for employee list
   const [employees, setEmployees] = useState([]);
   const [userTypes, setUserTypes] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -25,6 +26,8 @@ const EmployeeManager = () => {
     designation: '',
     date_of_joining: '',
     user_type: '',
+    current_company: '',
+    company_id: '',
     aadhar_card_number: '',
     pan_card_number: '',
     address: '',
@@ -43,10 +46,11 @@ const EmployeeManager = () => {
 
   const API_BASE_URL = 'http://localhost:5000/api';
 
-  // Fetch all employees and user types on component mount
+  // Fetch all employees, user types, and companies on component mount
   useEffect(() => {
     fetchEmployees();
     fetchUserTypes();
+    fetchCompanies();
   }, []);
 
   // Fetch employees from API
@@ -68,32 +72,88 @@ const EmployeeManager = () => {
     }
   };
 
-  // Fetch user types from API
+  // Fetch user types from the User Type Manager API
   const fetchUserTypes = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/employees/user-types`);
+      const response = await fetch(`${API_BASE_URL}/user-types`);
       if (!response.ok) {
         throw new Error('Failed to fetch user types');
       }
       const data = await response.json();
-      setUserTypes(data.user_types || []);
+      // Extract user type names from the response
+      const userTypeNames = data.map(item => item.name);
+      setUserTypes(userTypeNames);
       
       // Set default user type if available
-      if (data.user_types && data.user_types.length > 0 && !formData.user_type) {
-        setFormData(prev => ({ ...prev, user_type: data.user_types[0] }));
+      if (userTypeNames.length > 0 && !formData.user_type) {
+        setFormData(prev => ({ ...prev, user_type: userTypeNames[0] }));
       }
     } catch (err) {
       console.error('Error fetching user types:', err);
+      // Fallback to default user types if API fails
+      setUserTypes(['admin', 'employee', 'manager']);
+      if (!formData.user_type) {
+        setFormData(prev => ({ ...prev, user_type: 'employee' }));
+      }
+    }
+  };
+
+  // Fetch companies from API
+  const fetchCompanies = async () => {
+    try {
+      console.log('Fetching companies from:', `${API_BASE_URL}/companies/list`);
+      const response = await fetch(`${API_BASE_URL}/companies/list`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Companies API error:', errorText);
+        throw new Error(`Failed to fetch companies: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Companies loaded:', data);
+      setCompanies(data);
+    } catch (err) {
+      console.error('Error fetching companies:', err);
+      setCompanies([]);
     }
   };
 
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
+    
+    // If company_id changes, update current_company name
+    if (name === 'company_id') {
+      const selectedCompany = companies.find(c => c.id.toString() === value);
+      if (selectedCompany) {
+        setFormData(prev => ({
+          ...prev,
+          company_id: value,
+          current_company: selectedCompany.name
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          company_id: value,
+          current_company: ''
+        }));
+      }
+    }
+  };
+
+  // Handle manual company name input (for custom company not in list)
+  const handleCompanyNameChange = (e) => {
+    const { value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      current_company: value,
+      company_id: '' // Clear company_id when manually entering
+    }));
   };
 
   // Handle file changes
@@ -117,6 +177,8 @@ const EmployeeManager = () => {
       designation: '',
       date_of_joining: '',
       user_type: userTypes.length > 0 ? userTypes[0] : 'employee',
+      current_company: '',
+      company_id: '',
       aadhar_card_number: '',
       pan_card_number: '',
       address: '',
@@ -153,7 +215,7 @@ const EmployeeManager = () => {
       
       // Append all text fields
       Object.keys(formData).forEach(key => {
-        if (formData[key] && key !== 'employee_id') { // Don't send employee_id for new employees
+        if (formData[key] && key !== 'employee_id') {
           formDataToSend.append(key, formData[key]);
         }
       });
@@ -172,7 +234,6 @@ const EmployeeManager = () => {
       if (editingId) {
         url = `${API_BASE_URL}/employees/${editingId}`;
         method = 'PUT';
-        // For edit, also include employee_id if needed
         if (formData.employee_id) {
           formDataToSend.append('employee_id', formData.employee_id);
         }
@@ -225,7 +286,9 @@ const EmployeeManager = () => {
       department: employee.department || '',
       designation: employee.designation || '',
       date_of_joining: employee.date_of_joining || '',
-      user_type: employee.user_type || 'employee',
+      user_type: employee.user_type || (userTypes.length > 0 ? userTypes[0] : 'employee'),
+      current_company: employee.current_company || '',
+      company_id: employee.company_id || '',
       aadhar_card_number: employee.aadhar_card_number || '',
       pan_card_number: employee.pan_card_number || '',
       address: employee.address || '',
@@ -288,7 +351,6 @@ const EmployeeManager = () => {
         throw new Error('File not found');
       }
       
-      // Create a blob from the response
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -360,6 +422,7 @@ const EmployeeManager = () => {
                     <th style={styles.tableHeader}>Name</th>
                     <th style={styles.tableHeader}>Email</th>
                     <th style={styles.tableHeader}>Department</th>
+                    <th style={styles.tableHeader}>Company</th>
                     <th style={styles.tableHeader}>User Type</th>
                     <th style={styles.tableHeader}>Phone</th>
                     <th style={styles.tableHeader}>DOJ</th>
@@ -379,6 +442,11 @@ const EmployeeManager = () => {
                       </td>
                       <td style={styles.tableCell}>{employee.email}</td>
                       <td style={styles.tableCell}>{employee.department || '-'}</td>
+                      <td style={styles.tableCell}>
+                        <span style={styles.companyBadge}>
+                          {employee.current_company || '-'}
+                        </span>
+                      </td>
                       <td style={styles.tableCell}>
                         <span style={styles.userTypeBadge}>
                           {employee.user_type || 'N/A'}
@@ -566,8 +634,8 @@ const EmployeeManager = () => {
                         required
                       >
                         <option value="">Select User Type</option>
-                        {userTypes.map(type => (
-                          <option key={type} value={type}>
+                        {userTypes.map((type, index) => (
+                          <option key={index} value={type}>
                             {type.charAt(0).toUpperCase() + type.slice(1)}
                           </option>
                         ))}
@@ -595,6 +663,32 @@ const EmployeeManager = () => {
                         onChange={handleInputChange}
                         style={styles.input}
                         placeholder="Software Engineer, Manager, etc."
+                      />
+                    </div>
+                    
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Current Company</label>
+                      <select
+                        name="company_id"
+                        value={formData.company_id}
+                        onChange={handleInputChange}
+                        style={styles.input}
+                      >
+                        <option value="">Select a company</option>
+                        {companies.map((company) => (
+                          <option key={company.id} value={company.id}>
+                            {company.name}
+                          </option>
+                        ))}
+                      </select>
+                      <small style={styles.helperText}>Or enter manually:</small>
+                      <input
+                        type="text"
+                        name="current_company"
+                        value={formData.current_company}
+                        onChange={handleCompanyNameChange}
+                        style={{...styles.input, marginTop: '8px'}}
+                        placeholder="Enter company name manually"
                       />
                     </div>
                     
@@ -769,6 +863,10 @@ const EmployeeManager = () => {
                     <span style={styles.detailValue}>{selectedEmployee.designation || '-'}</span>
                   </div>
                   <div style={styles.detailItem}>
+                    <label style={styles.detailLabel}>Current Company:</label>
+                    <span style={styles.detailValue}>{selectedEmployee.current_company || '-'}</span>
+                  </div>
+                  <div style={styles.detailItem}>
                     <label style={styles.detailLabel}>Address:</label>
                     <span style={styles.detailValue}>{selectedEmployee.address || '-'}</span>
                   </div>
@@ -853,7 +951,7 @@ const EmployeeManager = () => {
   );
 };
 
-// Dark theme styles with white text
+// Dark theme styles
 const styles = {
   container: {
     minHeight: '100vh',
@@ -991,6 +1089,15 @@ const styles = {
     fontWeight: '500',
     color: '#ffffff'
   },
+  companyBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    backgroundColor: '#51cf66',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: '500',
+    color: '#ffffff'
+  },
   actionButtons: {
     display: 'flex',
     gap: '8px',
@@ -1027,7 +1134,6 @@ const styles = {
     cursor: 'pointer',
     margin: '2px'
   },
-  // Modal styles
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -1185,6 +1291,12 @@ const styles = {
     fontSize: '11px',
     cursor: 'pointer'
   },
+  helperText: {
+    fontSize: '11px',
+    color: '#a0a5c0',
+    marginTop: '4px',
+    display: 'block'
+  },
   detailSection: {
     marginBottom: '24px',
     padding: '16px',
@@ -1286,7 +1398,7 @@ const styles = {
   }
 };
 
-// Add animation keyframes and hover effects
+// Add animation keyframes
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   @keyframes fadeIn {

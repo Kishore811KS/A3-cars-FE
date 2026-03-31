@@ -239,11 +239,14 @@ const Sidebar = ({ isOpen }) => {
             <span style={styles.text}>User Type</span>
           </NavLink>
 
-          {/* Attendance Section */}
-          <div style={styles.sectionTitle}>HR Management</div>
           <NavLink to="/attendance" style={getLinkStyle}>
             <FaUserCheck style={styles.icon} />
             <span style={styles.text}>Attendance</span>
+          </NavLink>
+
+          <NavLink to="/company" style={getLinkStyle}>
+            <FaUserCheck style={styles.icon} />
+            <span style={styles.text}>Company</span>
           </NavLink>
 
           <NavLink to="/usersettings" style={getLinkStyle}>
