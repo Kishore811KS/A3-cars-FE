@@ -16,9 +16,10 @@ import {
   FaUsers,
   FaBoxes,
   FaShoppingCart,
-  FaUserCheck, // for Attendance
-  FaUserCog,   // for User Settings
-  FaCog,       // alternative for settings
+  FaUserCheck,
+  FaUserCog,
+  FaCog,
+  FaPercent, // for Discount
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -210,6 +211,12 @@ const Sidebar = ({ isOpen }) => {
             <span style={styles.text}>Invoices</span>
           </NavLink>
 
+          {/* Discount — added under Billing */}
+          <NavLink to="/discount" style={getLinkStyle}>
+            <FaPercent style={styles.icon} />
+            <span style={styles.text}>Discount</span>
+          </NavLink>
+
           {/* Supplier Section */}
           <div style={styles.sectionTitle}>Suppliers</div>
           <NavLink to="/supplier" style={getLinkStyle}>
@@ -238,7 +245,7 @@ const Sidebar = ({ isOpen }) => {
             <FaUserCheck style={styles.icon} />
             <span style={styles.text}>Attendance</span>
           </NavLink>
-          
+
           <NavLink to="/usersettings" style={getLinkStyle}>
             <FaUserCog style={styles.icon} />
             <span style={styles.text}>User Settings</span>
