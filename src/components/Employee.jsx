@@ -1,3 +1,4 @@
+// EmployeeManager.js - Updated component with password field
 import React, { useState, useEffect } from 'react';
 
 const EmployeeManager = () => {
@@ -16,11 +17,16 @@ const EmployeeManager = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  
   // Form state
   const [formData, setFormData] = useState({
     employee_id: '',
     full_name: '',
     email: '',
+    password: '',
     phone_number: '',
     department: '',
     designation: '',
@@ -80,17 +86,14 @@ const EmployeeManager = () => {
         throw new Error('Failed to fetch user types');
       }
       const data = await response.json();
-      // Extract user type names from the response
       const userTypeNames = data.map(item => item.name);
       setUserTypes(userTypeNames);
       
-      // Set default user type if available
       if (userTypeNames.length > 0 && !formData.user_type) {
         setFormData(prev => ({ ...prev, user_type: userTypeNames[0] }));
       }
     } catch (err) {
       console.error('Error fetching user types:', err);
-      // Fallback to default user types if API fails
       setUserTypes(['admin', 'employee', 'manager']);
       if (!formData.user_type) {
         setFormData(prev => ({ ...prev, user_type: 'employee' }));
@@ -127,7 +130,6 @@ const EmployeeManager = () => {
       [name]: value
     }));
     
-    // If company_id changes, update current_company name
     if (name === 'company_id') {
       const selectedCompany = companies.find(c => c.id.toString() === value);
       if (selectedCompany) {
@@ -146,13 +148,13 @@ const EmployeeManager = () => {
     }
   };
 
-  // Handle manual company name input (for custom company not in list)
+  // Handle manual company name input
   const handleCompanyNameChange = (e) => {
     const { value } = e.target;
     setFormData(prev => ({
       ...prev,
       current_company: value,
-      company_id: '' // Clear company_id when manually entering
+      company_id: ''
     }));
   };
 
@@ -172,6 +174,7 @@ const EmployeeManager = () => {
       employee_id: '',
       full_name: '',
       email: '',
+      password: '',
       phone_number: '',
       department: '',
       designation: '',
@@ -190,6 +193,8 @@ const EmployeeManager = () => {
     setPanFile(null);
     setEditingId(null);
     setExistingFiles({ aadhar_attachment: null, pan_attachment: null });
+    setShowPassword(false);
+    setShowEditPassword(false);
   };
 
   // Open form modal for add
@@ -207,20 +212,24 @@ const EmployeeManager = () => {
       alert('Please fill in all required fields (Full Name, Email, and User Type)');
       return;
     }
+    
+    // Only require password for new employees
+    if (!editingId && !formData.password) {
+      alert('Please enter a password for the new employee');
+      return;
+    }
 
     setLoading(true);
     
     try {
       const formDataToSend = new FormData();
       
-      // Append all text fields
       Object.keys(formData).forEach(key => {
         if (formData[key] && key !== 'employee_id') {
           formDataToSend.append(key, formData[key]);
         }
       });
       
-      // Append files if present
       if (aadharFile) {
         formDataToSend.append('aadhar_attachment', aadharFile);
       }
@@ -282,6 +291,7 @@ const EmployeeManager = () => {
       employee_id: employee.employee_id,
       full_name: employee.full_name,
       email: employee.email,
+      password: '', // Don't show existing password
       phone_number: employee.phone_number || '',
       department: employee.department || '',
       designation: employee.designation || '',
@@ -341,7 +351,7 @@ const EmployeeManager = () => {
     }
   };
 
-  // Download attachment with error handling
+  // Download attachment
   const downloadAttachment = async (filename, type) => {
     if (!filename) return;
     
@@ -406,7 +416,6 @@ const EmployeeManager = () => {
           </div>
         )}
         
-        {/* Employee List Table */}
         <div style={styles.tableContainer}>
           <h2 style={styles.subtitle}>Employee List</h2>
           {loading && employees.length === 0 ? (
@@ -428,7 +437,7 @@ const EmployeeManager = () => {
                     <th style={styles.tableHeader}>DOJ</th>
                     <th style={styles.tableHeader}>Documents</th>
                     <th style={styles.tableHeader}>Actions</th>
-                   </tr>
+                  </tr>
                 </thead>
                 <tbody>
                   {employees.map((employee) => (
@@ -558,6 +567,30 @@ const EmployeeManager = () => {
                         required
                         placeholder="john.doe@company.com"
                       />
+                    </div>
+                    
+                    {/* Password Field with Eye Icon */}
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>
+                        {editingId ? 'Password (Leave blank to keep current)' : 'Password *'}
+                      </label>
+                      <div style={styles.passwordContainer}>
+                        <input
+                          type={editingId ? (showEditPassword ? 'text' : 'password') : (showPassword ? 'text' : 'password')}
+                          name="password"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          style={styles.passwordInput}
+                          placeholder={editingId ? "Enter new password" : "Enter password"}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => editingId ? setShowEditPassword(!showEditPassword) : setShowPassword(!showPassword)}
+                          style={styles.eyeButton}
+                        >
+                          {editingId ? (showEditPassword ? '👁️' : '👁️‍🗨️') : (showPassword ? '👁️' : '👁️‍🗨️')}
+                        </button>
+                      </div>
                     </div>
                     
                     <div style={styles.formGroup}>
@@ -1251,6 +1284,31 @@ const styles = {
     boxSizing: 'border-box',
     color: '#ffffff'
   },
+  passwordContainer: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+  },
+  passwordInput: {
+    flex: 1,
+    padding: '10px 12px',
+    fontSize: '14px',
+    backgroundColor: '#0a0e27',
+    border: '1px solid #2a2f4a',
+    borderRadius: '6px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    color: '#ffffff'
+  },
+  eyeButton: {
+    padding: '10px',
+    backgroundColor: '#2a2f4a',
+    border: '1px solid #3a3f5a',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '18px',
+    transition: 'all 0.2s'
+  },
   textarea: {
     width: '100%',
     padding: '10px 12px',
@@ -1439,6 +1497,10 @@ styleSheet.textContent = `
   
   .modal-close:hover {
     color: #ff6b6b;
+  }
+  
+  .eye-button:hover {
+    background-color: #3a3f5a;
   }
 `;
 document.head.appendChild(styleSheet);

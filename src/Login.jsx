@@ -25,7 +25,47 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/login", {
+      // First try employee login
+      console.log("Attempting employee login...");
+      const employeeResponse = await fetch("http://127.0.0.1:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Important: Include cookies for session
+        body: JSON.stringify({
+          email: email,
+          password: password,
+        }),
+      });
+
+      const employeeData = await employeeResponse.json();
+
+      if (employeeResponse.ok && employeeData.user) {
+        // Employee login successful
+        console.log("Employee login successful:", employeeData);
+        
+        // Store user details in localStorage
+        localStorage.setItem("user", JSON.stringify(employeeData.user));
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("loginType", "employee");
+        
+        // Also store session info
+        if (employeeData.user.user_type) {
+          localStorage.setItem("userType", employeeData.user.user_type);
+        }
+        if (employeeData.user.current_company) {
+          localStorage.setItem("company", employeeData.user.current_company);
+        }
+        
+        setLoading(false);
+        navigate("/dashboard");
+        return;
+      }
+
+      // If employee login fails, try the old login endpoint
+      console.log("Employee login failed, trying old login endpoint...");
+      const oldResponse = await fetch("http://127.0.0.1:5000/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -36,23 +76,44 @@ const Login = () => {
         }),
       });
 
-      const data = await response.json();
+      const oldData = await oldResponse.json();
 
-      if (!response.ok) {
-        setError(data.error || "Login failed");
+      if (!oldResponse.ok) {
+        setError(oldData.error || "Invalid email or password");
         setLoading(false);
         return;
       }
 
-      localStorage.setItem("user", JSON.stringify(data.user));
-
+      // Old login successful
+      console.log("Old login successful:", oldData);
+      
+      // Store user details in localStorage with proper structure
+      const userData = oldData.user || oldData;
+      const userToStore = {
+        id: userData.id || userData.user_id,
+        employee_id: userData.employee_id || userData.emp_id || null,
+        full_name: userData.full_name || userData.name || userData.username,
+        email: userData.email,
+        user_type: userData.user_type || userData.role || "user",
+        department: userData.department || null,
+        designation: userData.designation || null,
+        current_company: userData.current_company || userData.company || null,
+        phone_number: userData.phone_number || userData.phone || null,
+        blood_group: userData.blood_group || null
+      };
+      
+      localStorage.setItem("user", JSON.stringify(userToStore));
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("loginType", "old");
+      
+      setLoading(false);
       navigate("/dashboard");
+      
     } catch (err) {
       console.error("Login error:", err);
-      setError("Server error. Please try again.");
+      setError("Server error. Please check your connection and try again.");
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleForgotPassword = () => {
