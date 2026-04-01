@@ -1,10 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 
-const DEFAULT_RANGES = [
-  { id: 1, min: 0, max: 1000, discount: 5, isInfinite: false },
-  { id: 2, min: 1001, max: 5000, discount: 10, isInfinite: false },
-  { id: 3, min: 5001, max: null, discount: 15, isInfinite: true },
-];
+// API base URL - adjust to your backend
+const API_BASE_URL = "http://localhost:5000/api/discounts";
 
 const fmt = (n) => {
   if (n === null) return "∞";
@@ -14,36 +11,185 @@ const fmt = (n) => {
   });
 };
 
+// ─── EditField component ───
+const EditField = ({ fieldKey, placeholder, width = 100, rowId, editVals, onEditChange, onKeyDown }) => {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (inputRef.current && fieldKey === "min") {
+      inputRef.current.focus();
+    }
+  }, [fieldKey]);
+
+  return (
+    <div className="dp-field">
+      {(fieldKey === "min" || fieldKey === "max") && (
+        <span className="dp-sym">₹</span>
+      )}
+      <input
+        ref={inputRef}
+        className="dp-inp"
+        style={{ width }}
+        type="number"
+        min="0"
+        max={fieldKey === "discount" ? 100 : undefined}
+        step={fieldKey === "discount" ? "1" : "0.01"}
+        placeholder={placeholder}
+        value={editVals[fieldKey] === null || editVals[fieldKey] === undefined ? "" : editVals[fieldKey]}
+        onChange={(e) => onEditChange(fieldKey, e.target.value)}
+        onKeyDown={(e) => onKeyDown(e, rowId)}
+        disabled={fieldKey === "max" && editVals.isInfinite}
+      />
+      {fieldKey === "discount" && (
+        <span className="dp-sym dp-sym-r">%</span>
+      )}
+      {fieldKey === "max" && (
+        <button
+          type="button"
+          className="dp-infinity-toggle"
+          onClick={(e) => {
+            e.preventDefault();
+            onEditChange("__toggleInfinite__", null);
+          }}
+          title={editVals.isInfinite ? "Set finite max" : "Set infinite max (∞)"}
+        >
+          {editVals.isInfinite ? "∞" : "↗"}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ─── API Service Functions ───
+const api = {
+  async fetchRanges() {
+    const response = await fetch(`${API_BASE_URL}/`);
+    if (!response.ok) throw new Error('Failed to fetch ranges');
+    const data = await response.json();
+    return data;
+  },
+
+  async createRange(rangeData) {
+    const response = await fetch(`${API_BASE_URL}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rangeData)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create range');
+    }
+    const data = await response.json();
+    return data.range;
+  },
+
+  async updateRange(id, rangeData) {
+    const response = await fetch(`${API_BASE_URL}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rangeData)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update range');
+    }
+    const data = await response.json();
+    return data.range;
+  },
+
+  async deleteRange(id) {
+    const response = await fetch(`${API_BASE_URL}/${id}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete range');
+    }
+    const data = await response.json();
+    return data;
+  },
+
+  async calculateDiscount(amount) {
+    const response = await fetch(`${API_BASE_URL}/calculate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: parseFloat(amount) })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to calculate discount');
+    }
+    return await response.json();
+  },
+
+  async validateRange(rangeData) {
+    const response = await fetch(`${API_BASE_URL}/validate-range`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rangeData)
+    });
+    return await response.json();
+  }
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 const DiscountPage = () => {
-  const [ranges, setRanges] = useState(DEFAULT_RANGES);
+  const [ranges, setRanges] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState(null);
   const [editVals, setEditVals] = useState({});
   const [calcAmt, setCalcAmt] = useState("");
+  const [calcResult, setCalcResult] = useState(null);
+  const [calcLoading, setCalcLoading] = useState(false);
   const [toast, setToast] = useState(null);
-  
-  const inputRefs = useRef({});
+
+  // Load ranges on component mount
+  useEffect(() => {
+    loadRanges();
+  }, []);
+
+  const loadRanges = async () => {
+    try {
+      setLoading(true);
+      const data = await api.fetchRanges();
+      setRanges(data);
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 2400);
   };
 
-  const findRange = (amount) => {
-    const a = parseFloat(amount);
-    if (isNaN(a) || a < 0) return null;
-    return ranges.find((r) => {
-      if (r.isInfinite) {
-        return a >= r.min;
+  // Calculate discount when amount changes
+  useEffect(() => {
+    const calculate = async () => {
+      if (calcAmt && !isNaN(parseFloat(calcAmt)) && parseFloat(calcAmt) >= 0) {
+        setCalcLoading(true);
+        try {
+          const result = await api.calculateDiscount(calcAmt);
+          setCalcResult(result);
+        } catch (error) {
+          setCalcResult(null);
+        } finally {
+          setCalcLoading(false);
+        }
+      } else {
+        setCalcResult(null);
       }
-      return a >= r.min && a <= r.max;
-    }) || null;
-  };
+    };
+    calculate();
+  }, [calcAmt]);
 
-  const matched = findRange(calcAmt);
+  const matched = calcResult?.matched_range;
   const calcAmtN = parseFloat(calcAmt) || 0;
-  const discPct = matched ? matched.discount : 0;
-  const discAmt = (calcAmtN * discPct) / 100;
-  const finalAmt = calcAmtN - discAmt;
+  const discPct = calcResult?.discount_percent || 0;
+  const discAmt = calcResult?.discount_amount || 0;
+  const finalAmt = calcResult?.final_amount || calcAmtN;
 
   const startEdit = (row) => {
     setEditId(row.id);
@@ -55,184 +201,173 @@ const DiscountPage = () => {
     });
   };
 
-  const validateRanges = (newRange, isInfinite) => {
-    const sortedRanges = [...ranges].sort((a, b) => a.min - b.min);
-    
-    for (let i = 0; i < sortedRanges.length; i++) {
-      const current = sortedRanges[i];
-      if (current.id === newRange.id) continue;
-      
-      if (isInfinite) {
-        if (newRange.min <= current.max && current.max !== null) {
-          return false;
-        }
-        if (current.isInfinite) {
-          return false;
-        }
-      } else if (current.isInfinite) {
-        if (newRange.max >= current.min) {
-          return false;
-        }
-      } else {
-        if (!(newRange.max < current.min || newRange.min > current.max)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  };
-
-  const saveEdit = (id) => {
+  const saveEdit = async (id) => {
     const mn = parseFloat(editVals.min);
-    let mx = editVals.max === "" || editVals.max === undefined ? null : parseFloat(editVals.max);
+    const isInfinite = editVals.isInfinite;
+    const mx = isInfinite
+      ? null
+      : (editVals.max === "" || editVals.max === undefined ? null : parseFloat(editVals.max));
     const d = parseFloat(editVals.discount);
-    const isInfinite = mx === null;
 
+    // Validation
     if (isNaN(mn) || mn < 0) {
       notify("Enter a valid min amount.", "error");
       return;
     }
-
-    if (!isInfinite && (isNaN(mx) || mx <= mn)) {
-      notify("Max must be greater than min.", "error");
+    if (!isInfinite && (mx === null || isNaN(mx) || mx <= mn)) {
+      notify("Max must be a number greater than min.", "error");
       return;
     }
-
     if (isNaN(d) || d < 0 || d > 100) {
       notify("Discount must be 0–100.", "error");
       return;
     }
 
-    if (isInfinite && ranges.some(r => r.id !== id && r.isInfinite)) {
-      notify("Only one infinite range is allowed.", "error");
-      return;
+    try {
+      setLoading(true);
+      
+      // First validate with backend
+      const validation = await api.validateRange({
+        min: mn,
+        max: mx,
+        discount: d,
+        isInfinite: isInfinite
+      });
+      
+      if (!validation.valid) {
+        notify(validation.error || "Invalid range", "error");
+        return;
+      }
+      
+      // If validation passes, update the range
+      const updatedRange = await api.updateRange(id, {
+        min: mn,
+        max: mx,
+        discount: d,
+        isInfinite: isInfinite
+      });
+      
+      // Update local state
+      setRanges(prev => 
+        prev.map(r => r.id === id ? updatedRange : r)
+          .sort((a, b) => a.min - b.min)
+      );
+      
+      setEditId(null);
+      notify("Range saved successfully!");
+    } catch (error) {
+      console.error('Save error:', error);
+      notify(error.message || "Failed to save range", "error");
+    } finally {
+      setLoading(false);
     }
-
-    const newRange = { id, min: mn, max: mx, isInfinite };
-    
-    if (!validateRanges(newRange, isInfinite)) {
-      notify("Ranges cannot overlap!", "error");
-      return;
-    }
-
-    setRanges((p) =>
-      p.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              min: mn,
-              max: mx,
-              discount: d,
-              isInfinite: isInfinite,
-            }
-          : r
-      )
-    );
-    
-    setRanges((p) => [...p].sort((a, b) => a.min - b.min));
-    setEditId(null);
-    notify("Range saved!");
   };
 
-  const deleteRow = (id) => {
-    const rowToDelete = ranges.find(r => r.id === id);
-    if (rowToDelete.isInfinite) {
-      notify("Cannot delete the infinity range. You can edit it instead.", "error");
+  const deleteRow = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this range?")) {
       return;
     }
-    setRanges((p) => p.filter((r) => r.id !== id));
-    notify("Range deleted.", "warn");
+    
+    try {
+      setLoading(true);
+      await api.deleteRange(id);
+      setRanges(prev => prev.filter(r => r.id !== id));
+      if (editId === id) setEditId(null);
+      notify("Range deleted successfully.", "warn");
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const addRow = () => {
-    const nonInfiniteRanges = ranges.filter(r => !r.isInfinite);
-    const lastNonInfinite = nonInfiniteRanges[nonInfiniteRanges.length - 1];
-    const newMin = lastNonInfinite ? lastNonInfinite.max + 1 : 0;
+  const addRow = async () => {
+    // Calculate new min amount
+    const sortedRanges = [...ranges].sort((a, b) => a.min - b.min);
+    let newMin = 0;
     
-    const infinityIndex = ranges.findIndex(r => r.isInfinite);
-    const newRow = {
-      id: Date.now(),
+    for (let i = 0; i < sortedRanges.length; i++) {
+      if (sortedRanges[i].isInfinite) continue;
+      if (newMin < sortedRanges[i].min) {
+        break;
+      }
+      newMin = sortedRanges[i].max + 1;
+    }
+    
+    const newRowData = {
       min: newMin,
-      max: newMin + 4999,
+      max: newMin + 999,
       discount: 0,
       isInfinite: false,
     };
-    
-    if (infinityIndex !== -1) {
-      const newRanges = [...ranges];
-      newRanges.splice(infinityIndex, 0, newRow);
-      setRanges(newRanges);
-    } else {
-      setRanges((p) => [...p, newRow]);
+
+    try {
+      setLoading(true);
+      const newRow = await api.createRange(newRowData);
+      setRanges(prev => [...prev, newRow].sort((a, b) => a.min - b.min));
+      startEdit(newRow);
+      notify("New range added! Edit the values and click Save.");
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetToDefaults = async () => {
+    if (!window.confirm("This will delete all current ranges and reset to default values. Are you sure?")) {
+      return;
     }
     
-    setTimeout(() => startEdit(newRow), 0);
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/reset-default`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Failed to reset');
+      const data = await response.json();
+      setRanges(data.ranges);
+      setEditId(null);
+      notify("Reset to default ranges successfully!");
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditChange = (fieldKey, value) => {
-    setEditVals((v) => ({ ...v, [fieldKey]: value }));
-  };
-
-  const handleKeyDown = (e, fieldKey, id) => {
-    if (e.key === "Enter") {
-      saveEdit(id);
-    } else if (e.key === "Escape") {
-      setEditId(null);
-    } else if (e.key === "Tab") {
-      // Allow normal tab behavior
-      return;
+    if (fieldKey === "__toggleInfinite__") {
+      setEditVals((v) => ({
+        ...v,
+        isInfinite: !v.isInfinite,
+        max: !v.isInfinite ? null : (v.max ?? ""),
+      }));
+    } else {
+      setEditVals((v) => ({ ...v, [fieldKey]: value }));
     }
   };
 
-  const EditField = ({ fieldKey, placeholder, width = 100, id, rowId }) => {
-    const inputRef = useRef(null);
-    
-    useEffect(() => {
-      if (inputRef.current && fieldKey === "min") {
-        inputRef.current.focus();
-      }
-    }, [fieldKey]);
+  const handleKeyDown = (e, rowId) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEdit(rowId);
+    }
+    if (e.key === "Escape") {
+      setEditId(null);
+    }
+  };
 
+  if (loading && ranges.length === 0) {
     return (
-      <div className="dp-field">
-        {(fieldKey === "min" || fieldKey === "max") && (
-          <span className="dp-sym">₹</span>
-        )}
-        <input
-          ref={inputRef}
-          className="dp-inp"
-          style={{ width }}
-          type="number"
-          min="0"
-          max={fieldKey === "discount" ? 100 : undefined}
-          step={fieldKey === "discount" ? "1" : "0.01"}
-          placeholder={placeholder}
-          value={editVals[fieldKey] === null ? "" : editVals[fieldKey]}
-          onChange={(e) => handleEditChange(fieldKey, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, fieldKey, rowId)}
-          disabled={fieldKey === "max" && editVals.isInfinite}
-        />
-        {fieldKey === "discount" && <span className="dp-sym dp-sym-r">%</span>}
-        {fieldKey === "max" && (
-          <button
-            type="button"
-            className="dp-infinity-toggle"
-            onClick={(e) => {
-              e.preventDefault();
-              setEditVals((v) => ({
-                ...v,
-                max: v.isInfinite ? (v.max || "") : null,
-                isInfinite: !v.isInfinite,
-              }));
-            }}
-            title={editVals.isInfinite ? "Set finite max" : "Set infinite max"}
-          >
-            {editVals.isInfinite ? "∞" : "↗"}
-          </button>
-        )}
+      <div className="dp-root">
+        <div className="dp-card" style={{ padding: "50px", textAlign: "center" }}>
+          Loading discount ranges...
+        </div>
       </div>
     );
-  };
+  }
 
   return (
     <div className="dp-root">
@@ -254,20 +389,24 @@ const DiscountPage = () => {
           <p className="dp-eyebrow">Pricing Rules</p>
           <h1 className="dp-title">Discount Ranges</h1>
         </div>
-        <button className="dp-btn-add" onClick={addRow}>
-          + Add Range
-        </button>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button className="dp-btn-add" onClick={resetToDefaults} disabled={loading} style={{ background: "#6b8aaa" }}>
+            Reset to Defaults
+          </button>
+          <button className="dp-btn-add" onClick={addRow} disabled={loading}>
+            + Add Range
+          </button>
+        </div>
       </div>
 
       <div className="dp-layout">
+        {/* ── Range Table ── */}
         <div className="dp-left">
           <div className="dp-card">
             {ranges.length === 0 ? (
               <div className="dp-empty">
                 <div className="dp-empty-icon">🏷️</div>
-                <p>
-                  No ranges yet. Click <strong>+ Add Range</strong> to begin.
-                </p>
+                <p>No ranges yet. Click <strong>+ Add Range</strong> to begin.</p>
               </div>
             ) : (
               <table className="dp-table">
@@ -284,38 +423,42 @@ const DiscountPage = () => {
                     const ed = editId === row.id;
                     const isActive = matched && matched.id === row.id;
                     return (
-                      <tr
-                        key={row.id}
-                        className={`${ed ? "dp-tr-ed" : ""} ${
-                          isActive ? "dp-tr-active" : ""
-                        }`}
-                      >
+                      <tr key={row.id} className={`${ed ? "dp-tr-ed" : ""} ${isActive ? "dp-tr-active" : ""}`}>
+                        {/* Min */}
                         <td>
                           {ed ? (
-                            <EditField 
-                              fieldKey="min" 
-                              placeholder="0" 
-                              width={110} 
+                            <EditField
+                              fieldKey="min"
+                              placeholder="0"
+                              width={110}
                               rowId={row.id}
+                              editVals={editVals}
+                              onEditChange={handleEditChange}
+                              onKeyDown={handleKeyDown}
                             />
                           ) : (
                             <span className="dp-val">{fmt(row.min)}</span>
                           )}
                         </td>
+
+                        {/* Max */}
                         <td>
                           {ed ? (
                             <EditField
                               fieldKey="max"
-                              placeholder={row.isInfinite ? "∞" : "1000"}
+                              placeholder={editVals.isInfinite ? "∞" : "1000"}
                               width={110}
                               rowId={row.id}
+                              editVals={editVals}
+                              onEditChange={handleEditChange}
+                              onKeyDown={handleKeyDown}
                             />
                           ) : (
-                            <span className="dp-val">
-                              {row.isInfinite ? "∞" : fmt(row.max)}
-                            </span>
+                            <span className="dp-val">{row.isInfinite ? "∞" : fmt(row.max)}</span>
                           )}
                         </td>
+
+                        {/* Discount */}
                         <td>
                           {ed ? (
                             <EditField
@@ -323,55 +466,39 @@ const DiscountPage = () => {
                               placeholder="0"
                               width={72}
                               rowId={row.id}
+                              editVals={editVals}
+                              onEditChange={handleEditChange}
+                              onKeyDown={handleKeyDown}
                             />
                           ) : (
                             <div className="dp-disc-cell">
-                              <span
-                                className={`dp-pct-badge ${
-                                  row.discount > 0 ? "dp-pct-on" : ""
-                                }`}
-                              >
+                              <span className={`dp-pct-badge ${row.discount > 0 ? "dp-pct-on" : ""}`}>
                                 {row.discount}%
                               </span>
                               <div className="dp-bar-track">
-                                <div
-                                  className="dp-bar-fill"
-                                  style={{
-                                    width: `${Math.min(row.discount, 100)}%`,
-                                  }}
-                                />
+                                <div className="dp-bar-fill" style={{ width: `${Math.min(row.discount, 100)}%` }} />
                               </div>
                             </div>
                           )}
                         </td>
+
+                        {/* Actions */}
                         <td>
                           {ed ? (
                             <div className="dp-acts">
-                              <button
-                                className="dp-btn dp-btn-save"
-                                onClick={() => saveEdit(row.id)}
-                              >
+                              <button className="dp-btn dp-btn-save" onClick={() => saveEdit(row.id)} disabled={loading}>
                                 ✓ Save
                               </button>
-                              <button
-                                className="dp-btn dp-btn-cancel"
-                                onClick={() => setEditId(null)}
-                              >
+                              <button className="dp-btn dp-btn-cancel" onClick={() => setEditId(null)}>
                                 Cancel
                               </button>
                             </div>
                           ) : (
                             <div className="dp-acts">
-                              <button
-                                className="dp-btn dp-btn-edit"
-                                onClick={() => startEdit(row)}
-                              >
+                              <button className="dp-btn dp-btn-edit" onClick={() => startEdit(row)}>
                                 ✎ Edit
                               </button>
-                              <button
-                                className="dp-btn dp-btn-del"
-                                onClick={() => deleteRow(row.id)}
-                              >
+                              <button className="dp-btn dp-btn-del" onClick={() => deleteRow(row.id)} disabled={loading}>
                                 ✕
                               </button>
                             </div>
@@ -385,12 +512,13 @@ const DiscountPage = () => {
             )}
           </div>
           <p className="dp-hint">
-            💡 Enter any amount in the calculator → it auto-detects the matching
-            range. The last range can be set to infinity (∞) for amounts above a
-            threshold.
+            💡 Enter any amount in the calculator → it auto-detects the matching range.
+            Toggle <strong>↗</strong> on the Max field to set a range to infinity (∞).
+            Ranges cannot overlap - the system will prevent overlapping ranges.
           </p>
         </div>
 
+        {/* ── Live Calculator ── */}
         <div className="dp-right">
           <div className="dp-calc-card">
             <p className="dp-calc-title">Live Calculator</p>
@@ -409,41 +537,42 @@ const DiscountPage = () => {
               />
             </div>
 
-            {calcAmtN > 0 ? (
+            {calcLoading ? (
+              <div className="dp-calc-placeholder">Calculating...</div>
+            ) : calcAmtN > 0 && calcResult ? (
               <div className="dp-calc-result">
-                {matched ? (
+                {calcResult.matched_range ? (
                   <>
                     <div className="dp-match-badge">
-                      Range matched: {fmt(matched.min)} –{" "}
-                      {matched.isInfinite ? "∞" : fmt(matched.max)}
+                      Range: {fmt(calcResult.matched_range.min)} –{" "}
+                      {calcResult.matched_range.isInfinite ? "∞" : fmt(calcResult.matched_range.max)}
                     </div>
                     <div className="dp-calc-row">
                       <span>Original</span>
                       <span className="dp-cr-val">{fmt(calcAmtN)}</span>
                     </div>
                     <div className="dp-calc-row">
-                      <span>Discount ({discPct}%)</span>
-                      <span className="dp-cr-disc">− {fmt(discAmt)}</span>
+                      <span>Discount ({calcResult.discount_percent}%)</span>
+                      <span className="dp-cr-disc">− {fmt(calcResult.discount_amount)}</span>
                     </div>
                     <div className="dp-calc-divider" />
                     <div className="dp-calc-row dp-calc-final-row">
                       <span>Final Payable</span>
-                      <span className="dp-cr-final">{fmt(finalAmt)}</span>
+                      <span className="dp-cr-final">{fmt(calcResult.final_amount)}</span>
                     </div>
                     <div className="dp-savings-pill">
-                      🎉 You save {fmt(discAmt)} ({discPct}% off)
+                      🎉 You save {fmt(calcResult.discount_amount)} ({calcResult.discount_percent}% off)
                     </div>
                   </>
                 ) : (
                   <div className="dp-no-match">
                     <span>⚠</span>
-                    <p>
-                      ₹{calcAmtN.toLocaleString("en-IN")} doesn't fall in any
-                      defined range.
-                    </p>
+                    <p>₹{calcAmtN.toLocaleString("en-IN")} doesn't fall in any defined range.</p>
                   </div>
                 )}
               </div>
+            ) : calcAmtN > 0 && !calcResult ? (
+              <div className="dp-calc-placeholder">No matching range found.</div>
             ) : (
               <div className="dp-calc-placeholder">
                 Type an amount above to instantly see which discount applies.
@@ -456,6 +585,7 @@ const DiscountPage = () => {
   );
 };
 
+// CSS Styles
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap');
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -519,6 +649,7 @@ const CSS = `
   transition:background 0.15s, transform 0.1s;
 }
 .dp-btn-add:hover { background:var(--acc2); transform:translateY(-1px); }
+.dp-btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .dp-layout {
   display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start;
@@ -545,7 +676,7 @@ const CSS = `
 }
 .dp-table tbody tr:last-child td { border-bottom:none; }
 .dp-table tbody tr:hover td { background:#101e30; }
-.dp-tr-ed td  { background:#0f2038 !important; }
+.dp-tr-ed td     { background:#0f2038 !important; }
 .dp-tr-active td { background:#061e35 !important; }
 .dp-tr-active td:first-child { border-left:3px solid var(--accent); }
 
@@ -579,41 +710,35 @@ const CSS = `
   color:#f0f8ff; font-size:13px; font-weight:600;
   font-family:'DM Sans',sans-serif; height:34px; padding:0 9px; min-width:0;
 }
+.dp-inp:disabled { color:var(--muted); cursor:not-allowed; }
+
 .dp-infinity-toggle {
-  background:rgba(56,189,248,0.1);
-  border:none;
-  color:var(--accent);
-  width:32px;
-  height:34px;
-  cursor:pointer;
-  font-size:16px;
-  font-weight:700;
-  transition:all 0.15s;
+  background:rgba(56,189,248,0.1); border:none;
+  color:var(--accent); width:32px; height:34px;
+  cursor:pointer; font-size:15px; font-weight:700;
+  transition:all 0.15s; flex-shrink:0;
 }
-.dp-infinity-toggle:hover {
-  background:rgba(56,189,248,0.2);
-  transform:scale(1.05);
-}
+.dp-infinity-toggle:hover { background:rgba(56,189,248,0.25); }
 
 .dp-acts { display:flex; gap:7px; align-items:center; }
 .dp-btn {
   padding:5px 12px; border-radius:6px;
   font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700;
   cursor:pointer; transition:all 0.15s; white-space:nowrap;
-  border: none;
 }
+.dp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .dp-btn-edit   { background:var(--border); border:1px solid var(--bord2); color:var(--text2); }
-.dp-btn-edit:hover { background:var(--bord2); color:var(--text); }
+.dp-btn-edit:hover:not(:disabled) { background:var(--bord2); color:var(--text); }
 .dp-btn-del    { background:transparent; border:1px solid #7f1d1d55; color:var(--red); padding:5px 9px; }
-.dp-btn-del:hover { background:#1a0505; border-color:var(--red); }
+.dp-btn-del:hover:not(:disabled) { background:#1a0505; border-color:var(--red); }
 .dp-btn-save   { background:var(--accent); border:none; color:#050d18; }
-.dp-btn-save:hover { background:var(--acc2); }
+.dp-btn-save:hover:not(:disabled) { background:var(--acc2); }
 .dp-btn-cancel { background:var(--border); border:1px solid var(--bord2); color:var(--text2); }
-.dp-btn-cancel:hover { background:var(--bord2); }
+.dp-btn-cancel:hover:not(:disabled) { background:var(--bord2); }
 
-.dp-hint { margin-top:12px; font-size:12px; color:var(--muted); }
+.dp-hint { margin-top:12px; font-size:12px; color:var(--muted); line-height:1.6; }
+.dp-hint strong { color:var(--text2); }
 
-/* Calculator */
 .dp-calc-card {
   background:var(--surf); border:1px solid var(--border);
   border-radius:12px; padding:22px 20px;
@@ -684,7 +809,7 @@ const CSS = `
 
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; }
-input[type=number] { -moz-appearance: textfield; }
+input[type=number] { -moz-appearance:textfield; }
 
 @media (max-width:680px) {
   .dp-layout { grid-template-columns:1fr; }

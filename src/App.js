@@ -30,9 +30,9 @@ import UserSettings from "./components/UserSetting";
 import DiscountPage from "./components/DiscountPage"; // Import the discount page
 import CurrentCompany from "./components/CurrentCompany";
 import EnquiryPage from "./components/Enquiry";
+import SettingsHub from "./components/SettingsHub";
 import CustomerPage from "./components/Customer";
 import EmployeeBill from "./components/EmployeeBill";
-
 
 function Layout() {
   const location = useLocation();
@@ -81,14 +81,11 @@ function Layout() {
           <Route path="/quotation" element={<Quotation />} />
           <Route path="/invoice" element={<Invoice />} />
           <Route path="/service" element={<Service/>}/>
-          <Route path="/usertype" element={<UserType />}/>
-          <Route path="/serviceBillView" element={<ServiceBillView/>}/>
-          <Route path="/employee" element={<Employee />}/>
           <Route path="/attendance" element={<Attendance />} />
+          <Route path="/settings" element={<SettingsHub />} />
           <Route path="/userSettings" element={<UserSettings />} />
           <Route path="/discount" element={<DiscountPage />} />
           <Route path="/Company" element={<CurrentCompany />} />
-          <Route path="/discount" element={<DiscountPage />} /> 
           <Route path="/enquiry" element={<EnquiryPage />} />
           <Route path="/customer" element={<CustomerPage />} />
           <Route path="/employeebill" element={<EmployeeBill />} />
