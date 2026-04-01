@@ -20,6 +20,7 @@ import {
   FaUserCog,
   FaCog,
   FaPercent, // for Discount
+  FaClipboardCheck, // for Enquiry
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -244,6 +245,13 @@ const Sidebar = ({ isOpen }) => {
           <NavLink to="/attendance" style={getLinkStyle}>
             <FaUserCheck style={styles.icon} />
             <span style={styles.text}>Attendance</span>
+          </NavLink>
+
+          {/* CRM Section */}
+          <div style={styles.sectionTitle}>CRM</div>
+          <NavLink to="/enquiry" style={getLinkStyle}>
+            <FaClipboardCheck style={styles.icon} />
+            <span style={styles.text}>Enquiries</span>
           </NavLink>
 
           <NavLink to="/usersettings" style={getLinkStyle}>

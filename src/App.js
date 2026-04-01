@@ -28,6 +28,7 @@ import Employee from "./components/Employee";
 import Attendance from "./components/Attendance";
 import UserSettings from "./components/UserSetting";
 import DiscountPage from "./components/DiscountPage"; // Import the discount page
+import EnquiryPage from "./components/Enquiry";
 
 function Layout() {
   const location = useLocation();
@@ -82,6 +83,7 @@ function Layout() {
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/userSettings" element={<UserSettings />} />
           <Route path="/discount" element={<DiscountPage />} /> 
+          <Route path="/enquiry" element={<EnquiryPage />} />
         </Routes>
       </div>
     </>
