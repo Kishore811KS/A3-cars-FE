@@ -41,7 +41,10 @@ import {
   Wallet,
   Banknote,
   Landmark,
-  MessageCircle
+  MessageCircle,
+  Building2,
+  Store,
+  Globe
 } from 'lucide-react';
 
 // Crown icon component for VIP customers
@@ -72,6 +75,23 @@ const VisitBillPage = () => {
   const [copiedBillNo, setCopiedBillNo] = useState(null);
   const [whatsappStatus, setWhatsappStatus] = useState({});
   
+  // Company/Shop Details from Backend
+  const [companyDetails, setCompanyDetails] = useState({
+    name: "A3Cars",
+    address: "No.71, M.T.H.road (Opp padi post office)",
+    city: "Padi, Chennai - 600 050",
+    phone: "98657 09626",
+    email: "",
+    gst: "",
+    logo: null,
+    logoUrl: null
+  });
+  
+  const [selectedCompanyId, setSelectedCompanyId] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [showCompanySelector, setShowCompanySelector] = useState(false);
+  const [loadingCompany, setLoadingCompany] = useState(false);
+  
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -88,13 +108,14 @@ const VisitBillPage = () => {
 
   const API_BASE_URL = 'http://localhost:5000/api';
 
-  // Shop details - UPDATED ADDRESS
-  const shopDetails = {
-    name: "A3Cars",
-    address: "No.71, M.T.H.road (Opp padi post office), Padi",
-    city: "Chennai - 600 050",
-    phone: "98657 09626"
-  };
+  // Create axios instance with credentials
+  const api = axios.create({
+    baseURL: API_BASE_URL,
+    withCredentials: true,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
 
   // Payment method icons and colors
   const paymentMethodMap = {
@@ -115,10 +136,17 @@ const VisitBillPage = () => {
     corporate: { icon: <Briefcase size={14} />, color: '#2563eb', label: 'Corporate' }
   };
 
+  // Fetch companies on mount
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
   // Load bills on component mount
   useEffect(() => {
-    fetchBills();
-  }, []);
+    if (selectedCompanyId) {
+      fetchBills();
+    }
+  }, [selectedCompanyId]);
 
   // Apply filters whenever filter criteria change
   useEffect(() => {
@@ -137,6 +165,83 @@ const VisitBillPage = () => {
 
   const showMessage = (type, text) => {
     setMessage({ type, text });
+  };
+
+  // Fetch companies from backend
+  const fetchCompanies = async () => {
+    setLoadingCompany(true);
+    try {
+      const response = await api.get('/companies/list');
+      console.log('Companies response:', response.data);
+      
+      if (response.data && response.data.length > 0) {
+        setCompanies(response.data);
+        // Auto-select first company
+        const firstCompany = response.data[0];
+        setSelectedCompanyId(firstCompany.id);
+        await fetchCompanyDetails(firstCompany.id);
+      } else {
+        // Use default company details
+        setCompanyDetails({
+          name: "A3Cars",
+          address: "No.71, M.T.H.road (Opp padi post office)",
+          city: "Padi, Chennai - 600 050",
+          phone: "98657 09626",
+          email: "",
+          gst: "",
+          logo: null,
+          logoUrl: null
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching companies:', err);
+      showMessage("error", "❌ Failed to fetch company details");
+      // Use default company details
+      setCompanyDetails({
+        name: "A3Cars",
+        address: "No.71, M.T.H.road (Opp padi post office)",
+        city: "Padi, Chennai - 600 050",
+        phone: "98657 09626",
+        email: "",
+        gst: "",
+        logo: null,
+        logoUrl: null
+      });
+    } finally {
+      setLoadingCompany(false);
+    }
+  };
+
+  // Fetch company details by ID
+  const fetchCompanyDetails = async (companyId) => {
+    try {
+      const response = await api.get(`/companies/${companyId}`);
+      console.log('Company details:', response.data);
+      
+      const company = response.data;
+      setCompanyDetails({
+        name: company.name || "A3Cars",
+        address: company.address || "No.71, M.T.H.road (Opp padi post office)",
+        city: company.city || "Padi, Chennai - 600 050",
+        phone: company.phone || "98657 09626",
+        email: company.email || "",
+        gst: company.gst_number || company.gst || "",
+        logo: company.logo || null,
+        logoUrl: company.logo_url || null
+      });
+    } catch (err) {
+      console.error('Error fetching company details:', err);
+      // Keep existing company details if fetch fails
+    }
+  };
+
+  // Handle company selection
+  const handleCompanySelect = async (company) => {
+    setSelectedCompanyId(company.id);
+    setShowCompanySelector(false);
+    await fetchCompanyDetails(company.id);
+    showMessage("success", `✅ Switched to ${company.name}`);
+    fetchBills(); // Refresh bills for the selected company
   };
 
   const fetchBills = async () => {
@@ -158,7 +263,7 @@ const VisitBillPage = () => {
       for (const endpoint of endpoints) {
         try {
           console.log('Trying endpoint:', endpoint);
-          response = await axios.get(endpoint);
+          response = await api.get(endpoint);
           if (response.data) {
             success = true;
             console.log('Success with endpoint:', endpoint);
@@ -317,7 +422,7 @@ const VisitBillPage = () => {
       for (const endpoint of endpoints) {
         try {
           console.log('Trying details endpoint:', endpoint);
-          response = await axios.get(endpoint);
+          response = await api.get(endpoint);
           if (response.data) {
             success = true;
             console.log('Success with details endpoint:', endpoint);
@@ -426,7 +531,7 @@ const VisitBillPage = () => {
     }
   };
 
-  // WhatsApp share function
+  // WhatsApp share function with company details
   const handleWhatsAppShare = (bill) => {
     if (!bill.customerPhone) {
       showMessage("error", "❌ No phone number available for this customer");
@@ -452,14 +557,16 @@ const VisitBillPage = () => {
     // Format phone number for WhatsApp (add country code if not present)
     const whatsappNumber = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-    // Create message - UPDATED ADDRESS
+    // Create message with company details
     const dueAmount = (bill.total || 0) - (bill.paidAmount || 0);
     const items = bill.items || [];
     
-    let message = `*${shopDetails.name}*\n`;
-    message += `${shopDetails.address}\n`;
-    message += `${shopDetails.city}\n`;
-    message += `Ph: ${shopDetails.phone}\n`;
+    let message = `*${companyDetails.name}*\n`;
+    message += `${companyDetails.address}\n`;
+    message += `${companyDetails.city}\n`;
+    if (companyDetails.phone) message += `Ph: ${companyDetails.phone}\n`;
+    if (companyDetails.email) message += `Email: ${companyDetails.email}\n`;
+    if (companyDetails.gst) message += `GST: ${companyDetails.gst}\n`;
     message += `═══════════════════════\n`;
     message += `*BILL DETAILS*\n`;
     message += `═══════════════════════\n`;
@@ -671,11 +778,18 @@ const VisitBillPage = () => {
       doc.setTextColor(99, 102, 241);
       doc.text('Bills Report', 14, 22);
       
-      doc.setFontSize(10);
+      // Add company details to PDF header
+      doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+      doc.text(`${companyDetails.name}`, 14, 30);
+      doc.text(`${companyDetails.address}, ${companyDetails.city}`, 14, 35);
+      if (companyDetails.phone) doc.text(`Ph: ${companyDetails.phone}`, 14, 40);
+      if (companyDetails.gst) doc.text(`GST: ${companyDetails.gst}`, 14, 45);
       
-      let filterY = 37;
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 52);
+      
+      let filterY = 59;
       if (searchTerm) {
         doc.text(`Search: "${searchTerm}"`, 14, filterY);
         filterY += 5;
@@ -811,6 +925,11 @@ const VisitBillPage = () => {
               font-size: 12px; 
               color: #333; 
             }
+            .logo {
+              max-width: 80px;
+              max-height: 80px;
+              margin-bottom: 10px;
+            }
             .info { 
               border-top: 1px dashed #000; 
               border-bottom: 1px dashed #000; 
@@ -903,10 +1022,12 @@ const VisitBillPage = () => {
         </head>
         <body>
           <div class="header">
-            <h1>${shopDetails.name}</h1>
-            <p>${shopDetails.address}</p>
-            <p>${shopDetails.city}</p>
-            <p>Phone: ${shopDetails.phone}</p>
+            ${companyDetails.logoUrl ? `<img src="${companyDetails.logoUrl}" class="logo" alt="Logo" />` : ''}
+            <h1>${companyDetails.name}</h1>
+            <p>${companyDetails.address}</p>
+            <p>${companyDetails.city}</p>
+            ${companyDetails.phone ? `<p>Phone: ${companyDetails.phone}</p>` : ''}
+            ${companyDetails.gst ? `<p>GST: ${companyDetails.gst}</p>` : ''}
           </div>
           
           <div class="info">
@@ -986,6 +1107,7 @@ const VisitBillPage = () => {
             <p>Thank you for your purchase!</p>
             <p>Goods once sold will not be taken back</p>
             <p>** Computer generated bill **</p>
+            ${processedBill.createdBy ? `<p>Created by: ${processedBill.createdBy}</p>` : ''}
           </div>
           
           <script>
@@ -1071,17 +1193,30 @@ const VisitBillPage = () => {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
+      flexWrap: "wrap",
+      gap: "15px",
     },
     shopInfo: {
       display: "flex",
       flexDirection: "column",
       gap: "4px",
+      flex: 1,
+    },
+    shopLogo: {
+      width: "60px",
+      height: "60px",
+      borderRadius: "8px",
+      objectFit: "cover",
+      marginRight: "15px",
     },
     shopName: {
       fontSize: "24px",
       fontWeight: "600",
       color: "#6366f1",
       margin: 0,
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
     },
     shopAddress: {
       fontSize: "14px",
@@ -1098,6 +1233,33 @@ const VisitBillPage = () => {
       display: "flex",
       alignItems: "center",
       gap: "4px",
+    },
+    companySelector: {
+      backgroundColor: "#111827",
+      padding: "8px 16px",
+      borderRadius: "6px",
+      cursor: "pointer",
+      border: "1px solid #374151",
+      transition: "all 0.2s",
+    },
+    companyDropdown: {
+      position: "absolute",
+      top: "100%",
+      right: 0,
+      backgroundColor: "#1f2937",
+      border: "1px solid #374151",
+      borderRadius: "6px",
+      marginTop: "5px",
+      zIndex: 100,
+      minWidth: "200px",
+      maxHeight: "300px",
+      overflowY: "auto",
+    },
+    companyOption: {
+      padding: "10px 15px",
+      cursor: "pointer",
+      transition: "background 0.2s",
+      color: "#e5e7eb",
     },
     header: {
       display: "flex",
@@ -1507,35 +1669,93 @@ const VisitBillPage = () => {
 
   return (
     <div style={styles.container}>
-      {/* Shop Header */}
+      {/* Shop Header with Company Details */}
       <div style={styles.shopHeader}>
-        <div style={styles.shopInfo}>
-          <h1 style={styles.shopName}>{shopDetails.name}</h1>
-          <p style={styles.shopAddress}>
-            <MapPin size={14} color="#9ca3af" />
-            {shopDetails.address}, {shopDetails.city}
-          </p>
-          <p style={styles.shopContact}>
-            <Phone size={14} color="#9ca3af" />
-            {shopDetails.phone}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+          {companyDetails.logoUrl && (
+            <img 
+              src={companyDetails.logoUrl} 
+              alt="Company Logo" 
+              style={styles.shopLogo}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          )}
+          <div style={styles.shopInfo}>
+            <h1 style={styles.shopName}>
+              <Store size={28} color="#6366f1" />
+              {companyDetails.name}
+            </h1>
+            <p style={styles.shopAddress}>
+              <MapPin size={14} color="#9ca3af" />
+              {companyDetails.address}, {companyDetails.city}
+            </p>
+            <p style={styles.shopContact}>
+              <Phone size={14} color="#9ca3af" />
+              {companyDetails.phone}
+              {companyDetails.email && (
+                <>
+                  <Mail size={14} color="#9ca3af" style={{ marginLeft: '15px' }} />
+                  {companyDetails.email}
+                </>
+              )}
+              {companyDetails.gst && (
+                <>
+                  <Building2 size={14} color="#9ca3af" style={{ marginLeft: '15px' }} />
+                  GST: {companyDetails.gst}
+                </>
+              )}
+            </p>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <span style={{
-            padding: '8px 16px',
-            backgroundColor: '#6366f1',
-            color: '#fff',
-            borderRadius: '6px',
-            fontSize: '14px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <Receipt size={16} />
-            BT Bills Only
-          </span>
-        </div>
+        
+        {/* Company Selector */}
+        {companies.length > 0 && (
+          <div style={{ position: 'relative' }}>
+            <div 
+              style={styles.companySelector}
+              onClick={() => setShowCompanySelector(!showCompanySelector)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#1f2937';
+                e.currentTarget.style.borderColor = '#6366f1';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#111827';
+                e.currentTarget.style.borderColor = '#374151';
+              }}
+            >
+              <Building2 size={16} style={{ marginRight: '8px' }} />
+              {companies.find(c => c.id === selectedCompanyId)?.name || 'Select Company'}
+              <span style={{ marginLeft: '8px' }}>{showCompanySelector ? '▲' : '▼'}</span>
+            </div>
+            
+            {showCompanySelector && (
+              <div style={styles.companyDropdown}>
+                {companies.map(company => (
+                  <div
+                    key={company.id}
+                    style={{
+                      ...styles.companyOption,
+                      backgroundColor: selectedCompanyId === company.id ? '#374151' : 'transparent'
+                    }}
+                    onClick={() => handleCompanySelect(company)}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2d3748'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = selectedCompanyId === company.id ? '#374151' : 'transparent'}
+                  >
+                    <Building2 size={14} style={{ marginRight: '8px', display: 'inline' }} />
+                    {company.name}
+                    {company.gst_number && (
+                      <span style={{ fontSize: '10px', color: '#9ca3af', marginLeft: '8px' }}>
+                        GST: {company.gst_number}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Message Display */}

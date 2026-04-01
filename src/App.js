@@ -31,6 +31,7 @@ import DiscountPage from "./components/DiscountPage"; // Import the discount pag
 import CurrentCompany from "./components/CurrentCompany";
 import EnquiryPage from "./components/Enquiry";
 import CustomerPage from "./components/Customer";
+import EmployeeBill from "./components/EmployeeBill";
 
 
 function Layout() {
@@ -90,6 +91,8 @@ function Layout() {
           <Route path="/discount" element={<DiscountPage />} /> 
           <Route path="/enquiry" element={<EnquiryPage />} />
           <Route path="/customer" element={<CustomerPage />} />
+          <Route path="/employeebill" element={<EmployeeBill />} />
+
         </Routes>
       </div>
     </>
