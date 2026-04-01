@@ -23,6 +23,18 @@ const Bill = () => {
   const [customerType, setCustomerType] = useState('external'); // 'internal' or 'external'
   const [customerDiscount, setCustomerDiscount] = useState(0); // Default discount for customer type
   
+  // Vehicle information
+  const [vehicleName, setVehicleName] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  
+  // Company information (from selected company)
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [showCompanySelector, setShowCompanySelector] = useState(false);
+  
+  // User information (bill created by)
+  const [createdBy, setCreatedBy] = useState('');
+  
   // Discount information
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState('percentage'); // 'percentage' or 'fixed'
@@ -59,12 +71,16 @@ const Bill = () => {
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [savedBillId, setSavedBillId] = useState(null);
 
-  // Shop details
-  const shopDetails = {
+  // Shop details (will be overridden by selected company)
+  const defaultShopDetails = {
     name: 'A3Cars',
-    address: 'No.71, M.T.H.road (Opp padi post office), ',
+    address: 'No.71, M.T.H.road (Opp padi post office)',
     city: 'Padi, Chennai - 600 050',
+    phone: '',
+    gst: '',
   };
+
+  const [shopDetails, setShopDetails] = useState(defaultShopDetails);
 
   // Refs
   const billPaperRef = useRef(null);
@@ -689,12 +705,49 @@ const Bill = () => {
     downloadLink: {
       display: 'none',
     },
+    companySelector: {
+      marginBottom: '15px',
+      padding: '10px',
+      background: '#e9ecef',
+      borderRadius: '5px',
+      cursor: 'pointer',
+    },
+    companyName: {
+      fontWeight: 'bold',
+      color: '#007bff',
+      fontSize: '14px',
+    },
+    companyDropdown: {
+      marginTop: '5px',
+      padding: '5px',
+      background: 'white',
+      border: '1px solid #ddd',
+      borderRadius: '3px',
+      maxHeight: '200px',
+      overflowY: 'auto',
+    },
+    companyOption: {
+      padding: '8px',
+      cursor: 'pointer',
+      borderBottom: '1px solid #eee',
+      transition: 'background 0.2s',
+    },
+    companyOptionHover: {
+      background: '#f0f7ff',
+    },
   };
 
   // Check authentication on mount
   useEffect(() => {
     const user = localStorage.getItem('user');
-    if (!user) {
+    if (user) {
+      try {
+        const userData = JSON.parse(user);
+        setCreatedBy(userData.name || userData.username || 'System');
+      } catch (e) {
+        setCreatedBy('System');
+      }
+    } else {
       setIsAuthenticated(false);
       setError('Please login first');
       setTimeout(() => {
@@ -702,6 +755,56 @@ const Bill = () => {
       }, 2000);
     }
   }, []);
+
+  // Fetch companies on mount
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  // Fetch companies from API
+  const fetchCompanies = async () => {
+    try {
+      const response = await api.get('/companies/list');
+      if (response.data && response.data.length > 0) {
+        setCompanies(response.data);
+        // Auto-select first company if available
+        const firstCompany = response.data[0];
+        setSelectedCompany(firstCompany);
+        fetchCompanyDetails(firstCompany.id);
+      }
+    } catch (err) {
+      console.error('Error fetching companies:', err);
+      setError('Failed to fetch companies');
+    }
+  };
+
+  // Fetch company details by ID
+  const fetchCompanyDetails = async (companyId) => {
+    try {
+      const response = await api.get(`/companies/${companyId}`);
+      if (response.data) {
+        const company = response.data;
+        setShopDetails({
+          name: company.name || defaultShopDetails.name,
+          address: company.address || defaultShopDetails.address,
+          city: company.city || defaultShopDetails.city,
+          phone: company.phone || '',
+          gst: company.gst_number || '',
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching company details:', err);
+    }
+  };
+
+  // Handle company selection
+  const handleCompanySelect = async (company) => {
+    setSelectedCompany(company);
+    setShowCompanySelector(false);
+    await fetchCompanyDetails(company.id);
+    setSuccess(`Switched to ${company.name}`);
+    setTimeout(() => setSuccess(''), 2000);
+  };
 
   // Generate random bill number (for display only, backend will generate unique)
   const generateBillNumber = () => {
@@ -1244,7 +1347,10 @@ const Bill = () => {
         customerEmail: customerEmail,
         customerGST: customerGST,
         customerAddress: customerAddress,
-        customerType: customerType === 'internal' ? 'internal' : 'regular', // Map to backend enum
+        customerType: customerType === 'internal' ? 'internal' : 'regular',
+        vehicleName: vehicleName,
+        vehicleNumber: vehicleNumber,
+        companyId: selectedCompany?.id,
         discount: discount,
         discountType: discountType === 'percentage' ? 'percentage' : 'amount',
         tax: tax,
@@ -1422,6 +1528,21 @@ const Bill = () => {
               color: #856404;
             }
             
+            .vehicle-section {
+              margin: 8px 0;
+              padding: 6px;
+              background: #f0f0f0;
+              border-radius: 2px;
+              border: 1px solid #ddd;
+            }
+            
+            .vehicle-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 4px;
+              font-size: 10px;
+            }
+            
             .bill-items {
               margin: 10px 0;
             }
@@ -1520,6 +1641,15 @@ const Bill = () => {
               color: ${paidAmount >= total ? '#28a745' : '#dc3545'};
               font-size: 10px;
             }
+            
+            .created-by {
+              margin-top: 8px;
+              padding-top: 5px;
+              border-top: 1px dotted #ccc;
+              font-size: 8px;
+              text-align: center;
+              color: #666;
+            }
           </style>
         </head>
         <body>
@@ -1528,8 +1658,8 @@ const Bill = () => {
               <h1>${shopDetails.name}</h1>
               <p>${shopDetails.address}</p>
               <p>${shopDetails.city}</p>
-              <p>Ph: ${shopDetails.phone}</p>
-              <p>GST: ${shopDetails.gst}</p>
+              ${shopDetails.phone ? `<p>Ph: ${shopDetails.phone}</p>` : ''}
+              ${shopDetails.gst ? `<p>GST: ${shopDetails.gst}</p>` : ''}
             </div>
             
             <div class="bill-info">
@@ -1588,6 +1718,21 @@ const Bill = () => {
               </div>
               ` : ''}
             </div>
+            
+            ${(vehicleName || vehicleNumber) ? `
+            <div class="vehicle-section">
+              <div class="vehicle-row">
+                <span class="customer-label">Vehicle:</span>
+                <span class="customer-value">${vehicleName || ''}</span>
+              </div>
+              ${vehicleNumber ? `
+              <div class="vehicle-row">
+                <span class="customer-label">Vehicle No:</span>
+                <span class="customer-value">${vehicleNumber}</span>
+              </div>
+              ` : ''}
+            </div>
+            ` : ''}
             
             ${discount > 0 ? `
             <div class="discount-section">
@@ -1695,6 +1840,9 @@ const Bill = () => {
               ${paymentMethod !== 'cash' && transactionId ? `
               <p>${paymentMethod.toUpperCase()}: ${transactionId}</p>
               ` : ''}
+              <div class="created-by">
+                Bill created by: ${createdBy}
+              </div>
             </div>
           </div>
         </body>
@@ -1845,6 +1993,19 @@ const Bill = () => {
                   color: #856404 !important;
                 }
                 
+                .vehicle-section {
+                  margin: 8px 0;
+                  padding: 6px;
+                  border: 1px solid #ddd !important;
+                }
+                
+                .vehicle-row {
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 4px;
+                  font-size: 10px;
+                }
+                
                 .bill-items-header {
                   display: grid;
                   grid-template-columns: 2fr 1fr 1fr 1.5fr;
@@ -1889,6 +2050,14 @@ const Bill = () => {
                   padding-top: 10px;
                   border-top: 1px dashed #000 !important;
                   font-size: 8px;
+                }
+                
+                .created-by {
+                  margin-top: 8px;
+                  padding-top: 5px;
+                  border-top: 1px dotted #000 !important;
+                  font-size: 8px;
+                  text-align: center;
                 }
                 
                 input, select, button, textarea {
@@ -1970,11 +2139,13 @@ const Bill = () => {
     let message = `*${shopDetails.name}*\n`;
     message += `${shopDetails.address}\n`;
     message += `${shopDetails.city}\n`;
-    message += `Ph: ${shopDetails.phone}\n`;
+    if (shopDetails.phone) message += `Ph: ${shopDetails.phone}\n`;
     message += `Bill No: ${billNumber}\n`;
     message += `Date: ${currentDate} ${currentTime}\n`;
     message += `Customer: ${customerName}\n`;
     message += `Type: ${customerType === 'internal' ? 'INTERNAL' : 'EXTERNAL'}\n`;
+    if (vehicleName) message += `Vehicle: ${vehicleName}\n`;
+    if (vehicleNumber) message += `Vehicle No: ${vehicleNumber}\n`;
     message += `================\n`;
     message += `ITEMS:\n`;
     
@@ -1994,7 +2165,8 @@ const Bill = () => {
     if (due > 0) message += `Due: ₹${due.toFixed(2)}\n`;
     message += `================\n`;
     message += `Thank you for shopping with us!\n`;
-    message += `Goods once sold not returnable`;
+    message += `Goods once sold not returnable\n`;
+    message += `Created by: ${createdBy}`;
 
     // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
@@ -2017,6 +2189,8 @@ const Bill = () => {
       setCustomerAddress('');
       setCustomerType('external');
       setCustomerDiscount(0);
+      setVehicleName('');
+      setVehicleNumber('');
       setDiscount(0);
       setDiscountType('percentage');
       setManualDiscount(false);
@@ -2114,6 +2288,38 @@ const Bill = () => {
       {/* Left Panel - Product Selection */}
       <div style={baseStyles.productPanel} className="no-print">
         <h2 style={baseStyles.productPanelTitle}>🧾 Create New Bill</h2>
+        
+        {/* Company Selector */}
+        {companies.length > 0 && (
+          <div style={baseStyles.companySelector}>
+            <div 
+              style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}
+              onClick={() => setShowCompanySelector(!showCompanySelector)}
+            >
+              <span>
+                🏢 <span style={baseStyles.companyName}>
+                  {selectedCompany ? selectedCompany.name : 'Select Company'}
+                </span>
+              </span>
+              <span style={{fontSize: '12px'}}>{showCompanySelector ? '▲' : '▼'}</span>
+            </div>
+            {showCompanySelector && (
+              <div style={baseStyles.companyDropdown}>
+                {companies.map(company => (
+                  <div
+                    key={company.id}
+                    style={baseStyles.companyOption}
+                    onClick={() => handleCompanySelect(company)}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f0f7ff'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {company.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         
         {error && (
           <div style={{...baseStyles.alert, ...baseStyles.alertError}}>
@@ -2257,8 +2463,8 @@ const Bill = () => {
               <h1 style={baseStyles.billHeaderH1}>{shopDetails.name}</h1>
               <p style={baseStyles.billHeaderP}>{shopDetails.address}</p>
               <p style={baseStyles.billHeaderP}>{shopDetails.city}</p>
-              <p style={baseStyles.billHeaderP}>Ph: {shopDetails.phone}</p>
-              <p style={baseStyles.billHeaderP}>GST: {shopDetails.gst}</p>
+              {shopDetails.phone && <p style={baseStyles.billHeaderP}>Ph: {shopDetails.phone}</p>}
+              {shopDetails.gst && <p style={baseStyles.billHeaderP}>GST: {shopDetails.gst}</p>}
             </div>
             
             <div className="bill-info">
@@ -2322,6 +2528,33 @@ const Bill = () => {
                 </div>
               )}
             </div>
+            
+            {/* Vehicle Section */}
+            <div style={baseStyles.customerSection} className="no-print">
+              <input
+                type="text"
+                style={baseStyles.customerInput}
+                value={vehicleName}
+                onChange={(e) => setVehicleName(e.target.value)}
+                placeholder="Vehicle Name (e.g., Honda City)"
+              />
+              
+              <input
+                type="text"
+                style={baseStyles.customerInput}
+                value={vehicleNumber}
+                onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+                placeholder="Vehicle Number (e.g., TN01AB1234)"
+              />
+            </div>
+            
+            {/* Display vehicle info in print version */}
+            {(vehicleName || vehicleNumber) && (
+              <div style={{margin: '5px 0', padding: '3px', background: '#f0f0f0', fontSize: '9px'}} className="no-print-visible">
+                <div><strong>Vehicle:</strong> {vehicleName || '-'}</div>
+                {vehicleNumber && <div><strong>Reg No:</strong> {vehicleNumber}</div>}
+              </div>
+            )}
             
             <div style={baseStyles.customerSection} className="no-print">
               <select
@@ -2681,6 +2914,9 @@ const Bill = () => {
                   {paymentMethod.toUpperCase()}: {transactionId}
                 </p>
               )}
+              <div style={{marginTop: '5px', paddingTop: '3px', borderTop: '1px dotted #ccc', fontSize: '8px', color: '#666'}}>
+                Bill created by: {createdBy}
+              </div>
             </div>
           </div>
           

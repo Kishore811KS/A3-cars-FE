@@ -230,9 +230,15 @@ const Sidebar = ({ isOpen }) => {
             <span style={styles.text}>Supplier List</span>
           </NavLink>
 
+          <div style={styles.sectionTitle}>HR & Attendance</div>
           <NavLink to="/attendance" style={getLinkStyle}>
             <FaUserCheck style={styles.icon} />
             <span style={styles.text}>Attendance</span>
+          </NavLink>
+
+          <NavLink to="/company" style={getLinkStyle}>
+            <FaUserCheck style={styles.icon} />
+            <span style={styles.text}>Company</span>
           </NavLink>
 
           {/* System Settings */}
@@ -245,12 +251,17 @@ const Sidebar = ({ isOpen }) => {
           {/* CRM Section */}
           <div style={styles.sectionTitle}>CRM</div>
           <NavLink to="/enquiry" style={getLinkStyle}>
-            <FaClipboardCheck style={styles.icon} />
-            <span style={styles.text}>Enquiries</span>
+             <FaClipboardCheck style={styles.icon} />
+             <span style={styles.text}>Enquiries</span>
           </NavLink>
+
+          <NavLink to="/customer" style={getLinkStyle}>
+            <FaClipboardCheck style={styles.icon} />
+            <span style={styles.text}>Customer Details</span>
+          </NavLink>
+
         </div>
 
-        {/* Optional: Add version or footer */}
         {isOpen && (
           <div style={{
             fontSize: "10px",
