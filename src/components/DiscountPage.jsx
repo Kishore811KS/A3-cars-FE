@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 
 const DEFAULT_RANGES = [
-  { id: 1, min: 0, max: 1000, discount: 5, isInfinite: false },
+  { id: 1, min: 0,    max: 1000, discount: 5,  isInfinite: false },
   { id: 2, min: 1001, max: 5000, discount: 10, isInfinite: false },
-  { id: 3, min: 5001, max: null, discount: 15, isInfinite: true },
+  { id: 3, min: 5001, max: null, discount: 15, isInfinite: true  },
 ];
 
 const fmt = (n) => {
@@ -14,14 +14,65 @@ const fmt = (n) => {
   });
 };
 
+// ─── EditField moved OUTSIDE component to prevent remount on every render ───
+const EditField = ({ fieldKey, placeholder, width = 100, rowId, editVals, onEditChange, onKeyDown }) => {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (inputRef.current && fieldKey === "min") {
+      inputRef.current.focus();
+    }
+  }, []); // run once on mount only
+
+  return (
+    <div className="dp-field">
+      {(fieldKey === "min" || fieldKey === "max") && (
+        <span className="dp-sym">₹</span>
+      )}
+      <input
+        ref={inputRef}
+        className="dp-inp"
+        style={{ width }}
+        type="number"
+        min="0"
+        max={fieldKey === "discount" ? 100 : undefined}
+        step={fieldKey === "discount" ? "1" : "0.01"}
+        placeholder={placeholder}
+        value={editVals[fieldKey] === null || editVals[fieldKey] === undefined ? "" : editVals[fieldKey]}
+        onChange={(e) => onEditChange(fieldKey, e.target.value)}
+        onKeyDown={(e) => onKeyDown(e, rowId)}
+        disabled={fieldKey === "max" && editVals.isInfinite}
+      />
+      {fieldKey === "discount" && (
+        <span className="dp-sym dp-sym-r">%</span>
+      )}
+      {fieldKey === "max" && (
+        <button
+          type="button"
+          className="dp-infinity-toggle"
+          onClick={(e) => {
+            e.preventDefault();
+            onEditChange("__toggleInfinite__", null);
+          }}
+          title={editVals.isInfinite ? "Set finite max" : "Set infinite max (∞)"}
+        >
+          {editVals.isInfinite ? "∞" : "↗"}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 const DiscountPage = () => {
-  const [ranges, setRanges] = useState(DEFAULT_RANGES);
-  const [editId, setEditId] = useState(null);
+  const [ranges,   setRanges]   = useState(DEFAULT_RANGES);
+  const [editId,   setEditId]   = useState(null);
   const [editVals, setEditVals] = useState({});
-  const [calcAmt, setCalcAmt] = useState("");
-  const [toast, setToast] = useState(null);
-  
-  const inputRefs = useRef({});
+  const [calcAmt,  setCalcAmt]  = useState("");
+  const [toast,    setToast]    = useState(null);
+
+  // Used to pass the new row id to startEdit after state update
+  const pendingEditRef = useRef(null);
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
@@ -31,207 +82,148 @@ const DiscountPage = () => {
   const findRange = (amount) => {
     const a = parseFloat(amount);
     if (isNaN(a) || a < 0) return null;
-    return ranges.find((r) => {
-      if (r.isInfinite) {
-        return a >= r.min;
-      }
-      return a >= r.min && a <= r.max;
-    }) || null;
+    return ranges.find((r) =>
+      r.isInfinite ? a >= r.min : a >= r.min && a <= r.max
+    ) || null;
   };
 
-  const matched = findRange(calcAmt);
+  const matched  = findRange(calcAmt);
   const calcAmtN = parseFloat(calcAmt) || 0;
-  const discPct = matched ? matched.discount : 0;
-  const discAmt = (calcAmtN * discPct) / 100;
+  const discPct  = matched ? matched.discount : 0;
+  const discAmt  = (calcAmtN * discPct) / 100;
   const finalAmt = calcAmtN - discAmt;
 
   const startEdit = (row) => {
     setEditId(row.id);
     setEditVals({
-      min: row.min,
-      max: row.max === null ? "" : row.max,
-      discount: row.discount,
+      min:        row.min,
+      max:        row.max === null ? "" : row.max,
+      discount:   row.discount,
       isInfinite: row.isInfinite,
     });
   };
 
-  const validateRanges = (newRange, isInfinite) => {
-    const sortedRanges = [...ranges].sort((a, b) => a.min - b.min);
-    
-    for (let i = 0; i < sortedRanges.length; i++) {
-      const current = sortedRanges[i];
-      if (current.id === newRange.id) continue;
-      
-      if (isInfinite) {
-        if (newRange.min <= current.max && current.max !== null) {
-          return false;
-        }
-        if (current.isInfinite) {
-          return false;
-        }
-      } else if (current.isInfinite) {
-        if (newRange.max >= current.min) {
-          return false;
-        }
+  // FIX 3: corrected overlap check — use strict < not <=
+  const hasOverlap = (newRange, allRanges) => {
+    for (const cur of allRanges) {
+      if (cur.id === newRange.id) continue;
+
+      const newIsInf = newRange.isInfinite;
+      const curIsInf = cur.isInfinite;
+
+      if (newIsInf && curIsInf) return true; // two infinite ranges
+
+      if (newIsInf) {
+        // new infinite overlaps cur if new.min <= cur.max (strict less-than means gap exists at cur.max+1)
+        if (cur.max !== null && newRange.min <= cur.max) return true;
+      } else if (curIsInf) {
+        // finite new overlaps infinite cur if new.max >= cur.min
+        if (newRange.max >= cur.min) return true;
       } else {
-        if (!(newRange.max < current.min || newRange.min > current.max)) {
-          return false;
-        }
+        // both finite: overlap if ranges intersect
+        if (newRange.min <= cur.max && newRange.max >= cur.min) return true;
       }
     }
-    return true;
+    return false;
   };
 
   const saveEdit = (id) => {
     const mn = parseFloat(editVals.min);
-    let mx = editVals.max === "" || editVals.max === undefined ? null : parseFloat(editVals.max);
-    const d = parseFloat(editVals.discount);
-    const isInfinite = mx === null;
+    const isInfinite = editVals.isInfinite;
+    const mx = isInfinite
+      ? null
+      : (editVals.max === "" || editVals.max === undefined ? null : parseFloat(editVals.max));
+    const d  = parseFloat(editVals.discount);
 
     if (isNaN(mn) || mn < 0) {
-      notify("Enter a valid min amount.", "error");
-      return;
+      notify("Enter a valid min amount.", "error"); return;
     }
-
-    if (!isInfinite && (isNaN(mx) || mx <= mn)) {
-      notify("Max must be greater than min.", "error");
-      return;
+    if (!isInfinite && (mx === null || isNaN(mx) || mx <= mn)) {
+      notify("Max must be a number greater than min.", "error"); return;
     }
-
     if (isNaN(d) || d < 0 || d > 100) {
-      notify("Discount must be 0–100.", "error");
-      return;
+      notify("Discount must be 0–100.", "error"); return;
     }
 
-    if (isInfinite && ranges.some(r => r.id !== id && r.isInfinite)) {
-      notify("Only one infinite range is allowed.", "error");
-      return;
+    const newRange = { id, min: mn, max: isInfinite ? null : mx, isInfinite };
+
+    if (hasOverlap(newRange, ranges)) {
+      notify("Ranges cannot overlap!", "error"); return;
     }
 
-    const newRange = { id, min: mn, max: mx, isInfinite };
-    
-    if (!validateRanges(newRange, isInfinite)) {
-      notify("Ranges cannot overlap!", "error");
-      return;
-    }
-
-    setRanges((p) =>
-      p.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              min: mn,
-              max: mx,
-              discount: d,
-              isInfinite: isInfinite,
-            }
-          : r
-      )
+    // FIX 2: single atomic setRanges call — map + sort together
+    setRanges((prev) =>
+      prev
+        .map((r) =>
+          r.id === id
+            ? { ...r, min: mn, max: isInfinite ? null : mx, discount: d, isInfinite }
+            : r
+        )
+        .sort((a, b) => a.min - b.min)
     );
-    
-    setRanges((p) => [...p].sort((a, b) => a.min - b.min));
+
     setEditId(null);
     notify("Range saved!");
   };
 
+  // FIX 4: allow deleting any row including infinite
   const deleteRow = (id) => {
-    const rowToDelete = ranges.find(r => r.id === id);
-    if (rowToDelete.isInfinite) {
-      notify("Cannot delete the infinity range. You can edit it instead.", "error");
-      return;
-    }
-    setRanges((p) => p.filter((r) => r.id !== id));
+    setRanges((prev) => prev.filter((r) => r.id !== id));
+    if (editId === id) setEditId(null);
     notify("Range deleted.", "warn");
   };
 
+  // FIX 6: addRow uses a ref to reliably trigger edit after state settles
   const addRow = () => {
-    const nonInfiniteRanges = ranges.filter(r => !r.isInfinite);
-    const lastNonInfinite = nonInfiniteRanges[nonInfiniteRanges.length - 1];
-    const newMin = lastNonInfinite ? lastNonInfinite.max + 1 : 0;
-    
-    const infinityIndex = ranges.findIndex(r => r.isInfinite);
+    const nonInfinite = ranges.filter((r) => !r.isInfinite);
+    const last        = nonInfinite[nonInfinite.length - 1];
+    const newMin      = last ? last.max + 1 : 0;
     const newRow = {
-      id: Date.now(),
-      min: newMin,
-      max: newMin + 4999,
-      discount: 0,
+      id:         Date.now(),
+      min:        newMin,
+      max:        newMin + 4999,
+      discount:   0,
       isInfinite: false,
     };
-    
-    if (infinityIndex !== -1) {
-      const newRanges = [...ranges];
-      newRanges.splice(infinityIndex, 0, newRow);
-      setRanges(newRanges);
-    } else {
-      setRanges((p) => [...p, newRow]);
-    }
-    
-    setTimeout(() => startEdit(newRow), 0);
+
+    pendingEditRef.current = newRow;
+
+    setRanges((prev) => {
+      const infIdx = prev.findIndex((r) => r.isInfinite);
+      const next   = [...prev];
+      if (infIdx !== -1) {
+        next.splice(infIdx, 0, newRow);
+      } else {
+        next.push(newRow);
+      }
+      return next;
+    });
   };
+
+  // Trigger edit once the new row is in state
+  useEffect(() => {
+    if (pendingEditRef.current) {
+      const row = pendingEditRef.current;
+      pendingEditRef.current = null;
+      startEdit(row);
+    }
+  }, [ranges]);
 
   const handleEditChange = (fieldKey, value) => {
-    setEditVals((v) => ({ ...v, [fieldKey]: value }));
-  };
-
-  const handleKeyDown = (e, fieldKey, id) => {
-    if (e.key === "Enter") {
-      saveEdit(id);
-    } else if (e.key === "Escape") {
-      setEditId(null);
-    } else if (e.key === "Tab") {
-      // Allow normal tab behavior
-      return;
+    if (fieldKey === "__toggleInfinite__") {
+      setEditVals((v) => ({
+        ...v,
+        isInfinite: !v.isInfinite,
+        max: !v.isInfinite ? null : (v.max ?? ""),
+      }));
+    } else {
+      setEditVals((v) => ({ ...v, [fieldKey]: value }));
     }
   };
 
-  const EditField = ({ fieldKey, placeholder, width = 100, id, rowId }) => {
-    const inputRef = useRef(null);
-    
-    useEffect(() => {
-      if (inputRef.current && fieldKey === "min") {
-        inputRef.current.focus();
-      }
-    }, [fieldKey]);
-
-    return (
-      <div className="dp-field">
-        {(fieldKey === "min" || fieldKey === "max") && (
-          <span className="dp-sym">₹</span>
-        )}
-        <input
-          ref={inputRef}
-          className="dp-inp"
-          style={{ width }}
-          type="number"
-          min="0"
-          max={fieldKey === "discount" ? 100 : undefined}
-          step={fieldKey === "discount" ? "1" : "0.01"}
-          placeholder={placeholder}
-          value={editVals[fieldKey] === null ? "" : editVals[fieldKey]}
-          onChange={(e) => handleEditChange(fieldKey, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, fieldKey, rowId)}
-          disabled={fieldKey === "max" && editVals.isInfinite}
-        />
-        {fieldKey === "discount" && <span className="dp-sym dp-sym-r">%</span>}
-        {fieldKey === "max" && (
-          <button
-            type="button"
-            className="dp-infinity-toggle"
-            onClick={(e) => {
-              e.preventDefault();
-              setEditVals((v) => ({
-                ...v,
-                max: v.isInfinite ? (v.max || "") : null,
-                isInfinite: !v.isInfinite,
-              }));
-            }}
-            title={editVals.isInfinite ? "Set finite max" : "Set infinite max"}
-          >
-            {editVals.isInfinite ? "∞" : "↗"}
-          </button>
-        )}
-      </div>
-    );
+  const handleKeyDown = (e, rowId) => {
+    if (e.key === "Enter")  { e.preventDefault(); saveEdit(rowId); }
+    if (e.key === "Escape") { setEditId(null); }
   };
 
   return (
@@ -242,8 +234,8 @@ const DiscountPage = () => {
         <div className={`dp-toast dp-toast-${toast.type}`}>
           <span>
             {toast.type === "success" && "✓"}
-            {toast.type === "error" && "✕"}
-            {toast.type === "warn" && "⚠"}
+            {toast.type === "error"   && "✕"}
+            {toast.type === "warn"    && "⚠"}
           </span>
           {toast.msg}
         </div>
@@ -254,20 +246,17 @@ const DiscountPage = () => {
           <p className="dp-eyebrow">Pricing Rules</p>
           <h1 className="dp-title">Discount Ranges</h1>
         </div>
-        <button className="dp-btn-add" onClick={addRow}>
-          + Add Range
-        </button>
+        <button className="dp-btn-add" onClick={addRow}>+ Add Range</button>
       </div>
 
       <div className="dp-layout">
+        {/* ── Range Table ── */}
         <div className="dp-left">
           <div className="dp-card">
             {ranges.length === 0 ? (
               <div className="dp-empty">
                 <div className="dp-empty-icon">🏷️</div>
-                <p>
-                  No ranges yet. Click <strong>+ Add Range</strong> to begin.
-                </p>
+                <p>No ranges yet. Click <strong>+ Add Range</strong> to begin.</p>
               </div>
             ) : (
               <table className="dp-table">
@@ -281,99 +270,64 @@ const DiscountPage = () => {
                 </thead>
                 <tbody>
                   {ranges.map((row) => {
-                    const ed = editId === row.id;
+                    const ed       = editId === row.id;
                     const isActive = matched && matched.id === row.id;
                     return (
-                      <tr
-                        key={row.id}
-                        className={`${ed ? "dp-tr-ed" : ""} ${
-                          isActive ? "dp-tr-active" : ""
-                        }`}
-                      >
+                      <tr key={row.id} className={`${ed ? "dp-tr-ed" : ""} ${isActive ? "dp-tr-active" : ""}`}>
+                        {/* Min */}
                         <td>
                           {ed ? (
-                            <EditField 
-                              fieldKey="min" 
-                              placeholder="0" 
-                              width={110} 
-                              rowId={row.id}
+                            <EditField
+                              fieldKey="min" placeholder="0" width={110} rowId={row.id}
+                              editVals={editVals} onEditChange={handleEditChange} onKeyDown={handleKeyDown}
                             />
                           ) : (
                             <span className="dp-val">{fmt(row.min)}</span>
                           )}
                         </td>
+
+                        {/* Max */}
                         <td>
                           {ed ? (
                             <EditField
-                              fieldKey="max"
-                              placeholder={row.isInfinite ? "∞" : "1000"}
-                              width={110}
-                              rowId={row.id}
+                              fieldKey="max" placeholder={editVals.isInfinite ? "∞" : "1000"} width={110} rowId={row.id}
+                              editVals={editVals} onEditChange={handleEditChange} onKeyDown={handleKeyDown}
                             />
                           ) : (
-                            <span className="dp-val">
-                              {row.isInfinite ? "∞" : fmt(row.max)}
-                            </span>
+                            <span className="dp-val">{row.isInfinite ? "∞" : fmt(row.max)}</span>
                           )}
                         </td>
+
+                        {/* Discount */}
                         <td>
                           {ed ? (
                             <EditField
-                              fieldKey="discount"
-                              placeholder="0"
-                              width={72}
-                              rowId={row.id}
+                              fieldKey="discount" placeholder="0" width={72} rowId={row.id}
+                              editVals={editVals} onEditChange={handleEditChange} onKeyDown={handleKeyDown}
                             />
                           ) : (
                             <div className="dp-disc-cell">
-                              <span
-                                className={`dp-pct-badge ${
-                                  row.discount > 0 ? "dp-pct-on" : ""
-                                }`}
-                              >
+                              <span className={`dp-pct-badge ${row.discount > 0 ? "dp-pct-on" : ""}`}>
                                 {row.discount}%
                               </span>
                               <div className="dp-bar-track">
-                                <div
-                                  className="dp-bar-fill"
-                                  style={{
-                                    width: `${Math.min(row.discount, 100)}%`,
-                                  }}
-                                />
+                                <div className="dp-bar-fill" style={{ width: `${Math.min(row.discount, 100)}%` }} />
                               </div>
                             </div>
                           )}
                         </td>
+
+                        {/* Actions */}
                         <td>
                           {ed ? (
                             <div className="dp-acts">
-                              <button
-                                className="dp-btn dp-btn-save"
-                                onClick={() => saveEdit(row.id)}
-                              >
-                                ✓ Save
-                              </button>
-                              <button
-                                className="dp-btn dp-btn-cancel"
-                                onClick={() => setEditId(null)}
-                              >
-                                Cancel
-                              </button>
+                              <button className="dp-btn dp-btn-save"   onClick={() => saveEdit(row.id)}>✓ Save</button>
+                              <button className="dp-btn dp-btn-cancel" onClick={() => setEditId(null)}>Cancel</button>
                             </div>
                           ) : (
                             <div className="dp-acts">
-                              <button
-                                className="dp-btn dp-btn-edit"
-                                onClick={() => startEdit(row)}
-                              >
-                                ✎ Edit
-                              </button>
-                              <button
-                                className="dp-btn dp-btn-del"
-                                onClick={() => deleteRow(row.id)}
-                              >
-                                ✕
-                              </button>
+                              <button className="dp-btn dp-btn-edit" onClick={() => startEdit(row)}>✎ Edit</button>
+                              <button className="dp-btn dp-btn-del"  onClick={() => deleteRow(row.id)}>✕</button>
                             </div>
                           )}
                         </td>
@@ -385,12 +339,12 @@ const DiscountPage = () => {
             )}
           </div>
           <p className="dp-hint">
-            💡 Enter any amount in the calculator → it auto-detects the matching
-            range. The last range can be set to infinity (∞) for amounts above a
-            threshold.
+            💡 Enter any amount in the calculator → it auto-detects the matching range.
+            Toggle <strong>↗</strong> on the Max field to set a range to infinity (∞).
           </p>
         </div>
 
+        {/* ── Live Calculator ── */}
         <div className="dp-right">
           <div className="dp-calc-card">
             <p className="dp-calc-title">Live Calculator</p>
@@ -414,8 +368,7 @@ const DiscountPage = () => {
                 {matched ? (
                   <>
                     <div className="dp-match-badge">
-                      Range matched: {fmt(matched.min)} –{" "}
-                      {matched.isInfinite ? "∞" : fmt(matched.max)}
+                      Range: {fmt(matched.min)} – {matched.isInfinite ? "∞" : fmt(matched.max)}
                     </div>
                     <div className="dp-calc-row">
                       <span>Original</span>
@@ -437,10 +390,7 @@ const DiscountPage = () => {
                 ) : (
                   <div className="dp-no-match">
                     <span>⚠</span>
-                    <p>
-                      ₹{calcAmtN.toLocaleString("en-IN")} doesn't fall in any
-                      defined range.
-                    </p>
+                    <p>₹{calcAmtN.toLocaleString("en-IN")} doesn't fall in any defined range.</p>
                   </div>
                 )}
               </div>
@@ -545,7 +495,7 @@ const CSS = `
 }
 .dp-table tbody tr:last-child td { border-bottom:none; }
 .dp-table tbody tr:hover td { background:#101e30; }
-.dp-tr-ed td  { background:#0f2038 !important; }
+.dp-tr-ed td     { background:#0f2038 !important; }
 .dp-tr-active td { background:#061e35 !important; }
 .dp-tr-active td:first-child { border-left:3px solid var(--accent); }
 
@@ -579,28 +529,21 @@ const CSS = `
   color:#f0f8ff; font-size:13px; font-weight:600;
   font-family:'DM Sans',sans-serif; height:34px; padding:0 9px; min-width:0;
 }
+.dp-inp:disabled { color:var(--muted); cursor:not-allowed; }
+
 .dp-infinity-toggle {
-  background:rgba(56,189,248,0.1);
-  border:none;
-  color:var(--accent);
-  width:32px;
-  height:34px;
-  cursor:pointer;
-  font-size:16px;
-  font-weight:700;
-  transition:all 0.15s;
+  background:rgba(56,189,248,0.1); border:none;
+  color:var(--accent); width:32px; height:34px;
+  cursor:pointer; font-size:15px; font-weight:700;
+  transition:all 0.15s; flex-shrink:0;
 }
-.dp-infinity-toggle:hover {
-  background:rgba(56,189,248,0.2);
-  transform:scale(1.05);
-}
+.dp-infinity-toggle:hover { background:rgba(56,189,248,0.25); }
 
 .dp-acts { display:flex; gap:7px; align-items:center; }
 .dp-btn {
   padding:5px 12px; border-radius:6px;
   font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700;
   cursor:pointer; transition:all 0.15s; white-space:nowrap;
-  border: none;
 }
 .dp-btn-edit   { background:var(--border); border:1px solid var(--bord2); color:var(--text2); }
 .dp-btn-edit:hover { background:var(--bord2); color:var(--text); }
@@ -611,9 +554,9 @@ const CSS = `
 .dp-btn-cancel { background:var(--border); border:1px solid var(--bord2); color:var(--text2); }
 .dp-btn-cancel:hover { background:var(--bord2); }
 
-.dp-hint { margin-top:12px; font-size:12px; color:var(--muted); }
+.dp-hint { margin-top:12px; font-size:12px; color:var(--muted); line-height:1.6; }
+.dp-hint strong { color:var(--text2); }
 
-/* Calculator */
 .dp-calc-card {
   background:var(--surf); border:1px solid var(--border);
   border-radius:12px; padding:22px 20px;
@@ -684,7 +627,7 @@ const CSS = `
 
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; }
-input[type=number] { -moz-appearance: textfield; }
+input[type=number] { -moz-appearance:textfield; }
 
 @media (max-width:680px) {
   .dp-layout { grid-template-columns:1fr; }
