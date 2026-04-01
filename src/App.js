@@ -28,12 +28,10 @@ import Employee from "./components/Employee";
 import Attendance from "./components/Attendance";
 import UserSettings from "./components/UserSetting";
 import DiscountPage from "./components/DiscountPage"; // Import the discount page
-<<<<<<< HEAD
 import CurrentCompany from "./components/CurrentCompany";
-
-=======
 import EnquiryPage from "./components/Enquiry";
->>>>>>> fd0ecd34c90a687e3885c1e88f0d940616deccf5
+import CustomerPage from "./components/Customer";
+
 
 function Layout() {
   const location = useLocation();
@@ -87,13 +85,11 @@ function Layout() {
           <Route path="/employee" element={<Employee />}/>
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/userSettings" element={<UserSettings />} />
-<<<<<<< HEAD
           <Route path="/discount" element={<DiscountPage />} />
           <Route path="/Company" element={<CurrentCompany />} />
-=======
           <Route path="/discount" element={<DiscountPage />} /> 
           <Route path="/enquiry" element={<EnquiryPage />} />
->>>>>>> fd0ecd34c90a687e3885c1e88f0d940616deccf5
+          <Route path="/customer" element={<CustomerPage />} />
         </Routes>
       </div>
     </>

@@ -6,14 +6,13 @@ import {
   FaEnvelope,
   FaCalendarAlt,
   FaCheckCircle,
-  FaExclamationCircle,
   FaClock,
-  FaEdit,
-  FaTrash,
   FaTimes,
   FaCheck,
   FaSearch,
-  FaCarAlt,
+  FaBriefcase,
+  FaCalendarDay,
+  FaBan,
 } from "react-icons/fa";
 
 const API = "http://127.0.0.1:5000/api";
@@ -53,6 +52,8 @@ const NotificationPanel = ({ notifications, onDismiss }) => {
                 ? n.is_coming_today
                   ? "📍 Coming TODAY — be ready!"
                   : "⚠️ Scheduled today — not confirmed yet"
+                : n.is_followup_today
+                ? "📅 Follow-up TODAY!"
                 : `⏰ Overdue since ${formatDate(n.meetup_date)}`}
             </span>
             <span style={notifStyles.phone}>📞 {n.contact_number}</span>
@@ -112,20 +113,22 @@ const Modal = ({ show, onClose, onSave, initial }) => {
     customer_name: "",
     contact_number: "",
     email: "",
-    age: "",
     meetup_date: todayStr(),
     is_coming_today: false,
-    car_interest: "",
+    work_interest: "",
     notes: "",
-    status: "Pending",
-    called: false,
-    next_followup_date: "",
+    status: "Pending", // Always default to Pending
   };
 
   const [form, setForm] = useState(blank);
 
   useEffect(() => {
-    setForm(initial ? { ...blank, ...initial, age: initial.age ?? "", next_followup_date: initial.next_followup_date ?? "" } : blank);
+    if (initial) {
+      const { next_followup_date, ...rest } = initial;
+      setForm({ ...blank, ...rest, status: "Pending" }); // Ensure status stays Pending
+    } else {
+      setForm(blank);
+    }
   }, [initial, show]);
 
   if (!show) return null;
@@ -171,29 +174,11 @@ const Modal = ({ show, onClose, onSave, initial }) => {
               onChange={(e) => set("email", e.target.value)} placeholder="customer@email.com" />
           </div>
 
-          {/* Age */}
+          {/* Work Interest - Fixed to properly handle data */}
           <div style={modalStyles.group}>
-            <label style={modalStyles.label}>Age</label>
-            <input style={modalStyles.input} type="number" value={form.age}
-              onChange={(e) => set("age", e.target.value)} placeholder="e.g. 32" min={1} max={120} />
-          </div>
-
-          {/* Car Interest */}
-          <div style={modalStyles.group}>
-            <label style={modalStyles.label}>Car Interest</label>
-            <input style={modalStyles.input} value={form.car_interest}
-              onChange={(e) => set("car_interest", e.target.value)} placeholder="e.g. BMW M3, Audi A4..." />
-          </div>
-
-          {/* Status */}
-          <div style={modalStyles.group}>
-            <label style={modalStyles.label}>Status</label>
-            <select style={modalStyles.input} value={form.status}
-              onChange={(e) => set("status", e.target.value)}>
-              <option value="Pending">Pending</option>
-              <option value="Visited">Visited</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
+            <label style={modalStyles.label}>Work Interest</label>
+            <input style={modalStyles.input} value={form.work_interest || ""}
+              onChange={(e) => set("work_interest", e.target.value)} placeholder="e.g. Software Development, Marketing..." />
           </div>
 
           {/* Meet-up Date */}
@@ -202,28 +187,9 @@ const Modal = ({ show, onClose, onSave, initial }) => {
             <input style={modalStyles.input} type="date" value={form.meetup_date}
               onChange={(e) => set("meetup_date", e.target.value)} />
           </div>
-
-          {/* Next Follow-up */}
-          <div style={modalStyles.group}>
-            <label style={modalStyles.label}>Next Follow-up Date</label>
-            <input style={modalStyles.input} type="date" value={form.next_followup_date}
-              onChange={(e) => set("next_followup_date", e.target.value)} />
-          </div>
         </div>
 
-        {/* Coming Today toggle */}
-        <div style={{ display: "flex", gap: 24, margin: "12px 0" }}>
-          <label style={modalStyles.toggle}>
-            <input type="checkbox" checked={form.is_coming_today}
-              onChange={(e) => set("is_coming_today", e.target.checked)} />
-            <span style={{ color: "#4da6ff", marginLeft: 8 }}>✅ Coming Today</span>
-          </label>
-          <label style={modalStyles.toggle}>
-            <input type="checkbox" checked={form.called}
-              onChange={(e) => set("called", e.target.checked)} />
-            <span style={{ color: "#22c55e", marginLeft: 8 }}>📞 Called</span>
-          </label>
-        </div>
+        {/* Coming Today checkbox removed as requested */}
 
         {/* Notes */}
         <div style={modalStyles.group}>
@@ -281,14 +247,13 @@ const modalStyles = {
   },
 };
 
-
-// ─────────────────────── Toast (top-right, near header bell) ───────────────────────
+// ─────────────────────── Toast ───────────────────────
 const Toast = ({ message, show }) => {
   if (!show) return null;
   return (
     <div style={{
       position: "fixed",
-      top: 75,           // just below the 65px header
+      top: 75,
       right: 24,
       zIndex: 9999,
       minWidth: 300,
@@ -300,7 +265,6 @@ const Toast = ({ message, show }) => {
       boxShadow: "0 12px 40px rgba(34,197,94,0.35)",
       animation: "toastSlideDown 0.35s cubic-bezier(.22,1,.36,1)",
     }}>
-      {/* Content */}
       <div style={{
         display: "flex", alignItems: "center", gap: 12,
         padding: "14px 18px",
@@ -317,7 +281,6 @@ const Toast = ({ message, show }) => {
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{message}</div>
         </div>
       </div>
-      {/* Auto-close progress bar */}
       <div style={{
         height: 3,
         background: "rgba(255,255,255,0.15)",
@@ -332,8 +295,6 @@ const Toast = ({ message, show }) => {
   );
 };
 
-
-
 // ─────────────────────── Main Page ───────────────────────
 const EnquiryPage = () => {
   const [enquiries, setEnquiries] = useState([]);
@@ -346,6 +307,11 @@ const EnquiryPage = () => {
   const [loading, setLoading] = useState(false);
   const [acceptingId, setAcceptingId] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "" });
+  const [updatingCalled, setUpdatingCalled] = useState(null);
+  const [showFollowupModal, setShowFollowupModal] = useState(false);
+  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  const [newFollowupDate, setNewFollowupDate] = useState("");
+  const [updatingFollowup, setUpdatingFollowup] = useState(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -372,7 +338,7 @@ const EnquiryPage = () => {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, age: form.age ? parseInt(form.age) : null }),
+        body: JSON.stringify({ ...form, called: false, status: "Pending" }), // Ensure status is Pending for new entries
       });
       if (!res.ok) { const d = await res.json(); alert(d.error || "Error"); return; }
       setShowModal(false);
@@ -389,7 +355,6 @@ const EnquiryPage = () => {
     fetchAll();
   };
 
-
   const handleAccept = async (enq) => {
     if (enq.status === "Visited") return;
     setAcceptingId(enq.id);
@@ -399,10 +364,8 @@ const EnquiryPage = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...enq, status: "Visited" }),
       });
-      // 🔔 Fire event → Header bell panel will show the success notification
-      window.dispatchEvent(new CustomEvent("enquiry-accepted", {
-        detail: { name: enq.customer_name }
-      }));
+      setToast({ show: true, message: `${enq.customer_name} marked as visited!` });
+      setTimeout(() => setToast({ show: false, message: "" }), 3000);
       fetchAll();
     } catch (err) {
       alert("Error updating status.");
@@ -411,7 +374,65 @@ const EnquiryPage = () => {
     }
   };
 
-  const handleEdit = (enq) => { setEditTarget(enq); setShowModal(true); };
+  const handleCancel = async (enq) => {
+    if (enq.status === "Cancelled") return;
+    if (!window.confirm(`Cancel enquiry for ${enq.customer_name}?`)) return;
+    try {
+      await fetch(`${API}/enquiries/${enq.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...enq, status: "Cancelled" }),
+      });
+      fetchAll();
+    } catch (err) {
+      alert("Error updating status.");
+    }
+  };
+
+  const handleToggleCalled = async (enq) => {
+    setUpdatingCalled(enq.id);
+    try {
+      await fetch(`${API}/enquiries/${enq.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...enq, called: !enq.called }),
+      });
+      fetchAll();
+    } catch (err) {
+      alert("Error updating called status.");
+    } finally {
+      setUpdatingCalled(null);
+    }
+  };
+
+  const handleUpdateFollowup = async () => {
+    if (!newFollowupDate) {
+      alert("Please select a follow-up date");
+      return;
+    }
+    setUpdatingFollowup(selectedEnquiry.id);
+    try {
+      await fetch(`${API}/enquiries/${selectedEnquiry.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...selectedEnquiry, next_followup_date: newFollowupDate }),
+      });
+      setShowFollowupModal(false);
+      setSelectedEnquiry(null);
+      setNewFollowupDate("");
+      fetchAll();
+    } catch (err) {
+      alert("Error updating follow-up date.");
+    } finally {
+      setUpdatingFollowup(null);
+    }
+  };
+
+  const openFollowupModal = (enq) => {
+    setSelectedEnquiry(enq);
+    setNewFollowupDate(enq.next_followup_date || "");
+    setShowFollowupModal(true);
+  };
 
   const handleDismiss = (id) => setDismissed((p) => [...p, id]);
 
@@ -437,6 +458,8 @@ const EnquiryPage = () => {
       <style>{`
         @keyframes pulse { 0%,100%{box-shadow:0 4px 30px rgba(251,191,36,0.15)} 50%{box-shadow:0 4px 40px rgba(251,191,36,0.35)} }
         @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes toastSlideDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes toastProgress { from{width:100%} to{width:0%} }
         .enquiry-row:hover { background: rgba(77,166,255,0.07) !important; }
         input[type=checkbox] { accent-color: #4da6ff; width:16px; height:16px; cursor:pointer; }
       `}</style>
@@ -445,6 +468,7 @@ const EnquiryPage = () => {
       <div style={pageStyles.pageHeader}>
         <div>
           <h2 style={pageStyles.title}>📋 Enquiry Management</h2>
+          <p style={pageStyles.subtitle}>Manage customer enquiries and follow-ups</p>
         </div>
         <button style={pageStyles.addBtn} onClick={() => { setEditTarget(null); setShowModal(true); }}>
           <FaUserPlus style={{ marginRight: 8 }} /> New Enquiry
@@ -489,25 +513,27 @@ const EnquiryPage = () => {
 
       {/* Table */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#6b7280" }}>Loading...</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#6b7280" }}>Loading enquiries...</div>
       ) : filtered.length === 0 ? (
         <div style={pageStyles.emptyState}>
           <div style={{ fontSize: 56 }}>📭</div>
           <div style={{ color: "#6b7280", marginTop: 12 }}>No enquiries found</div>
+          <button style={pageStyles.addBtn} onClick={() => { setEditTarget(null); setShowModal(true); }}>
+            Create your first enquiry
+          </button>
         </div>
       ) : (
         <div style={pageStyles.tableWrapper}>
           <table style={pageStyles.table}>
             <thead>
               <tr>
-                {["Customer", "Contact", "Email", "Age", "Car Interest", "Meet-up Date", "Coming Today?", "Status", "Called", "Actions"].map((h) => (
+                {["Customer", "Contact", "Email", "Work Interest", "Meet-up Date", "Coming Today?", "Status", "Called", "Next Follow-up", "Actions"].map((h) => (
                   <th key={h} style={pageStyles.th}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((e) => {
-                const sc = STATUS_COLORS[e.status] || STATUS_COLORS.Pending;
                 const rowAlert = e.is_today || e.is_overdue;
                 return (
                   <tr key={e.id} className="enquiry-row" style={{
@@ -521,8 +547,7 @@ const EnquiryPage = () => {
                     </td>
                     <td style={pageStyles.td}><FaPhone style={{ color: "#4da6ff", marginRight: 5 }} />{e.contact_number}</td>
                     <td style={pageStyles.td}>{e.email ? <><FaEnvelope style={{ color: "#a855f7", marginRight: 5 }} />{e.email}</> : "—"}</td>
-                    <td style={{ ...pageStyles.td, textAlign: "center" }}>{e.age ?? "—"}</td>
-                    <td style={pageStyles.td}>{e.car_interest ? <><FaCarAlt style={{ color: "#22c55e", marginRight: 5 }} />{e.car_interest}</> : "—"}</td>
+                    <td style={pageStyles.td}>{e.work_interest ? <><FaBriefcase style={{ color: "#22c55e", marginRight: 5 }} />{e.work_interest}</> : "—"}</td>
                     <td style={pageStyles.td}>
                       <FaCalendarAlt style={{ color: "#fbbf24", marginRight: 5 }} />
                       {formatDate(e.meetup_date)}
@@ -533,38 +558,62 @@ const EnquiryPage = () => {
                         : <FaClock style={{ color: "#9ca3af", fontSize: 18 }} />}
                     </td>
                     <td style={pageStyles.td}>
-                      <span style={{ ...pageStyles.badge, background: sc.bg, color: sc.text }}>
-                        {e.status}
-                      </span>
+                      {e.status === "Visited" ? (
+                        <span style={pageStyles.visitedChip}>✅ Visited</span>
+                      ) : e.status === "Cancelled" ? (
+                        <span style={{ ...pageStyles.badge, background: "#ef4444", color: "#fff" }}>Cancelled</span>
+                      ) : (
+                        <button
+                          style={pageStyles.visitBtn}
+                          onClick={() => handleAccept(e)}
+                          disabled={acceptingId === e.id}
+                          title="Mark as Visited"
+                        >
+                          {acceptingId === e.id ? "..." : "Mark Visited"}
+                        </button>
+                      )}
                     </td>
                     <td style={{ ...pageStyles.td, textAlign: "center" }}>
-                      {e.called ? <FaCheck style={{ color: "#22c55e" }} /> : <FaTimes style={{ color: "#ef4444" }} />}
+                      <button
+                        style={{
+                          ...pageStyles.calledBtn,
+                          background: e.called ? "#22c55e" : "rgba(255,255,255,0.1)",
+                          color: e.called ? "#fff" : "#9ca3af",
+                        }}
+                        onClick={() => handleToggleCalled(e)}
+                        disabled={updatingCalled === e.id}
+                        title={e.called ? "Mark as Not Called" : "Mark as Called"}
+                      >
+                        {updatingCalled === e.id ? "..." : <FaCheck />}
+                        <span style={{ marginLeft: 6 }}>{e.called ? "Called" : "Not Called"}</span>
+                      </button>
+                    </td>
+                    <td style={pageStyles.td}>
+                      {e.next_followup_date ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <FaCalendarDay style={{ color: "#fbbf24" }} />
+                          <span>{formatDate(e.next_followup_date)}</span>
+                        </div>
+                      ) : "—"}
                     </td>
                     <td style={pageStyles.td}>
                       <div style={{ display: "flex", gap: 8 }}>
-                        {/* ✅ Accept / Mark Visited */}
-                        {e.status !== "Visited" && (
+                        <button
+                          style={pageStyles.followupBtn}
+                          onClick={() => openFollowupModal(e)}
+                          title="Set Next Follow-up Date"
+                        >
+                          <FaCalendarDay />
+                        </button>
+                        {e.status !== "Cancelled" && e.status !== "Visited" && (
                           <button
-                            style={{
-                              ...pageStyles.acceptBtn,
-                              opacity: acceptingId === e.id ? 0.6 : 1,
-                            }}
-                            onClick={() => handleAccept(e)}
-                            disabled={acceptingId === e.id}
-                            title="Mark as Visited"
+                            style={pageStyles.cancelBtn}
+                            onClick={() => handleCancel(e)}
+                            title="Cancel Enquiry"
                           >
-                            {acceptingId === e.id ? "…" : <FaCheck />}
+                            <FaBan />
                           </button>
                         )}
-                        {e.status === "Visited" && (
-                          <span style={pageStyles.visitedChip}>✅ Visited</span>
-                        )}
-                        <button style={pageStyles.editBtn} onClick={() => handleEdit(e)} title="Edit">
-                          <FaEdit />
-                        </button>
-                        <button style={pageStyles.deleteBtn} onClick={() => handleDelete(e.id)} title="Delete">
-                          <FaTrash />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -578,6 +627,46 @@ const EnquiryPage = () => {
       <Modal show={showModal} onClose={() => { setShowModal(false); setEditTarget(null); }}
         onSave={handleSave} initial={editTarget} />
 
+      {/* Follow-up Modal */}
+      {showFollowupModal && selectedEnquiry && (
+        <div style={modalStyles.overlay}>
+          <div style={modalStyles.box}>
+            <div style={modalStyles.header}>
+              <h3 style={{ margin: 0, color: "#4da6ff" }}>
+                📅 Set Next Follow-up Date
+              </h3>
+              <button style={modalStyles.closeBtn} onClick={() => setShowFollowupModal(false)}>
+                <FaTimes />
+              </button>
+            </div>
+            <div style={{ padding: "20px 0" }}>
+              <div style={modalStyles.group}>
+                <label style={modalStyles.label}>Customer: {selectedEnquiry.customer_name}</label>
+                <input
+                  style={modalStyles.input}
+                  type="date"
+                  value={newFollowupDate}
+                  onChange={(e) => setNewFollowupDate(e.target.value)}
+                  min={todayStr()}
+                />
+              </div>
+            </div>
+            <div style={modalStyles.footer}>
+              <button style={modalStyles.cancelBtn} onClick={() => setShowFollowupModal(false)}>
+                Cancel
+              </button>
+              <button
+                style={modalStyles.saveBtn}
+                onClick={handleUpdateFollowup}
+                disabled={updatingFollowup === selectedEnquiry.id}
+              >
+                {updatingFollowup === selectedEnquiry.id ? "Saving..." : "Save Follow-up Date"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast show={toast.show} message={toast.message} />
     </div>
   );
@@ -585,7 +674,7 @@ const EnquiryPage = () => {
 
 // ─────────────────────── Styles ───────────────────────
 const pageStyles = {
-  container: { padding: "0", animation: "fadeIn 0.4s ease", color: "#fff" },
+  container: { padding: "0", animation: "fadeIn 0.4s ease", color: "#fff", minHeight: "100vh" },
   pageHeader: {
     display: "flex", justifyContent: "space-between", alignItems: "flex-start",
     marginBottom: 28, flexWrap: "wrap", gap: 12,
@@ -596,7 +685,7 @@ const pageStyles = {
     display: "flex", alignItems: "center", background: "linear-gradient(135deg, #4da6ff, #a855f7)",
     border: "none", borderRadius: 10, color: "#fff", cursor: "pointer",
     padding: "11px 22px", fontWeight: 700, fontSize: 14,
-    boxShadow: "0 4px 15px rgba(77,166,255,0.3)",
+    boxShadow: "0 4px 15px rgba(77,166,255,0.3)", transition: "transform 0.2s, box-shadow 0.2s",
   },
   statsGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 },
   statCard: {
@@ -615,6 +704,7 @@ const pageStyles = {
   filterBtn: {
     background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)",
     borderRadius: 8, color: "#9ca3af", cursor: "pointer", padding: "8px 16px", fontSize: 13,
+    transition: "all 0.2s",
   },
   filterBtnActive: { background: "rgba(77,166,255,0.2)", color: "#4da6ff", borderColor: "#4da6ff" },
   tableWrapper: { overflowX: "auto", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)" },
@@ -642,18 +732,37 @@ const pageStyles = {
     fontWeight: 700, boxShadow: "0 2px 10px rgba(34,197,94,0.35)",
     transition: "transform 0.15s, box-shadow 0.15s",
   },
-  visitedChip: {
-    background: "rgba(34,197,94,0.15)", color: "#22c55e",
-    borderRadius: 7, padding: "5px 10px", fontSize: 12, fontWeight: 700,
+  visitBtn: {
+    background: "linear-gradient(135deg, #22c55e, #16a34a)",
+    border: "none", borderRadius: 7,
+    color: "#fff", cursor: "pointer", padding: "6px 14px", fontSize: 12,
+    fontWeight: 600, boxShadow: "0 2px 8px rgba(34,197,94,0.3)",
+    transition: "transform 0.15s, box-shadow 0.15s",
     whiteSpace: "nowrap",
   },
-  editBtn: {
-    background: "rgba(77,166,255,0.15)", border: "none", borderRadius: 7,
-    color: "#4da6ff", cursor: "pointer", padding: "7px 9px", fontSize: 14,
+  cancelBtn: {
+    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    border: "none", borderRadius: 7,
+    color: "#fff", cursor: "pointer", padding: "7px 11px", fontSize: 15,
+    fontWeight: 700, boxShadow: "0 2px 10px rgba(239,68,68,0.35)",
+    transition: "transform 0.15s, box-shadow 0.15s",
   },
-  deleteBtn: {
-    background: "rgba(239,68,68,0.15)", border: "none", borderRadius: 7,
-    color: "#ef4444", cursor: "pointer", padding: "7px 9px", fontSize: 14,
+  followupBtn: {
+    background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
+    border: "none", borderRadius: 7,
+    color: "#000", cursor: "pointer", padding: "7px 11px", fontSize: 15,
+    fontWeight: 700, boxShadow: "0 2px 10px rgba(251,191,36,0.35)",
+    transition: "transform 0.15s, box-shadow 0.15s",
+  },
+  calledBtn: {
+    border: "none", borderRadius: 7, cursor: "pointer", padding: "7px 12px",
+    fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex",
+    alignItems: "center", justifyContent: "center", gap: 4,
+  },
+  visitedChip: {
+    background: "rgba(34,197,94,0.15)", color: "#22c55e",
+    borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700,
+    whiteSpace: "nowrap", display: "inline-block",
   },
   emptyState: { textAlign: "center", padding: "60px 20px" },
 };

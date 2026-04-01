@@ -256,12 +256,17 @@ const Sidebar = ({ isOpen }) => {
             <span style={styles.text}>Enquiries</span>
           </NavLink>
 
+          <NavLink to="/customer" style={getLinkStyle}>
+            <FaClipboardCheck style={styles.icon} />
+            <span style={styles.text}>Customer Details</span>
+          </NavLink>
+
           <NavLink to="/usersettings" style={getLinkStyle}>
             <FaUserCog style={styles.icon} />
             <span style={styles.text}>User Settings</span>
           </NavLink>
         </div>
-        
+
         {isOpen && (
           <div style={{
             fontSize: "10px",
