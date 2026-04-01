@@ -25,12 +25,9 @@ const Login = () => {
     setLoading(true);
 
     try {
-<<<<<<< HEAD
-      const response = await fetch("http://localhost:5000/api/login", {
-=======
       // First try employee login
       console.log("Attempting employee login...");
-      const employeeResponse = await fetch("http://127.0.0.1:5000/api/auth/login", {
+      const employeeResponse = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -66,10 +63,9 @@ const Login = () => {
         return;
       }
 
-      // If employee login fails, try the old login endpoint
-      console.log("Employee login failed, trying old login endpoint...");
-      const oldResponse = await fetch("http://127.0.0.1:5000/api/login", {
->>>>>>> 9d466fbc5c8e5c7e76fe199c37d30a56632f0564
+      // If employee login fails, try the standard login endpoint
+      console.log("Employee login failed, trying standard login endpoint...");
+      const oldResponse = await fetch("http://localhost:5000/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,8 +84,8 @@ const Login = () => {
         return;
       }
 
-      // Old login successful
-      console.log("Old login successful:", oldData);
+      // Standard login successful
+      console.log("Standard login successful:", oldData);
       
       // Store user details in localStorage with proper structure
       const userData = oldData.user || oldData;
@@ -108,7 +104,7 @@ const Login = () => {
       
       localStorage.setItem("user", JSON.stringify(userToStore));
       localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("loginType", "old");
+      localStorage.setItem("loginType", "standard");
       
       setLoading(false);
       navigate("/dashboard");
