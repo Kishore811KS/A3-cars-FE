@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 // Configure axios instance with base URL
@@ -33,6 +33,12 @@ const Company = () => {
     bank_branch: '',
     upi_id: '',
     
+    // Logo
+    logo: null,
+    logo_preview: '',
+    logo_filename: '',
+    logo_mime_type: '',
+    
     // Additional
     notes: '',
     is_active: true
@@ -43,10 +49,12 @@ const Company = () => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isViewing, setIsViewing] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [saveStatus, setSaveStatus] = useState('');
+  const [saveStatus, setSaveStatus] = useState({ message: '', type: '' });
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('basic');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,13 +80,18 @@ const Company = () => {
       }
       
       if (response.data) {
-        setCompanies(response.data.companies || response.data);
-        setTotalItems(response.data.total || response.data.length);
+        const companiesData = response.data.companies || response.data;
+        // Process logo data for each company
+        const processedCompanies = companiesData.map(company => ({
+          ...company,
+          logo_url: company.logo_data ? `data:${company.logo_mime_type || 'image/jpeg'};base64,${company.logo_data}` : null
+        }));
+        setCompanies(processedCompanies);
+        setTotalItems(response.data.total || (Array.isArray(response.data) ? response.data.length : 0));
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
-      setSaveStatus(error.response?.data?.error || 'Error fetching companies');
-      setTimeout(() => setSaveStatus(''), 3000);
+      showNotification(error.response?.data?.error || 'Error fetching companies', 'error');
     } finally {
       setLoading(false);
     }
@@ -96,13 +109,17 @@ const Company = () => {
       setLoading(true);
       const response = await api.get(`/companies/search?q=${encodeURIComponent(term)}&page=1&limit=${itemsPerPage}`);
       if (response.data) {
-        setCompanies(response.data.companies || response.data);
-        setTotalItems(response.data.total || response.data.length);
+        const companiesData = response.data.companies || response.data;
+        const processedCompanies = companiesData.map(company => ({
+          ...company,
+          logo_url: company.logo_data ? `data:${company.logo_mime_type || 'image/jpeg'};base64,${company.logo_data}` : null
+        }));
+        setCompanies(processedCompanies);
+        setTotalItems(response.data.total || (Array.isArray(response.data) ? response.data.length : 0));
       }
     } catch (error) {
       console.error('Error searching companies:', error);
-      setSaveStatus(error.response?.data?.error || 'Error searching companies');
-      setTimeout(() => setSaveStatus(''), 3000);
+      showNotification(error.response?.data?.error || 'Error searching companies', 'error');
     } finally {
       setLoading(false);
     }
@@ -116,60 +133,128 @@ const Company = () => {
     }));
   };
 
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        showNotification('Please select a valid image file (JPEG, PNG, GIF, WEBP)', 'error');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification('Logo size should be less than 5MB', 'error');
+        return;
+      }
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCompanyInfo(prev => ({
+          ...prev,
+          logo: file,
+          logo_preview: reader.result,
+          logo_filename: file.name,
+          logo_mime_type: file.type
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeLogo = () => {
+    setCompanyInfo(prev => ({
+      ...prev,
+      logo: null,
+      logo_preview: '',
+      logo_filename: '',
+      logo_mime_type: ''
+    }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setSaveStatus({ message, type });
+    setTimeout(() => {
+      setSaveStatus({ message: '', type: '' });
+    }, 3000);
+  };
+
   const handleSave = async () => {
     // Validate required fields
     if (!companyInfo.name || !companyInfo.name.trim()) {
-      setSaveStatus('Please fill in Company Name');
-      setTimeout(() => setSaveStatus(''), 3000);
+      showNotification('Please fill in Company Name', 'error');
       return;
     }
     if (!companyInfo.address || !companyInfo.address.trim()) {
-      setSaveStatus('Please fill in Address');
-      setTimeout(() => setSaveStatus(''), 3000);
+      showNotification('Please fill in Address', 'error');
       return;
     }
     if (!companyInfo.phone || !companyInfo.phone.trim()) {
-      setSaveStatus('Please fill in Phone Number');
-      setTimeout(() => setSaveStatus(''), 3000);
+      showNotification('Please fill in Phone Number', 'error');
       return;
     }
     
     try {
       setLoading(true);
+      setUploadProgress(0);
       
-      // Prepare data for API - clean up empty strings to null
-      const dataToSend = {
-        name: companyInfo.name.trim(),
-        address: companyInfo.address.trim(),
-        phone: companyInfo.phone.trim(),
-        alternate_phone: companyInfo.alternate_phone?.trim() || null,
-        email: companyInfo.email?.trim() || null,
-        gst_number: companyInfo.gst_number?.trim() || null,
-        registration_date: companyInfo.registration_date || null,
-        bank_name: companyInfo.bank_name?.trim() || null,
-        bank_account_number: companyInfo.bank_account_number?.trim() || null,
-        bank_ifsc: companyInfo.bank_ifsc?.trim() || null,
-        bank_branch: companyInfo.bank_branch?.trim() || null,
-        upi_id: companyInfo.upi_id?.trim() || null,
-        notes: companyInfo.notes?.trim() || null,
-        is_active: companyInfo.is_active
-      };
+      // Prepare data for API
+      const formData = new FormData();
+      formData.append('name', companyInfo.name.trim());
+      formData.append('address', companyInfo.address.trim());
+      formData.append('phone', companyInfo.phone.trim());
+      formData.append('alternate_phone', companyInfo.alternate_phone?.trim() || '');
+      formData.append('email', companyInfo.email?.trim() || '');
+      formData.append('gst_number', companyInfo.gst_number?.trim() || '');
+      formData.append('registration_date', companyInfo.registration_date || '');
+      formData.append('bank_name', companyInfo.bank_name?.trim() || '');
+      formData.append('bank_account_number', companyInfo.bank_account_number?.trim() || '');
+      formData.append('bank_ifsc', companyInfo.bank_ifsc?.trim() || '');
+      formData.append('bank_branch', companyInfo.bank_branch?.trim() || '');
+      formData.append('upi_id', companyInfo.upi_id?.trim() || '');
+      formData.append('notes', companyInfo.notes?.trim() || '');
+      formData.append('is_active', companyInfo.is_active);
       
-      console.log('Sending data:', dataToSend); // Debug log
+      if (companyInfo.logo instanceof File) {
+        formData.append('logo', companyInfo.logo);
+      } else if (editingId && companyInfo.remove_logo) {
+        formData.append('remove_logo', 'true');
+      }
       
       let response;
       if (editingId) {
         // Update existing company
-        response = await api.put(`/companies/${editingId}`, dataToSend);
+        response = await api.put(`/companies/${editingId}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploadProgress(percentCompleted);
+            }
+          }
+        });
         if (response.status === 200) {
-          setSaveStatus('Company information updated successfully!');
+          showNotification('Company information updated successfully!', 'success');
           await fetchCompanies();
         }
       } else {
         // Create new company
-        response = await api.post('/companies/', dataToSend);
+        response = await api.post('/companies/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploadProgress(percentCompleted);
+            }
+          }
+        });
         if (response.status === 200 || response.status === 201) {
-          setSaveStatus('Company information saved successfully!');
+          showNotification('Company information saved successfully!', 'success');
           await fetchCompanies();
         }
       }
@@ -180,18 +265,23 @@ const Company = () => {
       setIsViewing(false);
       setEditingId(null);
       setIsEditing(false);
-      setTimeout(() => setSaveStatus(''), 3000);
+      setUploadProgress(0);
     } catch (error) {
       console.error('Error saving company:', error);
       console.error('Error response:', error.response?.data);
-      setSaveStatus(error.response?.data?.error || 'Error saving company information');
-      setTimeout(() => setSaveStatus(''), 3000);
+      showNotification(error.response?.data?.error || 'Error saving company information', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleEdit = (company) => {
+    // Convert logo_data to preview URL if exists
+    let logoPreview = '';
+    if (company.logo_data) {
+      logoPreview = `data:${company.logo_mime_type || 'image/jpeg'};base64,${company.logo_data}`;
+    }
+    
     setCompanyInfo({
       // Basic Information
       name: company.name || '',
@@ -212,6 +302,13 @@ const Company = () => {
       bank_ifsc: company.bank_ifsc || '',
       bank_branch: company.bank_branch || '',
       upi_id: company.upi_id || '',
+      
+      // Logo
+      logo: null,
+      logo_preview: logoPreview,
+      logo_filename: company.logo_filename || '',
+      logo_mime_type: company.logo_mime_type || '',
+      remove_logo: false,
       
       // Additional
       notes: company.notes || '',
@@ -225,6 +322,12 @@ const Company = () => {
   };
 
   const handleView = (company) => {
+    // Convert logo_data to preview URL if exists
+    let logoPreview = '';
+    if (company.logo_data) {
+      logoPreview = `data:${company.logo_mime_type || 'image/jpeg'};base64,${company.logo_data}`;
+    }
+    
     setCompanyInfo({
       // Basic Information
       name: company.name || '',
@@ -245,6 +348,12 @@ const Company = () => {
       bank_ifsc: company.bank_ifsc || '',
       bank_branch: company.bank_branch || '',
       upi_id: company.upi_id || '',
+      
+      // Logo
+      logo: null,
+      logo_preview: logoPreview,
+      logo_filename: company.logo_filename || '',
+      logo_mime_type: company.logo_mime_type || '',
       
       // Additional
       notes: company.notes || '',
@@ -262,13 +371,11 @@ const Company = () => {
       try {
         setLoading(true);
         await api.delete(`/companies/${id}`);
-        setSaveStatus('Company deleted successfully!');
+        showNotification('Company deleted successfully!', 'success');
         await fetchCompanies();
-        setTimeout(() => setSaveStatus(''), 3000);
       } catch (error) {
         console.error('Error deleting company:', error);
-        setSaveStatus(error.response?.data?.error || 'Error deleting company');
-        setTimeout(() => setSaveStatus(''), 3000);
+        showNotification(error.response?.data?.error || 'Error deleting company', 'error');
       } finally {
         setLoading(false);
       }
@@ -279,13 +386,11 @@ const Company = () => {
     try {
       setLoading(true);
       await api.post(`/companies/${id}/restore`);
-      setSaveStatus('Company restored successfully!');
+      showNotification('Company restored successfully!', 'success');
       await fetchCompanies();
-      setTimeout(() => setSaveStatus(''), 3000);
     } catch (error) {
       console.error('Error restoring company:', error);
-      setSaveStatus(error.response?.data?.error || 'Error restoring company');
-      setTimeout(() => setSaveStatus(''), 3000);
+      showNotification(error.response?.data?.error || 'Error restoring company', 'error');
     } finally {
       setLoading(false);
     }
@@ -306,6 +411,7 @@ const Company = () => {
     setEditingId(null);
     setIsEditing(false);
     setIsViewing(false);
+    setUploadProgress(0);
   };
 
   const resetForm = () => {
@@ -322,6 +428,10 @@ const Company = () => {
       bank_ifsc: '',
       bank_branch: '',
       upi_id: '',
+      logo: null,
+      logo_preview: '',
+      logo_filename: '',
+      logo_mime_type: '',
       notes: '',
       is_active: true
     });
@@ -388,18 +498,15 @@ const Company = () => {
     // Only validate in edit/add mode
     if (!isViewing && activeTab === 'basic') {
       if (!companyInfo.name || !companyInfo.name.trim()) {
-        setSaveStatus('Please fill in Company Name');
-        setTimeout(() => setSaveStatus(''), 3000);
+        showNotification('Please fill in Company Name', 'error');
         return;
       }
       if (!companyInfo.address || !companyInfo.address.trim()) {
-        setSaveStatus('Please fill in Address');
-        setTimeout(() => setSaveStatus(''), 3000);
+        showNotification('Please fill in Address', 'error');
         return;
       }
       if (!companyInfo.phone || !companyInfo.phone.trim()) {
-        setSaveStatus('Please fill in Phone Number');
-        setTimeout(() => setSaveStatus(''), 3000);
+        showNotification('Please fill in Phone Number', 'error');
         return;
       }
       setActiveTab('tax');
@@ -449,17 +556,12 @@ const Company = () => {
           </div>
         </div>
 
-        {saveStatus && (
-          <div className={`save-status ${saveStatus.includes('success') || saveStatus.includes('updated') || saveStatus.includes('deleted') || saveStatus.includes('restored') || saveStatus.includes('activated') ? 'success' : 'error'}`}>
-            {saveStatus}
-          </div>
-        )}
-
         {/* Companies Table */}
         <div className="table-container">
           <table className="companies-table">
             <thead>
               <tr>
+                <th>Logo</th>
                 <th>#</th>
                 <th>Company Name</th>
                 <th>GST Number</th>
@@ -472,14 +574,14 @@ const Company = () => {
             <tbody>
               {loading && companies.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="loading-cell">
+                  <td colSpan="8" className="loading-cell">
                     <div className="loader"></div>
                     <p>Loading companies...</p>
                   </td>
                 </tr>
               ) : companies.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="empty-cell">
+                  <td colSpan="8" className="empty-cell">
                     <div className="empty-state">
                       <svg className="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -494,6 +596,17 @@ const Company = () => {
               ) : (
                 companies.map((company, index) => (
                   <tr key={company.id}>
+                    <td className="logo-cell">
+                      {company.logo_url ? (
+                        <img src={company.logo_url} alt={company.name} className="company-logo-thumb" />
+                      ) : (
+                        <div className="logo-placeholder">
+                          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </td>
                     <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                     <td className="company-name">{company.name}</td>
                     <td>{company.gst_number || '-'}</td>
@@ -611,6 +724,13 @@ const Company = () => {
                 <button onClick={closePopup} className="close-btn">&times;</button>
               </div>
               
+              {/* Notification inside popup */}
+              {saveStatus.message && (
+                <div className={`popup-notification ${saveStatus.type}`}>
+                  {saveStatus.message}
+                </div>
+              )}
+              
               {/* Progress Indicator */}
               <div className="progress-indicator">
                 <div className={`progress-step ${activeTab === 'basic' ? 'active' : (activeTab === 'tax' || activeTab === 'banking') && !isViewing ? 'completed' : ''}`}>
@@ -633,6 +753,49 @@ const Company = () => {
                 {/* Basic Information Tab */}
                 {activeTab === 'basic' && (
                   <>
+                    {/* Logo Upload Section */}
+                    <div className="form-group logo-upload-section">
+                      <label>Company Logo</label>
+                      <div className="logo-upload-container">
+                        {companyInfo.logo_preview ? (
+                          <div className="logo-preview">
+                            <img src={companyInfo.logo_preview} alt="Company Logo" className="logo-preview-img" />
+                            {!isViewing && (
+                              <button type="button" onClick={removeLogo} className="remove-logo-btn" title="Remove logo">
+                                ×
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="logo-upload-placeholder">
+                            <svg className="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p>No logo uploaded</p>
+                          </div>
+                        )}
+                        {!isViewing && (
+                          <div className="logo-upload-buttons">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                              onChange={handleLogoChange}
+                              style={{ display: 'none' }}
+                              id="logo-upload"
+                            />
+                            <label htmlFor="logo-upload" className="upload-logo-btn">
+                              <svg className="upload-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                              </svg>
+                              {companyInfo.logo_preview ? 'Change Logo' : 'Upload Logo'}
+                            </label>
+                            <small className="logo-hint">Max size: 5MB. Allowed: JPG, PNG, GIF, WEBP</small>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
                     <div className="form-group">
                       <label>Company Name {!isViewing && '*'}</label>
                       <input
@@ -841,6 +1004,12 @@ const Company = () => {
                     Active Company
                   </label>
                 </div>
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="upload-progress">
+                    <div className="progress-bar" style={{ width: `${uploadProgress}%` }}></div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                )}
                 <div className="footer-buttons">
                   <button onClick={closePopup} className="btn-cancel">
                     {isViewing ? 'Close' : 'Cancel'}
@@ -1030,26 +1199,6 @@ const Company = () => {
           color: white;
         }
 
-        .save-status {
-          margin-bottom: 20px;
-          padding: 12px;
-          border-radius: 8px;
-          text-align: center;
-          animation: slideDown 0.3s ease;
-        }
-
-        .save-status.success {
-          background-color: #059669;
-          color: white;
-          border: 1px solid #10b981;
-        }
-
-        .save-status.error {
-          background-color: #dc2626;
-          color: white;
-          border: 1px solid #ef4444;
-        }
-
         .table-container {
           background: #1e293b;
           border-radius: 12px;
@@ -1061,7 +1210,7 @@ const Company = () => {
         .companies-table {
           width: 100%;
           border-collapse: collapse;
-          min-width: 800px;
+          min-width: 900px;
         }
 
         .companies-table thead {
@@ -1089,6 +1238,34 @@ const Company = () => {
         .companies-table tbody tr:hover {
           background-color: #334155;
           transition: background-color 0.2s;
+        }
+
+        .logo-cell {
+          width: 50px;
+        }
+
+        .company-logo-thumb {
+          width: 40px;
+          height: 40px;
+          object-fit: cover;
+          border-radius: 8px;
+          border: 1px solid #a855f7;
+        }
+
+        .logo-placeholder {
+          width: 40px;
+          height: 40px;
+          background: #334155;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #94a3b8;
+        }
+
+        .logo-placeholder svg {
+          width: 24px;
+          height: 24px;
         }
 
         .company-name {
@@ -1289,6 +1466,162 @@ const Company = () => {
 
         .progress-line.completed {
           background: #10b981;
+        }
+
+        /* Popup Notification */
+        .popup-notification {
+          margin: 16px 24px 0;
+          padding: 12px;
+          border-radius: 8px;
+          text-align: center;
+          animation: slideDown 0.3s ease;
+        }
+
+        .popup-notification.success {
+          background-color: #059669;
+          color: white;
+          border: 1px solid #10b981;
+        }
+
+        .popup-notification.error {
+          background-color: #dc2626;
+          color: white;
+          border: 1px solid #ef4444;
+        }
+
+        /* Logo Upload Styles */
+        .logo-upload-section {
+          margin-bottom: 24px;
+        }
+
+        .logo-upload-container {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+
+        .logo-preview {
+          position: relative;
+          width: 100px;
+          height: 100px;
+        }
+
+        .logo-preview-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 12px;
+          border: 2px solid #a855f7;
+        }
+
+        .remove-logo-btn {
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #dc2626;
+          color: white;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          transition: all 0.2s;
+        }
+
+        .remove-logo-btn:hover {
+          background: #ef4444;
+          transform: scale(1.1);
+        }
+
+        .logo-upload-placeholder {
+          width: 100px;
+          height: 100px;
+          background: #334155;
+          border-radius: 12px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border: 2px dashed #a855f7;
+        }
+
+        .logo-upload-placeholder svg {
+          width: 32px;
+          height: 32px;
+          color: #94a3b8;
+          margin-bottom: 8px;
+        }
+
+        .logo-upload-placeholder p {
+          font-size: 0.7rem;
+          color: #94a3b8;
+          margin: 0;
+        }
+
+        .logo-upload-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .upload-logo-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          background: linear-gradient(135deg, #a855f7 0%, #ec489a 100%);
+          color: white;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 0.875rem;
+          font-weight: 500;
+          transition: all 0.2s;
+          border: none;
+        }
+
+        .upload-logo-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+        }
+
+        .upload-icon-small {
+          width: 16px;
+          height: 16px;
+        }
+
+        .logo-hint {
+          font-size: 0.7rem;
+          color: #94a3b8;
+        }
+
+        /* Upload Progress */
+        .upload-progress {
+          flex: 1;
+          margin: 0 16px;
+          position: relative;
+          background: #334155;
+          border-radius: 4px;
+          overflow: hidden;
+          height: 8px;
+        }
+
+        .progress-bar {
+          background: linear-gradient(90deg, #a855f7, #ec489a);
+          height: 100%;
+          transition: width 0.3s ease;
+        }
+
+        .upload-progress span {
+          position: absolute;
+          right: 0;
+          top: -20px;
+          font-size: 0.7rem;
+          color: #c084fc;
         }
 
         /* Pagination Styles */
@@ -1701,6 +2034,15 @@ const Company = () => {
             width: 28px;
             height: 28px;
             font-size: 0.75rem;
+          }
+
+          .logo-upload-container {
+            flex-direction: column;
+            align-items: center;
+          }
+
+          .logo-upload-buttons {
+            align-items: center;
           }
         }
       `}</style>

@@ -20,6 +20,7 @@ import {
   FaUserCog,
   FaCog,
   FaPercent, // for Discount
+  FaClipboardCheck, // for Enquiry
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -229,16 +230,7 @@ const Sidebar = ({ isOpen }) => {
             <span style={styles.text}>Supplier List</span>
           </NavLink>
 
-          <NavLink to="/employee" style={getLinkStyle}>
-            <FaUsers style={styles.icon} />
-            <span style={styles.text}>Employee</span>
-          </NavLink>
-
-          <NavLink to="/usertype" style={getLinkStyle}>
-            <FaUsers style={styles.icon} />
-            <span style={styles.text}>User Type</span>
-          </NavLink>
-
+          <div style={styles.sectionTitle}>HR & Attendance</div>
           <NavLink to="/attendance" style={getLinkStyle}>
             <FaUserCheck style={styles.icon} />
             <span style={styles.text}>Attendance</span>
@@ -249,13 +241,27 @@ const Sidebar = ({ isOpen }) => {
             <span style={styles.text}>Company</span>
           </NavLink>
 
-          <NavLink to="/usersettings" style={getLinkStyle}>
+          {/* System Settings */}
+          <div style={styles.sectionTitle}>System</div>
+          <NavLink to="/settings" style={getLinkStyle}>
             <FaUserCog style={styles.icon} />
-            <span style={styles.text}>User Settings</span>
+            <span style={styles.text}>Settings Hub</span>
           </NavLink>
+
+          {/* CRM Section */}
+          <div style={styles.sectionTitle}>CRM</div>
+          <NavLink to="/enquiry" style={getLinkStyle}>
+             <FaClipboardCheck style={styles.icon} />
+             <span style={styles.text}>Enquiries</span>
+          </NavLink>
+
+          <NavLink to="/customer" style={getLinkStyle}>
+            <FaClipboardCheck style={styles.icon} />
+            <span style={styles.text}>Customer Details</span>
+          </NavLink>
+
         </div>
 
-        {/* Optional: Add version or footer */}
         {isOpen && (
           <div style={{
             fontSize: "10px",

@@ -25,6 +25,9 @@ const Login = () => {
     setLoading(true);
 
     try {
+<<<<<<< HEAD
+      const response = await fetch("http://localhost:5000/api/login", {
+=======
       // First try employee login
       console.log("Attempting employee login...");
       const employeeResponse = await fetch("http://127.0.0.1:5000/api/auth/login", {
@@ -66,6 +69,7 @@ const Login = () => {
       // If employee login fails, try the old login endpoint
       console.log("Employee login failed, trying old login endpoint...");
       const oldResponse = await fetch("http://127.0.0.1:5000/api/login", {
+>>>>>>> 9d466fbc5c8e5c7e76fe199c37d30a56632f0564
         method: "POST",
         headers: {
           "Content-Type": "application/json",
