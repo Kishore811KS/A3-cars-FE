@@ -16,7 +16,7 @@ import {
   FaCarAlt,
 } from "react-icons/fa";
 
-const API = "http://127.0.0.1:5000/api";
+const API = "http://localhost:5000/api";
 
 const STATUS_COLORS = {
   Pending: { bg: "#fbbf24", text: "#000" },
