@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const UserTypeManager = () => {
+  const navigate = useNavigate();
   // State for the form input value
   const [userTypeInput, setUserTypeInput] = useState('');
   // State for the list of user types
@@ -67,7 +69,12 @@ const UserTypeManager = () => {
 
       const newUserType = await response.json();
       setUserTypes([...userTypes, newUserType]);
+      
+      // Auto-set as active role for configuration
+      localStorage.setItem("userType", trimmedValue);
+      
       setUserTypeInput('');
+      alert(`User Type "${trimmedValue}" added. Role is now active for configuration.`);
     } catch (err) {
       alert('Error: ' + err.message);
       console.error('Add error:', err);
@@ -241,6 +248,15 @@ const UserTypeManager = () => {
                         </div>
                       ) : (
                         <div style={styles.actionButtons}>
+                          <button
+                            onClick={() => {
+                              localStorage.setItem("userType", userType.name);
+                              navigate('/userSettings');
+                            }}
+                            style={{...styles.actionButton, ...styles.manageButton}}
+                          >
+                            Manage
+                          </button>
                           <button
                             onClick={() => startEditing(userType)}
                             style={{...styles.actionButton, ...styles.editButton}}
@@ -454,6 +470,10 @@ const styles = {
   },
   cancelButton: {
     backgroundColor: '#6c757d',
+    color: 'white'
+  },
+  manageButton: {
+    backgroundColor: '#3b82f6',
     color: 'white'
   }
 };
