@@ -238,14 +238,11 @@ const Sidebar = ({ isOpen }) => {
             <span style={styles.text}>Supplier List</span>
           </NavLink>
 
-<<<<<<< HEAD
-=======
           <NavLink to="/payment-tracking" style={getLinkStyle}>
             <FaFileInvoiceDollar style={styles.icon} />
             <span style={styles.text}>Payment Tracking</span>
           </NavLink>
 
->>>>>>> 32e29ca94b548ffa879524fbc7f85ef9057c8884
           <NavLink to="/employee" style={getLinkStyle}>
             <FaUsers style={styles.icon} />
             <span style={styles.text}>Employee</span>
