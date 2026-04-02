@@ -21,6 +21,7 @@ import {
   FaCog,
   FaPercent, // for Discount
   FaClipboardCheck, // for Enquiry
+  FaShieldAlt, // for Warranty
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -180,6 +181,13 @@ const Sidebar = ({ isOpen }) => {
             <span style={styles.text}>Low Stock</span>
           </NavLink>
 
+          {/* Warranty Section */}
+          <div style={styles.sectionTitle}>Warranty</div>
+          <NavLink to="/warranty" style={getLinkStyle}>
+            <FaShieldAlt style={styles.icon} />
+            <span style={styles.text}>Warranty</span>
+          </NavLink>
+
           {/* Billing Section */}
           <div style={styles.sectionTitle}>Billing</div>
           <NavLink to="/bill" style={getLinkStyle}>
@@ -228,6 +236,11 @@ const Sidebar = ({ isOpen }) => {
           <NavLink to="/supplierList" style={getLinkStyle}>
             <FaUsers style={styles.icon} />
             <span style={styles.text}>Supplier List</span>
+          </NavLink>
+
+          <NavLink to="/payment-tracking" style={getLinkStyle}>
+            <FaFileInvoiceDollar style={styles.icon} />
+            <span style={styles.text}>Payment Tracking</span>
           </NavLink>
 
           <NavLink to="/employee" style={getLinkStyle}>

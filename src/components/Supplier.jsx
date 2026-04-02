@@ -236,62 +236,60 @@ const SupplierPage = () => {
   // Save supplier and move to next step
   const saveSupplierAndNext = async (e) => {
     e.preventDefault();
-    if (currentSupplier.name && currentSupplier.company) {
-      try {
-        setLoading(true);
-        
-        const supplierData = {
-          name: currentSupplier.name,
-          company: currentSupplier.company,
-          email: currentSupplier.email || null,
-          phone: currentSupplier.phone || null,
-          address: currentSupplier.address || null
-        };
+    try {
+      setLoading(true);
+      
+      const supplierData = {
+        name: currentSupplier.name || 'Unnamed Supplier',
+        company: currentSupplier.company || 'Unnamed Company',
+        email: currentSupplier.email || null,
+        phone: currentSupplier.phone || null,
+        address: currentSupplier.address || null
+      };
 
-        console.log('Sending supplier data:', supplierData);
+      console.log('Sending supplier data:', supplierData);
 
-        const response = await fetch(`${BASE_URL}/api/suppliers`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          mode: 'cors',
-          body: JSON.stringify(supplierData)
-        });
+      const response = await fetch(`${BASE_URL}/api/suppliers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        mode: 'cors',
+        body: JSON.stringify(supplierData)
+      });
 
-        console.log('Response status:', response.status);
+      console.log('Response status:', response.status);
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Error response:', errorData);
-          throw new Error(errorData.error || 'Failed to create supplier');
-        }
-
-        const data = await response.json();
-        console.log('Success response:', data);
-        
-        if (data.success) {
-          const newSupplier = data.supplier;
-          setSuppliers([...suppliers, newSupplier]);
-          setSelectedSupplier(newSupplier);
-          setShowSupplierPopup(false);
-          setCurrentStep(2);
-        }
-      } catch (err) {
-        setError(err.message);
-        console.error('Error creating supplier:', err);
-        alert('Failed to create supplier. Please try again.');
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error(errorData.error || 'Failed to create supplier');
       }
+
+      const data = await response.json();
+      console.log('Success response:', data);
+      
+      if (data.success) {
+        const newSupplier = data.supplier;
+        setSuppliers([...suppliers, newSupplier]);
+        setSelectedSupplier(newSupplier);
+        setShowSupplierPopup(false);
+        setCurrentStep(2);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Error creating supplier:', err);
+      alert('Failed to create supplier. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   // Add new item - ALWAYS sets status to "Pending" for auto-processing
   const addItem = async (e) => {
     e.preventDefault();
-    if (currentItem.name && currentItem.model && selectedSupplier) {
+    if (selectedSupplier) {
       try {
         setLoading(true);
         
@@ -1578,28 +1576,26 @@ const SupplierPage = () => {
           <form onSubmit={saveSupplierAndNext}>
             <div style={styles.formGrid}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Supplier Name *</label>
+                <label style={styles.label}>Supplier Name</label>
                 <input
                   type="text"
                   name="name"
                   value={currentSupplier.name}
                   onChange={handleSupplierChange}
                   placeholder="e.g., John Doe"
-                  required
                   style={styles.input}
                   disabled={loading}
                 />
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Company Name *</label>
+                <label style={styles.label}>Company Name</label>
                 <input
                   type="text"
                   name="company"
                   value={currentSupplier.company}
                   onChange={handleSupplierChange}
                   placeholder="e.g., ABC Corp"
-                  required
                   style={styles.input}
                   disabled={loading}
                 />
@@ -1690,14 +1686,13 @@ const SupplierPage = () => {
           <form onSubmit={addItem}>
             <div style={styles.formGrid}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Item Name *</label>
+                <label style={styles.label}>Item Name</label>
                 <input
                   type="text"
                   name="name"
                   value={currentItem.name}
                   onChange={handleItemChange}
                   placeholder="e.g., LED Bulb"
-                  required
                   style={styles.input}
                   disabled={loading}
                 />
@@ -1717,14 +1712,13 @@ const SupplierPage = () => {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Model *</label>
+                <label style={styles.label}>Model</label>
                 <input
                   type="text"
                   name="model"
                   value={currentItem.model}
                   onChange={handleItemChange}
                   placeholder="e.g., B22-9W"
-                  required
                   style={styles.input}
                   disabled={loading}
                 />
@@ -1746,7 +1740,7 @@ const SupplierPage = () => {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Buy Price (₹) *</label>
+                <label style={styles.label}>Buy Price (₹)</label>
                 <input
                   type="number"
                   name="buyPrice"
@@ -1755,14 +1749,13 @@ const SupplierPage = () => {
                   placeholder="e.g., 150"
                   min="0"
                   step="0.01"
-                  required
                   style={styles.input}
                   disabled={loading}
                 />
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Quantity *</label>
+                <label style={styles.label}>Quantity</label>
                 <input
                   type="number"
                   name="quantity"
@@ -1771,7 +1764,6 @@ const SupplierPage = () => {
                   placeholder="e.g., 100"
                   min="0"
                   step="1"
-                  required
                   style={styles.input}
                   disabled={loading}
                 />
