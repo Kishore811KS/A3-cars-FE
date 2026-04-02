@@ -321,77 +321,77 @@ const Sidebar = ({ isOpen }) => {
                 </NavLink>
               )}
 
-  {
-    hasPermission("user_type") && (
-      <NavLink to="/usertype" style={getLinkStyle}>
-        <FaUsers style={styles.icon} />
-        <span style={styles.text}>User Type</span>
-      </NavLink>
-    )
-  }
+              {
+                hasPermission("user_type") && (
+                  <NavLink to="/usertype" style={getLinkStyle}>
+                    <FaUsers style={styles.icon} />
+                    <span style={styles.text}>User Type</span>
+                  </NavLink>
+                )
+              }
 
-  {
-    hasPermission("attendance") && (
-      <NavLink to="/attendance" style={getLinkStyle}>
-        <FaUserCheck style={styles.icon} />
-        <span style={styles.text}>Attendance</span>
-      </NavLink>
-    )
-  }
+              {
+                hasPermission("attendance") && (
+                  <NavLink to="/attendance" style={getLinkStyle}>
+                    <FaUserCheck style={styles.icon} />
+                    <span style={styles.text}>Attendance</span>
+                  </NavLink>
+                )
+              }
 
-  {
-    hasPermission("company") && (
-      <NavLink to="/company" style={getLinkStyle}>
-        <FaUserCheck style={styles.icon} />
-        <span style={styles.text}>Company</span>
-      </NavLink>
-    )
-  }
+              {
+                hasPermission("company") && (
+                  <NavLink to="/company" style={getLinkStyle}>
+                    <FaUserCheck style={styles.icon} />
+                    <span style={styles.text}>Company</span>
+                  </NavLink>
+                )
+              }
             </>
           )}
 
-{/* CRM Section */ }
-{
-  isSectionVisible(["enquiries", "customer_details", "usersettings"]) && (
-    <>
-      <div style={styles.sectionTitle}>CRM</div>
-      {hasPermission("enquiries") && (
-        <NavLink to="/enquiry" style={getLinkStyle}>
-          <FaClipboardCheck style={styles.icon} />
-          <span style={styles.text}>Enquiries</span>
-        </NavLink>
-      )}
+          {/* CRM Section */}
+          {
+            isSectionVisible(["enquiries", "customer_details", "usersettings"]) && (
+              <>
+                <div style={styles.sectionTitle}>CRM</div>
+                {hasPermission("enquiries") && (
+                  <NavLink to="/enquiry" style={getLinkStyle}>
+                    <FaClipboardCheck style={styles.icon} />
+                    <span style={styles.text}>Enquiries</span>
+                  </NavLink>
+                )}
 
-      {hasPermission("customer_details") && (
-        <NavLink to="/customer" style={getLinkStyle}>
-          <FaClipboardCheck style={styles.icon} />
-          <span style={styles.text}>Customer Details</span>
-        </NavLink>
-      )}
+                {hasPermission("customer_details") && (
+                  <NavLink to="/customer" style={getLinkStyle}>
+                    <FaClipboardCheck style={styles.icon} />
+                    <span style={styles.text}>Customer Details</span>
+                  </NavLink>
+                )}
 
-      {hasPermission("usersettings") && (
-        <NavLink to="/usersettings" style={getLinkStyle}>
-          <FaUserCog style={styles.icon} />
-          <span style={styles.text}>User Settings</span>
-        </NavLink>
-      )}
-    </>
-  )
-}
+                {hasPermission("usersettings") && (
+                  <NavLink to="/usersettings" style={getLinkStyle}>
+                    <FaUserCog style={styles.icon} />
+                    <span style={styles.text}>User Settings</span>
+                  </NavLink>
+                )}
+              </>
+            )
+          }
         </div >
 
-  { isOpen && (
-    <div style={{
-      fontSize: "10px",
-      color: "#6b7280",
-      textAlign: "center",
-      padding: "16px 0 8px",
-      borderTop: "1px solid rgba(255,255,255,0.1)",
-      marginTop: "auto"
-    }}>
-      v1.0.0
-    </div>
-  )}
+        {isOpen && (
+          <div style={{
+            fontSize: "10px",
+            color: "#6b7280",
+            textAlign: "center",
+            padding: "16px 0 8px",
+            borderTop: "1px solid rgba(255,255,255,0.1)",
+            marginTop: "auto"
+          }}>
+            v1.0.0
+          </div>
+        )}
       </div >
     </>
   );
