@@ -63,9 +63,9 @@ const Login = () => {
         return;
       }
 
-      // If employee login fails, try the standard login endpoint
-      console.log("Employee login failed, trying standard login endpoint...");
-      const oldResponse = await fetch("http://localhost:5000/api/login", {
+      // If employee login fails, try the old login endpoint
+      console.log("Employee login failed, trying old login endpoint...");
+      const oldResponse = await fetch("http://127.0.0.1:5000/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
