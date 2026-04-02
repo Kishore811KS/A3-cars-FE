@@ -1,11 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 
-const DEFAULT_RANGES = [
-  { id: 1, min: 0, max: 1000, discount: 0, isInfinite: false },
-  { id: 2, min: 1001, max: 5000, discount: 0, isInfinite: false },
-  { id: 3, min: 5001, max: null, discount: 0, isInfinite: true },
-];
-
 const fmt = (n) => {
   if (n === null) return "∞";
   return "₹" + Number(n).toLocaleString("en-IN", {
@@ -15,13 +9,37 @@ const fmt = (n) => {
 };
 
 const DiscountPage = () => {
-  const [ranges, setRanges] = useState(DEFAULT_RANGES);
+  const [ranges, setRanges] = useState([]);
   const [editId, setEditId] = useState(null);
   const [editVals, setEditVals] = useState({});
   const [calcAmt, setCalcAmt] = useState("");
   const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(true);
   
   const inputRefs = useRef({});
+
+  // API Base URL - change this to your backend URL
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  // Fetch ranges from backend on component mount
+  useEffect(() => {
+    loadRanges();
+  }, []);
+
+  const loadRanges = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/discounts`);
+      if (!response.ok) throw new Error('Failed to load ranges');
+      const data = await response.json();
+      setRanges(data);
+    } catch (error) {
+      console.error('Error loading ranges:', error);
+      notify("Failed to load discount ranges", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
@@ -82,7 +100,7 @@ const DiscountPage = () => {
     return true;
   };
 
-  const saveEdit = (id) => {
+  const saveEdit = async (id) => {
     const mn = parseFloat(editVals.min);
     let mx = editVals.max === "" || editVals.max === undefined ? null : parseFloat(editVals.max);
     const d = parseFloat(editVals.discount);
@@ -108,65 +126,112 @@ const DiscountPage = () => {
       return;
     }
 
-    const newRange = { id, min: mn, max: mx, isInfinite };
+    const newRange = { id, min: mn, max: mx, discount: d, isInfinite };
     
     if (!validateRanges(newRange, isInfinite)) {
       notify("Ranges cannot overlap!", "error");
       return;
     }
 
-    setRanges((p) =>
-      p.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              min: mn,
-              max: mx,
-              discount: d,
-              isInfinite: isInfinite,
-            }
-          : r
-      )
-    );
-    
-    setRanges((p) => [...p].sort((a, b) => a.min - b.min));
-    setEditId(null);
-    notify("Range saved!");
+    try {
+      const response = await fetch(`${API_BASE_URL}/discounts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          min: mn,
+          max: mx,
+          discount: d,
+          isInfinite: isInfinite
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update range');
+      }
+
+      const result = await response.json();
+      
+      // Update local state
+      setRanges((p) =>
+        p.map((r) =>
+          r.id === id ? result.range : r
+        )
+      );
+      
+      setRanges((p) => [...p].sort((a, b) => a.min - b.min));
+      setEditId(null);
+      notify("Range saved!");
+    } catch (error) {
+      notify(error.message, "error");
+    }
   };
 
-  const deleteRow = (id) => {
+  const deleteRow = async (id) => {
     const rowToDelete = ranges.find(r => r.id === id);
     if (rowToDelete.isInfinite) {
       notify("Cannot delete the infinity range. You can edit it instead.", "error");
       return;
     }
-    setRanges((p) => p.filter((r) => r.id !== id));
-    notify("Range deleted.", "warn");
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/discounts/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete range');
+      }
+
+      setRanges((p) => p.filter((r) => r.id !== id));
+      notify("Range deleted.", "warn");
+    } catch (error) {
+      notify(error.message, "error");
+    }
   };
 
-  const addRow = () => {
+  const addRow = async () => {
     const nonInfiniteRanges = ranges.filter(r => !r.isInfinite);
     const lastNonInfinite = nonInfiniteRanges[nonInfiniteRanges.length - 1];
     const newMin = lastNonInfinite ? lastNonInfinite.max + 1 : 0;
     
-    const infinityIndex = ranges.findIndex(r => r.isInfinite);
     const newRow = {
-      id: Date.now(),
       min: newMin,
       max: newMin + 4999,
       discount: 0,
       isInfinite: false,
     };
     
-    if (infinityIndex !== -1) {
-      const newRanges = [...ranges];
-      newRanges.splice(infinityIndex, 0, newRow);
-      setRanges(newRanges);
-    } else {
-      setRanges((p) => [...p, newRow]);
+    try {
+      const response = await fetch(`${API_BASE_URL}/discounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRow)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create range');
+      }
+
+      const result = await response.json();
+      const savedRow = result.range;
+      
+      const infinityIndex = ranges.findIndex(r => r.isInfinite);
+      if (infinityIndex !== -1) {
+        const newRanges = [...ranges];
+        newRanges.splice(infinityIndex, 0, savedRow);
+        setRanges(newRanges);
+      } else {
+        setRanges((p) => [...p, savedRow]);
+      }
+      
+      setTimeout(() => startEdit(savedRow), 0);
+      notify("New range added!");
+    } catch (error) {
+      notify(error.message, "error");
     }
-    
-    setTimeout(() => startEdit(newRow), 0);
   };
 
   const handleEditChange = (fieldKey, value) => {
@@ -178,13 +243,10 @@ const DiscountPage = () => {
       saveEdit(id);
     } else if (e.key === "Escape") {
       setEditId(null);
-    } else if (e.key === "Tab") {
-      // Allow normal tab behavior
-      return;
     }
   };
 
-  const EditField = ({ fieldKey, placeholder, width = 100, id, rowId }) => {
+  const EditField = ({ fieldKey, placeholder, width = 100, rowId }) => {
     const inputRef = useRef(null);
     
     useEffect(() => {
@@ -233,6 +295,14 @@ const DiscountPage = () => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="dp-root">
+        <div className="dp-loading">Loading discount ranges...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="dp-root">
@@ -482,6 +552,13 @@ const CSS = `
   padding: 36px 28px;
   max-width: 1020px;
   margin: 0 auto;
+}
+
+.dp-loading {
+  text-align: center;
+  padding: 50px;
+  color: var(--text2);
+  font-size: 14px;
 }
 
 .dp-toast {
