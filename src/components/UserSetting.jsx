@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 // ── Sidebar modules grouped by section (matches Sidebar.jsx exactly) ────────
 const MODULE_GROUPS = [
@@ -26,19 +26,6 @@ const MODULE_GROUPS = [
 
 const MODULES = MODULE_GROUPS.flatMap(g => g.modules);
 
-// ── Initial user types ────────────────────────────────────────────────────
-const INITIAL_USERS = [
-  { id: 1, name: "Admin",   perms: Object.fromEntries(MODULES.map(m => [m, true]))  },
-  { id: 2, name: "Manager", perms: Object.fromEntries(MODULES.map(m => [m,
-    ["Dashboard","Products","Category","Stock In","Stock Out","Low Stock",
-     "Create Bill","Bill Reports","Quotations","Invoices"].includes(m)
-  ])) },
-  { id: 3, name: "QA",      perms: Object.fromEntries(MODULES.map(m => [m, false])) },
-  { id: 4, name: "HR",      perms: Object.fromEntries(MODULES.map(m => [m,
-    ["Dashboard","Attendance","Employee","User Settings"].includes(m)
-  ])) },
-];
-
 // ── Icons ─────────────────────────────────────────────────────────────────
 const IconSave = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -55,6 +42,17 @@ const IconTrash = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
     <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+  </svg>
+);
+const IconEdit = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3l4 4-7 7H10v-4l7-7z" />
+    <path d="M4 20h16" />
+  </svg>
+);
+const IconClose = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
 );
 
@@ -81,20 +79,75 @@ const Checkbox = ({ checked, onChange }) => (
 
 // ── Main Component ────────────────────────────────────────────────────────
 const UserSettings = () => {
-  const [users, setUsers]       = useState(INITIAL_USERS);
-  const [saved, setSaved]       = useState(false);
-  const [newName, setNewName]   = useState("");
-  const [adding, setAdding]     = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [error, setError] = useState(null);
+
+  // API Base URL - adjust based on your setup
+  const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+
+  // Fetch user types from API
+  const fetchUserTypes = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/user-types`);
+      if (!response.ok) throw new Error("Failed to fetch user types");
+      const data = await response.json();
+      
+      // Transform API data to match the component's expected structure
+      // You'll need to load permissions from somewhere (maybe localStorage or another API)
+      const usersWithPermissions = data.map(user => ({
+        id: user.id,
+        name: user.name,
+        // Load permissions from localStorage or set default permissions
+        perms: loadPermissionsFromStorage(user.id) || Object.fromEntries(MODULES.map(m => [m, false]))
+      }));
+      
+      setUsers(usersWithPermissions);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching user types:", err);
+      setError("Failed to load user types. Please check your connection.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load permissions from localStorage (or you can fetch from a permissions API)
+  const loadPermissionsFromStorage = (userId) => {
+    const stored = localStorage.getItem(`permissions_${userId}`);
+    return stored ? JSON.parse(stored) : null;
+  };
+
+  // Save permissions to localStorage (or send to API)
+  const savePermissionsToStorage = (userId, permissions) => {
+    localStorage.setItem(`permissions_${userId}`, JSON.stringify(permissions));
+  };
+
+  useEffect(() => {
+    fetchUserTypes();
+  }, []);
 
   const toggle = (userId, module) => {
     setUsers(prev => prev.map(u =>
-      u.id === userId ? { ...u, perms: { ...u.perms, [module]: !u.perms[module] } } : u
+      u.id === userId ? { 
+        ...u, 
+        perms: { ...u.perms, [module]: !u.perms[module] } 
+      } : u
     ));
   };
 
   const toggleAll = (module) => {
     const allOn = users.every(u => u.perms[module]);
-    setUsers(prev => prev.map(u => ({ ...u, perms: { ...u.perms, [module]: !allOn } })));
+    setUsers(prev => prev.map(u => ({ 
+      ...u, 
+      perms: { ...u.perms, [module]: !allOn } 
+    })));
   };
 
   const toggleRow = (userId) => {
@@ -107,24 +160,179 @@ const UserSettings = () => {
     ));
   };
 
-  const deleteUser = (userId) => {
-    setUsers(prev => prev.filter(u => u.id !== userId));
+  const deleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user type?")) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user-types/${userId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete user type");
+      }
+      
+      // Remove from state
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      // Remove stored permissions
+      localStorage.removeItem(`permissions_${userId}`);
+      
+      // Show success message
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      console.error("Error deleting user type:", err);
+      alert(err.message || "Failed to delete user type");
+    }
   };
 
-  const addUser = () => {
-    if (!newName.trim()) return;
-    setUsers(prev => [...prev, {
-      id: Date.now(),
-      name: newName.trim(),
-      perms: Object.fromEntries(MODULES.map(m => [m, false])),
-    }]);
-    setNewName(""); setAdding(false);
+  const addUser = async () => {
+    if (!newName.trim()) {
+      alert("Please enter a user type name");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user-types`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create user type");
+      }
+      
+      const newUser = await response.json();
+      
+      // Add to state with default permissions
+      setUsers(prev => [...prev, {
+        id: newUser.id,
+        name: newUser.name,
+        perms: Object.fromEntries(MODULES.map(m => [m, false])),
+      }]);
+      
+      setNewName("");
+      setAdding(false);
+      
+      // Show success message
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      console.error("Error creating user type:", err);
+      alert(err.message || "Failed to create user type");
+    }
   };
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2200);
+  const startEdit = (user) => {
+    setEditingId(user.id);
+    setEditName(user.name);
   };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+  };
+
+  const updateUser = async (userId) => {
+    if (!editName.trim()) {
+      alert("Please enter a user type name");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user-types/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: editName.trim() }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update user type");
+      }
+      
+      const updatedUser = await response.json();
+      
+      // Update state
+      setUsers(prev => prev.map(u =>
+        u.id === userId ? { ...u, name: updatedUser.name } : u
+      ));
+      
+      setEditingId(null);
+      setEditName("");
+      
+      // Show success message
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      console.error("Error updating user type:", err);
+      alert(err.message || "Failed to update user type");
+    }
+  };
+
+  const handleSavePermissions = async () => {
+    try {
+      // Save all permissions to localStorage (or send to a permissions API)
+      users.forEach(user => {
+        savePermissionsToStorage(user.id, user.perms);
+      });
+      
+      // If you have a permissions API endpoint, you can send the data there
+      // const response = await fetch(`${API_BASE_URL}/api/user-permissions`, {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(users.map(user => ({
+      //     user_type_id: user.id,
+      //     permissions: user.perms
+      //   }))),
+      // });
+      
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      console.error("Error saving permissions:", err);
+      alert("Failed to save permissions");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="us-root" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ 
+            width: 40, height: 40, border: "3px solid var(--border)", 
+            borderTopColor: "var(--accent)", borderRadius: "50%", 
+            animation: "spin 1s linear infinite", margin: "0 auto 16px" 
+          }} />
+          <p>Loading user types...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="us-root" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <div style={{ textAlign: "center", color: "#f87171" }}>
+          <p>{error}</p>
+          <button className="btn btn-primary" onClick={fetchUserTypes} style={{ marginTop: 16 }}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -176,6 +384,8 @@ const UserSettings = () => {
         .btn-sm { padding: 6px 13px; font-size: 12.5px; border-radius: 7px; }
         .btn-danger { background: transparent; color: #f87171; border: 1.5px solid #3d1f1f; }
         .btn-danger:hover { background: rgba(248,113,113,.08); border-color: #f87171; }
+        .btn-success { background: transparent; color: #4ade80; border: 1.5px solid #1a3a2a; }
+        .btn-success:hover { background: rgba(74,222,128,.08); border-color: #4ade80; }
 
         /* ── card ── */
         .us-card {
@@ -203,8 +413,8 @@ const UserSettings = () => {
           border-bottom: 1px solid var(--border); white-space: nowrap;
           text-align: center;
         }
-        thead th.col-user { text-align: left; min-width: 160px; padding-left: 20px; }
-        thead th.col-actions { min-width: 60px; }
+        thead th.col-user { text-align: left; min-width: 200px; padding-left: 20px; }
+        thead th.col-actions { min-width: 100px; }
 
         .th-all { cursor: pointer; transition: color .12s; }
         .th-all:hover { color: var(--accent) !important; }
@@ -220,7 +430,7 @@ const UserSettings = () => {
         tbody tr:last-child td { border-bottom: none; }
         tbody td.col-user {
           text-align: left; padding-left: 20px; font-weight: 600; color: var(--text);
-          min-width: 160px;
+          min-width: 200px;
         }
 
         .user-row-name { display: flex; align-items: center; gap: 10px; }
@@ -240,11 +450,21 @@ const UserSettings = () => {
           font-family: 'DM Sans', sans-serif;
           font-size: 13.5px; font-weight: 600; color: var(--text);
           border: 1.5px solid var(--border); border-radius: 8px;
-          padding: 7px 12px; outline: none; width: 180px;
+          padding: 7px 12px; outline: none; width: 200px;
           background: var(--bg);
         }
         .add-input::placeholder { color: var(--text3); }
         .add-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,110,247,.15); }
+
+        /* ── edit row ── */
+        .edit-input {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13.5px; font-weight: 600; color: var(--text);
+          border: 1.5px solid var(--border); border-radius: 8px;
+          padding: 6px 10px; outline: none; width: 160px;
+          background: var(--bg);
+        }
+        .edit-input:focus { border-color: var(--accent); }
 
         /* ── toast ── */
         .toast {
@@ -258,6 +478,7 @@ const UserSettings = () => {
         }
         @keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
 
+        .action-buttons { display: flex; gap: 6px; justify-content: center; }
       `}</style>
 
       <div className="us-root">
@@ -271,8 +492,8 @@ const UserSettings = () => {
             <button className="btn btn-ghost btn-sm" onClick={() => setAdding(true)}>
               <IconPlus /> Add User Type
             </button>
-            <button className="btn btn-primary btn-sm" onClick={handleSave}>
-              <IconSave /> Save Changes
+            <button className="btn btn-primary btn-sm" onClick={handleSavePermissions}>
+              <IconSave /> Save Permissions
             </button>
           </div>
         </div>
@@ -328,15 +549,37 @@ const UserSettings = () => {
                   const colors = ["#1e2d5a","#1a3a2a","#2e2a14","#2e1a30","#221a3a","#2e1f14"];
                   const textColors = ["#818cf8","#4ade80","#fbbf24","#e879f9","#a78bfa","#fb923c"];
                   const ci = idx % colors.length;
+                  
                   return (
                     <tr key={user.id}>
                       <td className="col-user col-sticky">
-                        <div className="user-row-name">
-                          <div className="user-avatar" style={{ background: colors[ci], color: textColors[ci] }}>
-                            {user.name.slice(0, 2).toUpperCase()}
+                        {editingId === user.id ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input
+                              className="edit-input"
+                              value={editName}
+                              onChange={e => setEditName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") updateUser(user.id);
+                                if (e.key === "Escape") cancelEdit();
+                              }}
+                              autoFocus
+                            />
+                            <button className="btn btn-success btn-sm" onClick={() => updateUser(user.id)} style={{ padding: "5px 10px" }}>
+                              Save
+                            </button>
+                            <button className="btn btn-ghost btn-sm" onClick={cancelEdit} style={{ padding: "5px 10px" }}>
+                              Cancel
+                            </button>
                           </div>
-                          <div>{user.name}</div>
-                        </div>
+                        ) : (
+                          <div className="user-row-name">
+                            <div className="user-avatar" style={{ background: colors[ci], color: textColors[ci] }}>
+                              {user.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>{user.name}</div>
+                          </div>
+                        )}
                       </td>
                       {MODULES.map(m => (
                         <td key={m} style={{
@@ -349,14 +592,26 @@ const UserSettings = () => {
                         </td>
                       ))}
                       <td>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => deleteUser(user.id)}
-                          title="Remove user type"
-                          style={{ padding: "5px 10px" }}
-                        >
-                          <IconTrash />
-                        </button>
+                        <div className="action-buttons">
+                          {!editingId && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => startEdit(user)}
+                              title="Edit user type"
+                              style={{ padding: "5px 10px" }}
+                            >
+                              <IconEdit />
+                            </button>
+                          )}
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => deleteUser(user.id)}
+                            title="Remove user type"
+                            style={{ padding: "5px 10px" }}
+                          >
+                            <IconTrash />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -393,7 +648,7 @@ const UserSettings = () => {
       {saved && (
         <div className="toast">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          Permissions saved successfully
+          Changes saved successfully
         </div>
       )}
     </>

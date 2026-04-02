@@ -265,13 +265,6 @@ const Sidebar = ({ isOpen }) => {
             <FaUserCog style={styles.icon} />
             <span style={styles.text}>User Settings</span>
           </NavLink>
-
-
-          <NavLink to="/emploeebill" style={getLinkStyle}>
-            <FaUserCog style={styles.icon} />
-            <span style={styles.text}>Visit Bill</span>
-          </NavLink>
-
         </div>
 
         {isOpen && (

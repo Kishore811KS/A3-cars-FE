@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 
 const DEFAULT_RANGES = [
-  { id: 1, min: 0, max: 1000, discount: 5, isInfinite: false },
-  { id: 2, min: 1001, max: 5000, discount: 10, isInfinite: false },
-  { id: 3, min: 5001, max: null, discount: 15, isInfinite: true },
+  { id: 1, min: 0, max: 1000, discount: 0, isInfinite: false },
+  { id: 2, min: 1001, max: 5000, discount: 0, isInfinite: false },
+  { id: 3, min: 5001, max: null, discount: 0, isInfinite: true },
 ];
 
 const fmt = (n) => {
