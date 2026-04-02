@@ -26,7 +26,7 @@ import {
 
 const Sidebar = ({ isOpen }) => {
   const HEADER_HEIGHT = "65px";
-  
+
   // Get user and permissions from localStorage
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const userPermissions = user?.permissions || [];
@@ -36,12 +36,12 @@ const Sidebar = ({ isOpen }) => {
   const hasPermission = (submodule_id) => {
     // Case-insensitive check for Admin role or fallback to admin email
     const isAdmin = userType?.toLowerCase() === 'admin' || user?.email === 'admin@m3cars.com';
-    
+
     if (isAdmin) return true;
-    
+
     // For other roles, check the permissions array
     if (!Array.isArray(userPermissions)) return false;
-    
+
     const perm = userPermissions.find(p => p.submodule_id === submodule_id);
     return perm ? perm.view === true : false;
   };
@@ -290,7 +290,7 @@ const Sidebar = ({ isOpen }) => {
           )}
 
           {/* Supplier Section */}
-          {isSectionVisible(["add_supplier", "supplier_list", "employee", "user_type", "attendance", "company"]) && (
+          {isSectionVisible(["add_supplier", "supplier_list", "payment_tracking", "employee", "user_type", "attendance", "company"]) && (
             <>
               <div style={styles.sectionTitle}>Suppliers</div>
               {hasPermission("add_supplier") && (
@@ -307,89 +307,92 @@ const Sidebar = ({ isOpen }) => {
                 </NavLink>
               )}
 
-<<<<<<< HEAD
+              {hasPermission("payment_tracking") && (
+                <NavLink to="/paymenttracking" style={getLinkStyle}>
+                  <FaFileInvoiceDollar style={styles.icon} />
+                  <span style={styles.text}>Payment Tracking</span>
+                </NavLink>
+              )}
+
               {hasPermission("employee") && (
                 <NavLink to="/employee" style={getLinkStyle}>
                   <FaUsers style={styles.icon} />
                   <span style={styles.text}>Employee</span>
                 </NavLink>
               )}
-=======
-          <NavLink to="/payment-tracking" style={getLinkStyle}>
-            <FaFileInvoiceDollar style={styles.icon} />
-            <span style={styles.text}>Payment Tracking</span>
-          </NavLink>
 
-          <NavLink to="/employee" style={getLinkStyle}>
-            <FaUsers style={styles.icon} />
-            <span style={styles.text}>Employee</span>
-          </NavLink>
->>>>>>> origin/master
+  {
+    hasPermission("user_type") && (
+      <NavLink to="/usertype" style={getLinkStyle}>
+        <FaUsers style={styles.icon} />
+        <span style={styles.text}>User Type</span>
+      </NavLink>
+    )
+  }
 
-              {hasPermission("user_type") && (
-                <NavLink to="/usertype" style={getLinkStyle}>
-                  <FaUsers style={styles.icon} />
-                  <span style={styles.text}>User Type</span>
-                </NavLink>
-              )}
+  {
+    hasPermission("attendance") && (
+      <NavLink to="/attendance" style={getLinkStyle}>
+        <FaUserCheck style={styles.icon} />
+        <span style={styles.text}>Attendance</span>
+      </NavLink>
+    )
+  }
 
-              {hasPermission("attendance") && (
-                <NavLink to="/attendance" style={getLinkStyle}>
-                  <FaUserCheck style={styles.icon} />
-                  <span style={styles.text}>Attendance</span>
-                </NavLink>
-              )}
-
-              {hasPermission("company") && (
-                <NavLink to="/company" style={getLinkStyle}>
-                  <FaUserCheck style={styles.icon} />
-                  <span style={styles.text}>Company</span>
-                </NavLink>
-              )}
+  {
+    hasPermission("company") && (
+      <NavLink to="/company" style={getLinkStyle}>
+        <FaUserCheck style={styles.icon} />
+        <span style={styles.text}>Company</span>
+      </NavLink>
+    )
+  }
             </>
           )}
 
-          {/* CRM Section */}
-          {isSectionVisible(["enquiries", "customer_details", "usersettings"]) && (
-            <>
-              <div style={styles.sectionTitle}>CRM</div>
-              {hasPermission("enquiries") && (
-                <NavLink to="/enquiry" style={getLinkStyle}>
-                  <FaClipboardCheck style={styles.icon} />
-                  <span style={styles.text}>Enquiries</span>
-                </NavLink>
-              )}
+{/* CRM Section */ }
+{
+  isSectionVisible(["enquiries", "customer_details", "usersettings"]) && (
+    <>
+      <div style={styles.sectionTitle}>CRM</div>
+      {hasPermission("enquiries") && (
+        <NavLink to="/enquiry" style={getLinkStyle}>
+          <FaClipboardCheck style={styles.icon} />
+          <span style={styles.text}>Enquiries</span>
+        </NavLink>
+      )}
 
-              {hasPermission("customer_details") && (
-                <NavLink to="/customer" style={getLinkStyle}>
-                  <FaClipboardCheck style={styles.icon} />
-                  <span style={styles.text}>Customer Details</span>
-                </NavLink>
-              )}
+      {hasPermission("customer_details") && (
+        <NavLink to="/customer" style={getLinkStyle}>
+          <FaClipboardCheck style={styles.icon} />
+          <span style={styles.text}>Customer Details</span>
+        </NavLink>
+      )}
 
-              {hasPermission("usersettings") && (
-                <NavLink to="/usersettings" style={getLinkStyle}>
-                  <FaUserCog style={styles.icon} />
-                  <span style={styles.text}>User Settings</span>
-                </NavLink>
-              )}
-            </>
-          )}
-        </div>
+      {hasPermission("usersettings") && (
+        <NavLink to="/usersettings" style={getLinkStyle}>
+          <FaUserCog style={styles.icon} />
+          <span style={styles.text}>User Settings</span>
+        </NavLink>
+      )}
+    </>
+  )
+}
+        </div >
 
-        {isOpen && (
-          <div style={{
-            fontSize: "10px",
-            color: "#6b7280",
-            textAlign: "center",
-            padding: "16px 0 8px",
-            borderTop: "1px solid rgba(255,255,255,0.1)",
-            marginTop: "auto"
-          }}>
-            v1.0.0
-          </div>
-        )}
-      </div>
+  { isOpen && (
+    <div style={{
+      fontSize: "10px",
+      color: "#6b7280",
+      textAlign: "center",
+      padding: "16px 0 8px",
+      borderTop: "1px solid rgba(255,255,255,0.1)",
+      marginTop: "auto"
+    }}>
+      v1.0.0
+    </div>
+  )}
+      </div >
     </>
   );
 };
