@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import { FaSave, FaSyncAlt, FaShieldAlt, FaUserCog } from "react-icons/fa";
+import { FaSave, FaSyncAlt, FaShieldAlt, FaUserCog, FaPlus, FaTrashAlt, FaEdit, FaTimes } from "react-icons/fa";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -24,12 +24,12 @@ const UserSetting = () => {
   const [matrix, setMatrix] = useState({}); // { [userType]: { [moduleId_submoduleId]: boolean } }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [addingUser, setAddingUser] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
 
   const API_BASE = "http://localhost:5000/api";
-
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -41,7 +41,7 @@ const UserSetting = () => {
 
       // 2. Fetch User Types
       const utRes = await axios.get(`${API_BASE}/user-types`);
-      const utData = utRes.data || [];
+      const utData = Array.isArray(utRes.data) ? utRes.data : [];
       setUserTypes(utData);
 
       // 3. Fetch Permissions for all User Types
@@ -80,7 +80,6 @@ const UserSetting = () => {
       );
 
       setMatrix(initialMatrix);
-      toast.info("Database synced with intelligent permission defaults.");
     } catch (error) {
       console.error("Initialization error:", error);
       toast.error("Failed to load user settings");
@@ -88,6 +87,10 @@ const UserSetting = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
 
   const handleCheckboxChange = (userTypeName, moduleId, submoduleId) => {
     const key = `${moduleId}_${submoduleId}`;
@@ -100,7 +103,7 @@ const UserSetting = () => {
     }));
   };
 
-  const handleSave = async () => {
+  const handleSaveMatrix = async () => {
     setSaving(true);
     try {
       const bulkData = {};
@@ -134,6 +137,56 @@ const UserSetting = () => {
        toast.error("Failed to update security policies");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const addUserType = async () => {
+    if (!newName.trim()) return;
+    try {
+      await axios.post(`${API_BASE}/user-types`, { name: newName.trim() });
+      toast.success("User type created!");
+      setNewName("");
+      setAddingUser(false);
+      fetchInitialData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to create user type");
+    }
+  };
+
+  const deleteUserType = async (id, name) => {
+    if (name.toLowerCase() === "admin") {
+      toast.error("Cannot delete admin role");
+      return;
+    }
+    if (!window.confirm(`Delete role "${name}"? This will remove all associated permissions.`)) return;
+    try {
+      await axios.delete(`${API_BASE}/user-types/${id}`);
+      toast.success("User type deleted");
+      fetchInitialData();
+    } catch (err) {
+      toast.error("Failed to delete user type");
+    }
+  };
+
+  const startEdit = (user) => {
+    setEditingId(user.id);
+    setEditName(user.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+  };
+
+  const updateUserType = async (id) => {
+    if (!editName.trim()) return;
+    try {
+      await axios.put(`${API_BASE}/user-types/${id}`, { name: editName.trim() });
+      toast.success("User type updated");
+      setEditingId(null);
+      fetchInitialData();
+    } catch (err) {
+      toast.error("Failed to update user type");
     }
   };
 
@@ -298,9 +351,33 @@ const UserSetting = () => {
       gap: "8px",
       transition: "all 0.2s"
     },
+    btnSecondary: {
+      background: "#f1f5f9",
+      color: "#475569",
+      padding: "10px 20px",
+      borderRadius: "10px",
+      border: "none",
+      fontWeight: "600",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      transition: "all 0.2s"
+    },
     controls: {
        display: "flex",
        gap: "12px"
+    },
+    actionBtn: {
+      padding: "6px",
+      borderRadius: "6px",
+      border: "none",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "12px",
+      background: "transparent"
     }
   };
 
@@ -333,12 +410,35 @@ const UserSetting = () => {
           <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Define granular access levels for all organizational roles</p>
         </div>
         <div style={styles.controls}>
+          {addingUser ? (
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input 
+                value={newName} 
+                onChange={e => setNewName(e.target.value)}
+                placeholder="New role name..."
+                style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+              />
+              <button 
+                style={{ ...styles.btnSave, padding: "8px 16px" }}
+                onClick={addUserType}
+              >Add</button>
+              <button 
+                 style={{ ...styles.btnSecondary, padding: "8px 16px" }}
+                 onClick={() => setAddingUser(false)}
+              >Cancel</button>
+            </div>
+          ) : (
+            <button style={styles.btnSecondary} onClick={() => setAddingUser(true)}>
+              <FaPlus /> Add Role
+            </button>
+          )}
+          
           <button style={styles.btnRefresh} onClick={fetchInitialData}>
             <FaSyncAlt /> Sync
           </button>
           <button 
             style={{...styles.btnSave, opacity: saving ? 0.7 : 1}} 
-            onClick={handleSave}
+            onClick={handleSaveMatrix}
             disabled={saving}
           >
             <FaSave /> {saving ? "Updating..." : "Save Changes"}
@@ -376,10 +476,36 @@ const UserSetting = () => {
                   <div style={{ ...styles.avatar, background: getAvatarColor(ut.name) }}>
                     {ut.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div>
-                    <div style={{ fontWeight: "600" }}>{ut.name}</div>
-                    {ut.name.toLowerCase() === "admin" && (
-                      <span style={{ fontSize: "10px", color: "#10b981", fontWeight: "700" }}>SUPER ADMIN</span>
+                  <div style={{ flex: 1 }}>
+                    {editingId === ut.id ? (
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <input 
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          style={{ width: "80px", fontSize: "12px", padding: "2px" }}
+                        />
+                        <FaSave color="#10b981" cursor="pointer" onClick={() => updateUserType(ut.id)} />
+                        <FaTimes color="#ef4444" cursor="pointer" onClick={cancelEdit} />
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontWeight: "600" }}>{ut.name}</div>
+                          {ut.name.toLowerCase() === "admin" && (
+                            <span style={{ fontSize: "10px", color: "#10b981", fontWeight: "700" }}>SUPER ADMIN</span>
+                          )}
+                        </div>
+                        {ut.name.toLowerCase() !== "admin" && (
+                          <div style={{ display: "flex", gap: "5px" }}>
+                            <button style={styles.actionBtn} title="Edit Name" onClick={() => startEdit(ut)}>
+                              <FaEdit color="#64748b" />
+                            </button>
+                            <button style={styles.actionBtn} title="Delete Role" onClick={() => deleteUserType(ut.id, ut.name)}>
+                              <FaTrashAlt color="#ef4444" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </td>

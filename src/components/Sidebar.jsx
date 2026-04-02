@@ -21,6 +21,7 @@ import {
   FaCog,
   FaPercent, // for Discount
   FaClipboardCheck, // for Enquiry
+  FaShieldAlt, // for Warranty
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -226,6 +227,13 @@ const Sidebar = ({ isOpen }) => {
             </>
           )}
 
+          {/* Warranty Section */}
+          <div style={styles.sectionTitle}>Warranty</div>
+          <NavLink to="/warranty" style={getLinkStyle}>
+            <FaShieldAlt style={styles.icon} />
+            <span style={styles.text}>Warranty</span>
+          </NavLink>
+
           {/* Billing Section */}
           {isSectionVisible(["create_bill", "bill_reports", "service_bill", "service_bills", "quotations", "invoices", "discount"]) && (
             <>
@@ -299,12 +307,24 @@ const Sidebar = ({ isOpen }) => {
                 </NavLink>
               )}
 
+<<<<<<< HEAD
               {hasPermission("employee") && (
                 <NavLink to="/employee" style={getLinkStyle}>
                   <FaUsers style={styles.icon} />
                   <span style={styles.text}>Employee</span>
                 </NavLink>
               )}
+=======
+          <NavLink to="/payment-tracking" style={getLinkStyle}>
+            <FaFileInvoiceDollar style={styles.icon} />
+            <span style={styles.text}>Payment Tracking</span>
+          </NavLink>
+
+          <NavLink to="/employee" style={getLinkStyle}>
+            <FaUsers style={styles.icon} />
+            <span style={styles.text}>Employee</span>
+          </NavLink>
+>>>>>>> origin/master
 
               {hasPermission("user_type") && (
                 <NavLink to="/usertype" style={getLinkStyle}>

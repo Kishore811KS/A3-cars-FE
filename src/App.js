@@ -33,6 +33,9 @@ import EnquiryPage from "./components/Enquiry";
 
 import CustomerPage from "./components/Customer";
 import EmployeeBill from "./components/EmployeeBill";
+import Warranty from "./components/Warranty";
+import PaymentTracking from "./components/PaymentTracking";
+
 function Layout() {
   const location = useLocation();
 
@@ -91,6 +94,8 @@ function Layout() {
           <Route path="/employee" element={<Employee />} />
           <Route path="/usertype" element={<UserType />} />
           <Route path="/serviceBillView" element={<ServiceBillView />} />
+          <Route path="/warranty" element={<Warranty />} />
+          <Route path="/paymenttracking" element={<PaymentTracking />} />
         </Routes>
       </div>
     </>
