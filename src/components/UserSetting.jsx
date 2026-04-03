@@ -5,23 +5,36 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const ROLE_TEMPLATES = {
+  admin: [
+    "dashboard", "products", "category", "stock_in", "stock_out", "low_stock",
+    "warranty", "create_bill", "bill_reports", "service_bill", "service_bills", 
+    "sales_bills", "quotations", "invoices", "discount", "add_supplier", 
+    "supplier_list", "payment_tracking", "employee", "user_type", "attendance", 
+    "company", "enquiries", "customer_details", "usersettings"
+  ],
   manager: [
     "dashboard", "products", "category", "stock_in", "stock_out", "low_stock",
-    "create_bill", "bill_reports", "service_bill", "service_bills", "quotations", "invoices", "discount",
-    "enquiries", "customer_details", "attendance"
+    "warranty", "create_bill", "bill_reports", "service_bill", "service_bills", 
+    "sales_bills", "quotations", "invoices", "discount", "add_supplier", 
+    "supplier_list", "payment_tracking", "employee", "attendance", "company", 
+    "enquiries", "customer_details"
   ],
   staff: [
-    "dashboard", "products", "stock_in", "stock_out", "create_bill", "service_bill", "service_bills"
+    "dashboard", "products", "stock_in", "stock_out", "create_bill", 
+    "service_bill", "service_bills", "sales_bills", "warranty"
   ],
   hr: [
     "dashboard", "employee", "user_type", "attendance", "company"
+  ],
+  supplier: [
+    "dashboard", "supplier_list", "payment_tracking"
   ]
 };
 
 const UserSetting = () => {
   const [modules, setModules] = useState([]);
   const [userTypes, setUserTypes] = useState([]);
-  const [matrix, setMatrix] = useState({}); // { [userType]: { [moduleId_submoduleId]: boolean } }
+  const [matrix, setMatrix] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newName, setNewName] = useState("");

@@ -19,9 +19,21 @@ import {
   FaUserCheck,
   FaUserCog,
   FaCog,
-  FaPercent, // for Discount
-  FaClipboardCheck, // for Enquiry
-  FaShieldAlt, // for Warranty
+  FaPercent,
+  FaClipboardCheck,
+  FaShieldAlt,
+  FaPlusCircle,
+  FaListAlt,
+  FaMoneyBillWave,
+  FaUserPlus,
+  FaUserTag,
+  FaCalendarCheck,
+  FaBuilding,
+  FaPhoneAlt,
+  FaUserCircle,
+  FaFileContract,
+  FaReceipt,
+  FaChartLine,
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -228,26 +240,32 @@ const Sidebar = ({ isOpen }) => {
           )}
 
           {/* Warranty Section */}
-          <div style={styles.sectionTitle}>Warranty</div>
-          <NavLink to="/warranty" style={getLinkStyle}>
-            <FaShieldAlt style={styles.icon} />
-            <span style={styles.text}>Warranty</span>
-          </NavLink>
+          {isSectionVisible(["warranty"]) && (
+            <>
+              <div style={styles.sectionTitle}>Warranty</div>
+              {hasPermission("warranty") && (
+                <NavLink to="/warranty" style={getLinkStyle}>
+                  <FaShieldAlt style={styles.icon} />
+                  <span style={styles.text}>Warranty</span>
+                </NavLink>
+              )}
+            </>
+          )}
 
           {/* Billing Section */}
-          {isSectionVisible(["create_bill", "bill_reports", "service_bill", "service_bills", "quotations", "invoices", "discount"]) && (
+          {isSectionVisible(["create_bill", "bill_reports", "service_bill", "service_bills", "sales_bills", "quotations", "invoices", "discount"]) && (
             <>
               <div style={styles.sectionTitle}>Billing</div>
               {hasPermission("create_bill") && (
                 <NavLink to="/bill" style={getLinkStyle}>
-                  <FaFileInvoiceDollar style={styles.icon} />
+                  <FaReceipt style={styles.icon} />
                   <span style={styles.text}>Create Bill</span>
                 </NavLink>
               )}
 
               {hasPermission("bill_reports") && (
                 <NavLink to="/billreport" style={getLinkStyle}>
-                  <FaFileInvoice style={styles.icon} />
+                  <FaChartLine style={styles.icon} />
                   <span style={styles.text}>Bill Reports</span>
                 </NavLink>
               )}
@@ -261,8 +279,15 @@ const Sidebar = ({ isOpen }) => {
 
               {hasPermission("service_bills") && (
                 <NavLink to="/serviceBillView" style={getLinkStyle}>
-                  <FaShoppingCart style={styles.icon} />
+                  <FaFileContract style={styles.icon} />
                   <span style={styles.text}>Service Bills</span>
+                </NavLink>
+              )}
+
+              {hasPermission("sales_bills") && (
+                <NavLink to="/employeebill" style={getLinkStyle}>
+                  <FaUserCircle style={styles.icon} />
+                  <span style={styles.text}>SalesBill(emp)</span>
                 </NavLink>
               )}
 
@@ -292,93 +317,85 @@ const Sidebar = ({ isOpen }) => {
           {/* Supplier Section */}
           {isSectionVisible(["add_supplier", "supplier_list", "payment_tracking", "employee", "user_type", "attendance", "company"]) && (
             <>
-              <div style={styles.sectionTitle}>Suppliers</div>
+              <div style={styles.sectionTitle}>Suppliers & HR</div>
               {hasPermission("add_supplier") && (
                 <NavLink to="/supplier" style={getLinkStyle}>
-                  <FaTruck style={styles.icon} />
+                  <FaPlusCircle style={styles.icon} />
                   <span style={styles.text}>Add Supplier</span>
                 </NavLink>
               )}
 
               {hasPermission("supplier_list") && (
                 <NavLink to="/supplierList" style={getLinkStyle}>
-                  <FaUsers style={styles.icon} />
+                  <FaListAlt style={styles.icon} />
                   <span style={styles.text}>Supplier List</span>
                 </NavLink>
               )}
 
               {hasPermission("payment_tracking") && (
                 <NavLink to="/paymenttracking" style={getLinkStyle}>
-                  <FaFileInvoiceDollar style={styles.icon} />
+                  <FaMoneyBillWave style={styles.icon} />
                   <span style={styles.text}>Payment Tracking</span>
                 </NavLink>
               )}
 
               {hasPermission("employee") && (
                 <NavLink to="/employee" style={getLinkStyle}>
-                  <FaUsers style={styles.icon} />
+                  <FaUserPlus style={styles.icon} />
                   <span style={styles.text}>Employee</span>
                 </NavLink>
               )}
 
-              {
-                hasPermission("user_type") && (
-                  <NavLink to="/usertype" style={getLinkStyle}>
-                    <FaUsers style={styles.icon} />
-                    <span style={styles.text}>User Type</span>
-                  </NavLink>
-                )
-              }
+              {hasPermission("user_type") && (
+                <NavLink to="/usertype" style={getLinkStyle}>
+                  <FaUserTag style={styles.icon} />
+                  <span style={styles.text}>User Type</span>
+                </NavLink>
+              )}
 
-              {
-                hasPermission("attendance") && (
-                  <NavLink to="/attendance" style={getLinkStyle}>
-                    <FaUserCheck style={styles.icon} />
-                    <span style={styles.text}>Attendance</span>
-                  </NavLink>
-                )
-              }
+              {hasPermission("attendance") && (
+                <NavLink to="/attendance" style={getLinkStyle}>
+                  <FaCalendarCheck style={styles.icon} />
+                  <span style={styles.text}>Attendance</span>
+                </NavLink>
+              )}
 
-              {
-                hasPermission("company") && (
-                  <NavLink to="/company" style={getLinkStyle}>
-                    <FaUserCheck style={styles.icon} />
-                    <span style={styles.text}>Company</span>
-                  </NavLink>
-                )
-              }
+              {hasPermission("company") && (
+                <NavLink to="/company" style={getLinkStyle}>
+                  <FaBuilding style={styles.icon} />
+                  <span style={styles.text}>Company</span>
+                </NavLink>
+              )}
             </>
           )}
 
           {/* CRM Section */}
-          {
-            isSectionVisible(["enquiries", "customer_details", "usersettings"]) && (
-              <>
-                <div style={styles.sectionTitle}>CRM</div>
-                {hasPermission("enquiries") && (
-                  <NavLink to="/enquiry" style={getLinkStyle}>
-                    <FaClipboardCheck style={styles.icon} />
-                    <span style={styles.text}>Enquiries</span>
-                  </NavLink>
-                )}
+          {isSectionVisible(["enquiries", "customer_details", "usersettings"]) && (
+            <>
+              <div style={styles.sectionTitle}>CRM</div>
+              {hasPermission("enquiries") && (
+                <NavLink to="/enquiry" style={getLinkStyle}>
+                  <FaPhoneAlt style={styles.icon} />
+                  <span style={styles.text}>Enquiries</span>
+                </NavLink>
+              )}
 
-                {hasPermission("customer_details") && (
-                  <NavLink to="/customer" style={getLinkStyle}>
-                    <FaClipboardCheck style={styles.icon} />
-                    <span style={styles.text}>Customer Details</span>
-                  </NavLink>
-                )}
+              {hasPermission("customer_details") && (
+                <NavLink to="/customer" style={getLinkStyle}>
+                  <FaUsers style={styles.icon} />
+                  <span style={styles.text}>Customer Details</span>
+                </NavLink>
+              )}
 
-                {hasPermission("usersettings") && (
-                  <NavLink to="/usersettings" style={getLinkStyle}>
-                    <FaUserCog style={styles.icon} />
-                    <span style={styles.text}>User Settings</span>
-                  </NavLink>
-                )}
-              </>
-            )
-          }
-        </div >
+              {hasPermission("usersettings") && (
+                <NavLink to="/usersettings" style={getLinkStyle}>
+                  <FaUserCog style={styles.icon} />
+                  <span style={styles.text}>User Settings</span>
+                </NavLink>
+              )}
+            </>
+          )}
+        </div>
 
         {isOpen && (
           <div style={{
@@ -392,10 +409,9 @@ const Sidebar = ({ isOpen }) => {
             v1.0.0
           </div>
         )}
-      </div >
+      </div>
     </>
   );
 };
-
 
 export default Sidebar;

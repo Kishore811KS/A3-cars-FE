@@ -924,9 +924,11 @@ const QuotationPage = () => {
 
   return (
     <div style={styles.container}>
-      {/* Header with Create Button and Export Buttons */}
+      {/* Header with Create Button and Export Buttons - Logo/Title on Left */}
       <div style={styles.header}>
-        <h2 style={styles.title}>Quotations</h2>
+        <div style={styles.headerLeft}>
+          <h2 style={styles.title}>Quotations</h2>
+        </div>
         <div style={styles.headerButtons}>
           <button 
             style={styles.exportButton}
@@ -1596,6 +1598,9 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: "24px",
+  },
+  headerLeft: {
+    flex: 1,
   },
   headerButtons: {
     display: "flex",
