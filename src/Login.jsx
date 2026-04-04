@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import logo from "./assets/logo.jpeg";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -44,12 +45,12 @@ const Login = () => {
       if (employeeResponse.ok && employeeData.user) {
         // Employee login successful
         console.log("Employee login successful:", employeeData);
-        
+
         // Store user details in localStorage
         localStorage.setItem("user", JSON.stringify(employeeData.user));
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("loginType", "employee");
-        
+
         // Also store session info
         if (employeeData.user.user_type) {
           localStorage.setItem("userType", employeeData.user.user_type);
@@ -57,7 +58,7 @@ const Login = () => {
         if (employeeData.user.current_company) {
           localStorage.setItem("company", employeeData.user.current_company);
         }
-        
+
         setLoading(false);
         navigate("/dashboard");
         return;
@@ -86,7 +87,7 @@ const Login = () => {
 
       // Standard login successful
       console.log("Standard login successful:", oldData);
-      
+
       // Store user details in localStorage with proper structure
       const userData = oldData.user || oldData;
       const userToStore = {
@@ -101,14 +102,14 @@ const Login = () => {
         phone_number: userData.phone_number || userData.phone || null,
         blood_group: userData.blood_group || null
       };
-      
+
       localStorage.setItem("user", JSON.stringify(userToStore));
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("loginType", "standard");
-      
+
       setLoading(false);
       navigate("/dashboard");
-      
+
     } catch (err) {
       console.error("Login error:", err);
       setError("Server error. Please check your connection and try again.");
@@ -124,8 +125,11 @@ const Login = () => {
   return (
     <div style={styles.container}>
       <form style={styles.form} onSubmit={handleSubmit}>
-        <h2 style={styles.title}>V4SURE</h2>
-        <h2 style={styles.title}>Avva Inventory</h2>
+        <div style={styles.logoContainer}>
+          <img src={logo} alt="Avva Inventory Logo" style={styles.logo} />
+        </div>
+        <h2 style={styles.title}></h2>
+        <h2 style={styles.title}></h2>
         <p style={styles.subtitle}>Please login to continue</p>
 
         {error && <p style={styles.error}>{error}</p>}
@@ -195,6 +199,18 @@ const styles = {
   title: {
     textAlign: "center",
     marginBottom: "5px",
+    marginTop: "10px",
+  },
+  logoContainer: {
+    display: "flex",
+    justifyContent: "center",
+    marginBottom: "20px",
+  },
+  logo: {
+    width: "120px",
+    height: "auto",
+    borderRadius: "8px",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
   },
   subtitle: {
     textAlign: "center",

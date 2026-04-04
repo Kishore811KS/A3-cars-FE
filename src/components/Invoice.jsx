@@ -42,7 +42,7 @@ const InvoicePage = () => {
 
   // Company details
   const companyDetails = {
-    name: "A3Cars",
+    name: "M3 Cars",
     address: "No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050",
     phone: "98657 09626",
     email: "hiprintsolutions@gmail.com",
@@ -839,7 +839,8 @@ const InvoicePage = () => {
         </head>
         <body>
           <div class="header">
-            <div class="company-name">A3Cars</div>
+            <img src="/m3-logo.jpeg" alt="M3 Cars Logo" style="max-width: 150px; margin-bottom: 10px;">
+            <div class="company-name">M3 Cars</div>
             <div class="company-details">No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050</div>
             <div class="company-details">Phone: 98657 09626 | Email: hiprintsolutions@gmail.com | GST: 33ABCDE1234F1Z5</div>
           </div>
@@ -918,7 +919,7 @@ const InvoicePage = () => {
           
           <div class="signature">
             <div>
-              <p><strong>For A3Cars</strong></p>
+              <p><strong>For M3 Cars</strong></p>
               <div class="signature-line"></div>
               <p>Authorized Signatory</p>
             </div>

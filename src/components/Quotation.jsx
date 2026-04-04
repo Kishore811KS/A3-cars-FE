@@ -42,7 +42,7 @@ const QuotationPage = () => {
 
   // Company details
   const companyDetails = {
-    name: "A3Cars",
+    name: "M3 Cars",
     address: "No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050",
     phone: "98657 09626",
     email: "hiprintsolutions@gmail.com",
@@ -85,14 +85,14 @@ const QuotationPage = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [quotationDate, setQuotationDate] = useState(new Date().toISOString().split('T')[0]);
-  const [validUntil, setValidUntil] = useState(new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]);
+  const [validUntil, setValidUntil] = useState(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [notes, setNotes] = useState("");
   const [customerErrors, setCustomerErrors] = useState({});
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [savedQuotation, setSavedQuotation] = useState(null);
-  
+
   const searchRef = useRef(null);
   const modalRef = useRef(null);
   const viewModalRef = useRef(null);
@@ -139,13 +139,13 @@ const QuotationPage = () => {
           resetForm();
         }
       }
-      
+
       if (viewModalRef.current && !viewModalRef.current.contains(event.target) && showViewModal) {
         setShowViewModal(false);
         setViewingQuotation(null);
       }
     };
-    
+
     if (showModal || showViewModal) {
       document.addEventListener("mousedown", handleClickOutside);
     }
@@ -181,14 +181,14 @@ const QuotationPage = () => {
   // Fetch quotations from backend
   const fetchQuotations = async () => {
     if (!isAuthenticated) return;
-    
+
     setQuotationsLoading(true);
-    
+
     try {
       let url = `/quotation?page=${pagination.page}&per_page=10`;
-      
+
       const response = await api.get(url);
-      
+
       if (response.data) {
         const quotationsData = response.data.items || [];
         setQuotations(quotationsData);
@@ -215,7 +215,7 @@ const QuotationPage = () => {
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(q => 
+      filtered = filtered.filter(q =>
         (q.quotationNumber?.toLowerCase().includes(term)) ||
         (q.customerName?.toLowerCase().includes(term)) ||
         (q.customerPhone?.toLowerCase().includes(term)) ||
@@ -229,7 +229,7 @@ const QuotationPage = () => {
       start.setHours(0, 0, 0, 0);
       const end = new Date(dateRange.end);
       end.setHours(23, 59, 59, 999);
-      
+
       filtered = filtered.filter(q => {
         const qDate = new Date(q.quotationDate);
         return qDate >= start && qDate <= end;
@@ -237,7 +237,7 @@ const QuotationPage = () => {
     }
 
     filtered.sort((a, b) => {
-      switch(sortBy) {
+      switch (sortBy) {
         case 'newest':
           return new Date(b.quotationDate) - new Date(a.quotationDate);
         case 'oldest':
@@ -299,7 +299,7 @@ const QuotationPage = () => {
 
       const date = new Date().toISOString().split('T')[0];
       saveAs(file, `Quotations_${date}.xlsx`);
-      
+
       setSuccess(`✅ Exported ${filteredQuotations.length} quotations to Excel`);
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -313,15 +313,15 @@ const QuotationPage = () => {
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF();
-      
+
       doc.setFontSize(20);
       doc.setTextColor(99, 102, 241);
       doc.text('Quotations Report', 14, 22);
-      
+
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
       doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
-      
+
       let filterY = 37;
       if (searchTerm) {
         doc.text(`Search: "${searchTerm}"`, 14, filterY);
@@ -331,18 +331,18 @@ const QuotationPage = () => {
         doc.text(`Date Range: ${dateRange.start} to ${dateRange.end}`, 14, filterY);
         filterY += 5;
       }
-      
+
       const totalAmount = filteredQuotations.reduce((sum, q) => sum + (q.total || 0), 0);
-      
+
       doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
       doc.text(`Total Quotations: ${filteredQuotations.length}`, 14, filterY + 5);
       doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 14, filterY + 12);
-      
+
       const tableColumn = [
         'Quotation #', 'Date', 'Customer', 'Phone', 'Valid Until', 'Total (₹)'
       ];
-      
+
       const tableRows = filteredQuotations.map(q => [
         q.quotationNumber || '',
         new Date(q.quotationDate).toLocaleDateString(),
@@ -351,9 +351,9 @@ const QuotationPage = () => {
         new Date(q.validUntil).toLocaleDateString(),
         (q.total || 0).toFixed(2)
       ]);
-      
+
       const startY = filterY + 22;
-      
+
       doc.autoTable({
         head: [tableColumn],
         body: tableRows,
@@ -362,10 +362,10 @@ const QuotationPage = () => {
         headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255] },
         alternateRowStyles: { fillColor: [240, 240, 240] },
       });
-      
+
       const date = new Date().toISOString().split('T')[0];
       doc.save(`Quotations_Report_${date}.pdf`);
-      
+
       setSuccess(`✅ Exported ${filteredQuotations.length} quotations to PDF`);
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -377,13 +377,13 @@ const QuotationPage = () => {
 
   const fetchProducts = async () => {
     if (!isAuthenticated) return;
-    
+
     setSearchLoading(true);
     setSearchError("");
-    
+
     try {
       const response = await api.get(`/billing/search-products?q=${encodeURIComponent(search)}`);
-      
+
       if (Array.isArray(response.data)) {
         setProducts(response.data);
         if (response.data.length === 0) {
@@ -439,15 +439,15 @@ const QuotationPage = () => {
     if (!customer.name.trim()) errors.name = "Customer name is required";
     if (!customer.phone.trim()) errors.phone = "Phone number is required";
     else if (!/^\d{10}$/.test(customer.phone.replace(/\D/g, ''))) errors.phone = "Phone must be 10 digits";
-    
+
     if (customer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
       errors.email = "Invalid email format";
     }
-    
+
     if (customer.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(customer.gstin)) {
       errors.gstin = "Invalid GSTIN format";
     }
-    
+
     setCustomerErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -472,7 +472,7 @@ const QuotationPage = () => {
     setDiscountType("fixed");
     setNotes("");
     setQuotationDate(new Date().toISOString().split('T')[0]);
-    setValidUntil(new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]);
+    setValidUntil(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     setModalStep(1);
     setCustomerErrors({});
     setSearch("");
@@ -489,17 +489,17 @@ const QuotationPage = () => {
     if (existing) {
       setItems(
         items.map((i) =>
-          i.productId === product.id 
-            ? { ...i, quantity: i.quantity + 1 } 
+          i.productId === product.id
+            ? { ...i, quantity: i.quantity + 1 }
             : i
         )
       );
       setSuccess(`${product.name} quantity increased`);
     } else {
-      setItems([...items, { 
-        productId: product.id, 
-        name: product.name, 
-        model: product.model || '', 
+      setItems([...items, {
+        productId: product.id,
+        name: product.name,
+        model: product.model || '',
         price: product.sellPrice || product.price || 0,
         mrp: product.mrp || product.sellPrice || product.price || 0,
         quantity: 1,
@@ -511,7 +511,7 @@ const QuotationPage = () => {
     setSearch("");
     setProducts([]);
     setSearchError("");
-    
+
     setTimeout(() => setSuccess(''), 2000);
   };
 
@@ -535,7 +535,7 @@ const QuotationPage = () => {
 
   // CALCULATIONS
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
+
   const calculateDiscount = () => {
     if (discountType === "percentage") {
       return (subtotal * discount) / 100;
@@ -560,11 +560,11 @@ const QuotationPage = () => {
           total: 0
         };
       }
-      
+
       if (gstRate > 0) {
         const taxableValue = itemTotal * (100 / (100 + gstRate));
         const gstAmount = itemTotal - taxableValue;
-        
+
         gstDetails[gstRate].taxable += taxableValue;
         gstDetails[gstRate].cgst += gstAmount / 2;
         gstDetails[gstRate].sgst += gstAmount / 2;
@@ -605,8 +605,8 @@ const QuotationPage = () => {
       discountType,
       discountRate: discount,
       notes: notes.trim() || '',
-      items: items.map((item) => ({ 
-        productId: item.productId, 
+      items: items.map((item) => ({
+        productId: item.productId,
         quantity: item.quantity,
         price: item.price,
         gst: item.gst || 0
@@ -618,33 +618,33 @@ const QuotationPage = () => {
     try {
       const res = await api.post('/quotation', payload);
       console.log('Quotation saved successfully:', res.data);
-      
+
       setSavedQuotation(res.data.quotation);
       setSuccess(`✅ Quotation Created Successfully!\nQuotation Number: ${res.data.quotationNumber}`);
-      
+
       fetchQuotations();
-      
+
       setTimeout(() => {
         if (window.confirm(`Quotation ${res.data.quotationNumber} saved successfully!\n\nDo you want to print it?`)) {
           handlePrintQuotation(res.data.quotation);
         }
-        
+
         resetForm();
         setShowModal(false);
         setSuccess('');
       }, 2000);
-      
+
     } catch (err) {
       console.error("Error creating quotation:", err);
-      
+
       let errorMessage = "Failed to save quotation. ";
-      
+
       if (err.response) {
         if (err.response.status === 401) {
           errorMessage = "Session expired. Please login again.";
         } else if (err.response.status === 400) {
           errorMessage = err.response.data?.error || "Invalid data. Please check your inputs.";
-          
+
           if (err.response.data?.errors) {
             const fieldErrors = Object.entries(err.response.data.errors)
               .map(([field, msg]) => `${field}: ${msg}`)
@@ -663,7 +663,7 @@ const QuotationPage = () => {
       } else {
         errorMessage = "Error setting up request. Please try again.";
       }
-      
+
       setError(errorMessage);
       setTimeout(() => setError(''), 5000);
     } finally {
@@ -674,7 +674,7 @@ const QuotationPage = () => {
   // Function to print quotation
   const handlePrintQuotation = (quotation) => {
     const printWindow = window.open('', '_blank');
-    
+
     if (printWindow) {
       const itemsHtml = quotation.items.map(item => `
         <tr>
@@ -703,6 +703,12 @@ const QuotationPage = () => {
               border-bottom: 2px solid #3b82f6;
               padding-bottom: 20px;
             }
+            .company-logo {
+              max-width: 150px;
+              max-height: 80px;
+              margin-bottom: 10px;
+              object-fit: contain;
+            }
             .company-name { 
               font-size: 28px; 
               font-weight: bold; 
@@ -720,10 +726,14 @@ const QuotationPage = () => {
               margin: 20px 0;
               color: #1e293b;
             }
-            .details-container {
-              display: flex;
-              justify-content: space-between;
+            .details-table {
+              width: 100%;
               margin: 20px 0;
+              border-spacing: 0;
+            }
+            .details-table td {
+              vertical-align: top;
+              padding: 0;
             }
             .left-details, .right-details {
               width: 48%;
@@ -799,43 +809,46 @@ const QuotationPage = () => {
         </head>
         <body>
           <div class="header">
-            <div class="company-name">A3Cars</div>
+            <img src="/m3-logo.jpeg" class="company-logo" alt="M3 Cars Logo">
+            <div class="company-name">M3 Cars</div>
             <div class="company-details">No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050</div>
             <div class="company-details">Phone: 98657 09626 | Email: hiprintsolutions@gmail.com | GST: 33ABCDE1234F1Z5</div>
           </div>       
           
           <div class="document-title">QUOTATION</div>
           
-          <div class="details-container">
-            <div class="left-details">
-              <div class="detail-box">
-                <h3>Bill To:</h3>
-                <p><strong>${quotation.customerName}</strong></p>
-                <p>Phone: ${quotation.customerPhone}</p>
-                ${quotation.customerEmail ? `<p>Email: ${quotation.customerEmail}</p>` : ''}
-                ${quotation.customerAddress ? `<p>Address: ${quotation.customerAddress}</p>` : ''}
-                ${quotation.customerGstin ? `<p>GSTIN: ${quotation.customerGstin}</p>` : ''}
-              </div>
-            </div>
-            
-            <div class="right-details">
-              <div class="detail-box">
-                <h3>Quotation Details:</h3>
-                <p><strong>Quotation No:</strong> ${quotation.quotationNumber}</p>
-                <p><strong>Date:</strong> ${new Date(quotation.quotationDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
-                <p><strong>Valid Until:</strong> ${new Date(quotation.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
-                <p><strong>Prepared By:</strong> ${JSON.parse(localStorage.getItem('user'))?.username || 'Admin'}</p>
-              </div>
-            </div>
-          </div>
+          <table class="details-table">
+            <tr>
+              <td style="width: 48%;">
+                <div class="detail-box">
+                  <h3>Bill To:</h3>
+                  <p><strong>${quotation.customerName}</strong></p>
+                  <p>Phone: ${quotation.customerPhone}</p>
+                  ${quotation.customerEmail ? `<p>Email: ${quotation.customerEmail}</p>` : ''}
+                  ${quotation.customerAddress ? `<p>Address: ${quotation.customerAddress}</p>` : ''}
+                  ${quotation.customerGstin ? `<p>GSTIN: ${quotation.customerGstin}</p>` : ''}
+                </div>
+              </td>
+              <td style="width: 4%;"></td>
+              <td style="width: 48%;">
+                <div class="detail-box">
+                  <h3>Quotation Details:</h3>
+                  <p><strong>Quotation No:</strong> ${quotation.quotationNumber}</p>
+                  <p><strong>Date:</strong> ${new Date(quotation.quotationDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                  <p><strong>Valid Until:</strong> ${new Date(quotation.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                  <p><strong>Prepared By:</strong> ${JSON.parse(localStorage.getItem('user'))?.username || 'Admin'}</p>
+                </div>
+              </td>
+            </tr>
+          </table>
           
           <table>
             <thead>
               <tr>
-                <th>Product Description</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Total</th>
+                <th style="padding: 10px; border: 1px solid #ddd;">Product Description</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: center; width: 60px;">Qty</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: right; width: 100px;">Unit Price</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: right; width: 120px;">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -844,10 +857,23 @@ const QuotationPage = () => {
           </table>
           
           <div class="summary">
-            <div class="summary-item"><strong>Subtotal:</strong> ₹${quotation.subtotal.toFixed(2)}</div>
-            ${quotation.discount > 0 ? `<div class="summary-item"><strong>Discount:</strong> -₹${quotation.discount.toFixed(2)}</div>` : ''}
-            <div class="total"><strong>Total Amount:</strong> ₹${quotation.total.toFixed(2)}</div>
-            <div class="summary-item"><em>(Inclusive of all taxes)</em></div>
+            <div style="width: 250px; margin-left: auto;">
+              <div class="summary-item">
+                <span style="display: inline-block; width: 120px; text-align: left;"><strong>Subtotal:</strong></span>
+                <span style="display: inline-block; width: 100px; text-align: right;">₹${quotation.subtotal.toFixed(2)}</span>
+              </div>
+              ${quotation.discount > 0 ? `
+              <div class="summary-item">
+                <span style="display: inline-block; width: 120px; text-align: left;"><strong>Discount:</strong></span>
+                <span style="display: inline-block; width: 100px; text-align: right; color: #ef4444;">-₹${quotation.discount.toFixed(2)}</span>
+              </div>` : ''}
+              <div class="total">
+                <span style="display: inline-block; width: 120px; text-align: left;"><strong>Total:</strong></span>
+                <span style="display: inline-block; width: 100px; text-align: right;">₹${quotation.total.toFixed(2)}</span>
+              </div>
+              <div style="font-size: 10px; margin-top: 5px; color: #666; font-style: italic;">(Inclusive of all taxes)</div>
+            </div>
+          </div>
           </div>
           
           ${quotation.notes ? `
@@ -869,7 +895,7 @@ const QuotationPage = () => {
           
           <div class="signature">
             <div>
-              <p><strong>For A3Cars</strong></p>
+              <p><strong>For M3 Cars</strong></p>
               <div class="signature-line"></div>
               <p>Authorized Signatory</p>
             </div>
@@ -883,17 +909,20 @@ const QuotationPage = () => {
             <p>This is a computer generated quotation. Valid until specified date.</p>
             <p>Thank you for your business!</p>
           </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                setTimeout(function() { window.close(); }, 500);
+              }, 500);
+            };
+          </script>
         </body>
         </html>
       `;
-      
+
       printWindow.document.write(printContent);
       printWindow.document.close();
-      printWindow.focus();
-      
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
     } else {
       alert('Please allow pop-ups to print the quotation');
     }
@@ -910,8 +939,8 @@ const QuotationPage = () => {
         </div>
         <div style={styles.authMessage}>
           <h3>🔒 Authentication Required</h3>
-          <p style={{color: '#dc3545', margin: '20px 0'}}>{error || 'Please login to access quotations'}</p>
-          <button 
+          <p style={{ color: '#dc3545', margin: '20px 0' }}>{error || 'Please login to access quotations'}</p>
+          <button
             style={styles.createButton}
             onClick={() => window.location.href = '/login'}
           >
@@ -928,21 +957,21 @@ const QuotationPage = () => {
       <div style={styles.header}>
         <h2 style={styles.title}>Quotations</h2>
         <div style={styles.headerButtons}>
-          <button 
+          <button
             style={styles.exportButton}
             onClick={handleExportExcel}
             title="Export to Excel"
           >
             📊 Excel
           </button>
-          <button 
+          <button
             style={styles.exportButton}
             onClick={handleExportPDF}
             title="Export to PDF"
           >
             📄 PDF
           </button>
-          <button 
+          <button
             style={styles.createButton}
             onClick={() => {
               resetForm();
@@ -956,13 +985,13 @@ const QuotationPage = () => {
 
       {/* Error/Success Messages */}
       {error && (
-        <div style={{...styles.alert, ...styles.alertError, marginBottom: '20px'}}>
+        <div style={{ ...styles.alert, ...styles.alertError, marginBottom: '20px' }}>
           ⚠️ {error}
         </div>
       )}
-      
+
       {success && (
-        <div style={{...styles.alert, ...styles.alertSuccess, marginBottom: '20px'}}>
+        <div style={{ ...styles.alert, ...styles.alertSuccess, marginBottom: '20px' }}>
           ✅ {success}
         </div>
       )}
@@ -978,7 +1007,7 @@ const QuotationPage = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           {searchTerm && (
-            <button 
+            <button
               style={styles.clearSearch}
               onClick={() => setSearchTerm('')}
             >
@@ -991,7 +1020,7 @@ const QuotationPage = () => {
           type="date"
           style={styles.filterInput}
           value={dateRange.start}
-          onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+          onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
           placeholder="From Date"
         />
 
@@ -999,7 +1028,7 @@ const QuotationPage = () => {
           type="date"
           style={styles.filterInput}
           value={dateRange.end}
-          onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+          onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
           placeholder="To Date"
         />
 
@@ -1014,7 +1043,7 @@ const QuotationPage = () => {
           <option value="lowest">Lowest Amount</option>
         </select>
 
-        <button 
+        <button
           style={styles.resetButton}
           onClick={resetFilters}
         >
@@ -1065,13 +1094,13 @@ const QuotationPage = () => {
                     <td style={styles.td}>₹{quotation.total?.toFixed(2)}</td>
                     <td style={styles.td}>
                       <div style={styles.actionButtons}>
-                        <button 
+                        <button
                           style={styles.viewButton}
                           onClick={() => fetchQuotationDetails(quotation.id)}
                         >
                           View
                         </button>
-                        <button 
+                        <button
                           style={styles.printButton}
                           onClick={() => handlePrintQuotation(quotation)}
                         >
@@ -1087,7 +1116,7 @@ const QuotationPage = () => {
             {/* Pagination */}
             {pagination.pages > 1 && (
               <div style={styles.pagination}>
-                <button 
+                <button
                   style={styles.pageButton}
                   onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
                   disabled={pagination.page === 1}
@@ -1097,7 +1126,7 @@ const QuotationPage = () => {
                 <span style={styles.pageInfo}>
                   Page {pagination.page} of {pagination.pages} (Showing 10 per page)
                 </span>
-                <button 
+                <button
                   style={styles.pageButton}
                   onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
                   disabled={pagination.page === pagination.pages}
@@ -1113,12 +1142,12 @@ const QuotationPage = () => {
       {/* View Quotation Modal */}
       {showViewModal && viewingQuotation && (
         <div style={styles.modalOverlay}>
-          <div style={{...styles.modal, maxWidth: '900px'}} ref={viewModalRef}>
+          <div style={{ ...styles.modal, maxWidth: '900px' }} ref={viewModalRef}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>
                 Quotation Details - {viewingQuotation.quotationNumber}
               </h3>
-              <button 
+              <button
                 style={styles.closeButton}
                 onClick={() => {
                   setShowViewModal(false);
@@ -1128,13 +1157,14 @@ const QuotationPage = () => {
                 ×
               </button>
             </div>
-            
+
             <div style={styles.modalContent}>
               {/* Company Header */}
               <div style={styles.viewCompanyHeader}>
-                <h3 style={{color: '#3b82f6', margin: 0}}>{companyDetails.name}</h3>
-                <p style={{margin: '5px 0', color: '#94a3b8'}}>{companyDetails.address}</p>
-                <p style={{margin: 0, color: '#94a3b8'}}>Phone: {companyDetails.phone} | Email: {companyDetails.email}</p>
+                <img src="/m3-logo.jpeg" alt="M3 Cars Logo" style={{ maxWidth: '120px', marginBottom: '10px' }} />
+                <h3 style={{ color: '#3b82f6', margin: 0 }}>{companyDetails.name}</h3>
+                <p style={{ margin: '5px 0', color: '#94a3b8' }}>{companyDetails.address}</p>
+                <p style={{ margin: 0, color: '#94a3b8' }}>Phone: {companyDetails.phone} | Email: {companyDetails.email}</p>
               </div>
 
               <div style={styles.viewTwoColumn}>
@@ -1181,7 +1211,7 @@ const QuotationPage = () => {
                         <tr key={index}>
                           <td style={styles.td}>
                             <div>{item.productName}</div>
-                            {item.productModel && <small style={{color: '#94a3b8'}}>{item.productModel}</small>}
+                            {item.productModel && <small style={{ color: '#94a3b8' }}>{item.productModel}</small>}
                           </td>
                           <td style={styles.td}>₹{item.price.toFixed(2)}</td>
                           <td style={styles.td}>{item.quantity}</td>
@@ -1202,10 +1232,10 @@ const QuotationPage = () => {
                 {viewingQuotation.discount > 0 && (
                   <div style={styles.viewSummaryItem}>
                     <span>Discount:</span>
-                    <span style={{color: '#ef4444'}}>-₹{viewingQuotation.discount?.toFixed(2)}</span>
+                    <span style={{ color: '#ef4444' }}>-₹{viewingQuotation.discount?.toFixed(2)}</span>
                   </div>
                 )}
-                <div style={{...styles.viewSummaryItem, ...styles.viewTotal}}>
+                <div style={{ ...styles.viewSummaryItem, ...styles.viewTotal }}>
                   <span>Total:</span>
                   <span>₹{viewingQuotation.total?.toFixed(2)}</span>
                 </div>
@@ -1215,13 +1245,13 @@ const QuotationPage = () => {
                 <div style={styles.viewSection}>
                   <h4 style={styles.viewSectionTitle}>Notes / Terms</h4>
                   <div style={styles.viewCard}>
-                    <p style={{margin: 0, whiteSpace: 'pre-wrap'}}>{viewingQuotation.notes}</p>
+                    <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{viewingQuotation.notes}</p>
                   </div>
                 </div>
               )}
 
               <div style={styles.viewActions}>
-                <button 
+                <button
                   style={styles.printButton}
                   onClick={() => handlePrintQuotation(viewingQuotation)}
                 >
@@ -1245,7 +1275,7 @@ const QuotationPage = () => {
               <div style={styles.stepIndicator}>
                 Step {modalStep} of 2
               </div>
-              <button 
+              <button
                 style={styles.closeButton}
                 onClick={() => {
                   if (items.length > 0 || customer.name || customer.phone) {
@@ -1266,40 +1296,40 @@ const QuotationPage = () => {
             {/* Modal Content */}
             <div style={styles.modalContent}>
               {error && (
-                <div style={{...styles.alert, ...styles.alertError, marginBottom: '16px'}}>
+                <div style={{ ...styles.alert, ...styles.alertError, marginBottom: '16px' }}>
                   ⚠️ {error}
                 </div>
               )}
-              
+
               {success && (
-                <div style={{...styles.alert, ...styles.alertSuccess, marginBottom: '16px'}}>
+                <div style={{ ...styles.alert, ...styles.alertSuccess, marginBottom: '16px' }}>
                   ✅ {success}
                 </div>
               )}
-              
+
               {/* Step 1: Customer Details */}
               {modalStep === 1 && (
                 <div style={styles.stepContent}>
                   <div style={styles.formGrid}>
                     <div style={styles.formField}>
                       <label style={styles.label}>Customer Name *</label>
-                      <input 
-                        style={{...styles.input, borderColor: customerErrors.name ? '#ef4444' : '#334155'}}
-                        value={customer.name} 
-                        onChange={(e) => setCustomer({ ...customer, name: e.target.value })} 
+                      <input
+                        style={{ ...styles.input, borderColor: customerErrors.name ? '#ef4444' : '#334155' }}
+                        value={customer.name}
+                        onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
                         placeholder="Enter customer name"
                       />
                       {customerErrors.name && (
                         <span style={styles.errorText}>{customerErrors.name}</span>
                       )}
                     </div>
-                    
+
                     <div style={styles.formField}>
                       <label style={styles.label}>Phone *</label>
-                      <input 
-                        style={{...styles.input, borderColor: customerErrors.phone ? '#ef4444' : '#334155'}}
-                        value={customer.phone} 
-                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} 
+                      <input
+                        style={{ ...styles.input, borderColor: customerErrors.phone ? '#ef4444' : '#334155' }}
+                        value={customer.phone}
+                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
                         placeholder="10 digit mobile number"
                         maxLength="10"
                       />
@@ -1307,37 +1337,37 @@ const QuotationPage = () => {
                         <span style={styles.errorText}>{customerErrors.phone}</span>
                       )}
                     </div>
-                    
+
                     <div style={styles.formField}>
                       <label style={styles.label}>Email</label>
-                      <input 
-                        style={{...styles.input, borderColor: customerErrors.email ? '#ef4444' : '#334155'}}
+                      <input
+                        style={{ ...styles.input, borderColor: customerErrors.email ? '#ef4444' : '#334155' }}
                         type="email"
-                        value={customer.email} 
-                        onChange={(e) => setCustomer({ ...customer, email: e.target.value })} 
+                        value={customer.email}
+                        onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
                         placeholder="email@example.com"
                       />
                       {customerErrors.email && (
                         <span style={styles.errorText}>{customerErrors.email}</span>
                       )}
                     </div>
-                    
+
                     <div style={styles.formField}>
                       <label style={styles.label}>Address</label>
-                      <input 
-                        style={styles.input} 
-                        value={customer.address} 
-                        onChange={(e) => setCustomer({ ...customer, address: e.target.value })} 
+                      <input
+                        style={styles.input}
+                        value={customer.address}
+                        onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
                         placeholder="Enter address"
                       />
                     </div>
-                    
+
                     <div style={styles.formField}>
                       <label style={styles.label}>GSTIN (Optional)</label>
-                      <input 
-                        style={{...styles.input, borderColor: customerErrors.gstin ? '#ef4444' : '#334155'}}
-                        value={customer.gstin} 
-                        onChange={(e) => setCustomer({ ...customer, gstin: e.target.value.toUpperCase() })} 
+                      <input
+                        style={{ ...styles.input, borderColor: customerErrors.gstin ? '#ef4444' : '#334155' }}
+                        value={customer.gstin}
+                        onChange={(e) => setCustomer({ ...customer, gstin: e.target.value.toUpperCase() })}
                         placeholder="22AAAAA0000A1Z5"
                         maxLength="15"
                       />
@@ -1350,20 +1380,20 @@ const QuotationPage = () => {
                   <div style={styles.dateSection}>
                     <div style={styles.dateField}>
                       <label style={styles.label}>Quotation Date</label>
-                      <input 
-                        type="date" 
-                        style={styles.dateInput} 
-                        value={quotationDate} 
-                        onChange={(e) => setQuotationDate(e.target.value)} 
+                      <input
+                        type="date"
+                        style={styles.dateInput}
+                        value={quotationDate}
+                        onChange={(e) => setQuotationDate(e.target.value)}
                       />
                     </div>
                     <div style={styles.dateField}>
                       <label style={styles.label}>Valid Until</label>
-                      <input 
-                        type="date" 
-                        style={styles.dateInput} 
-                        value={validUntil} 
-                        onChange={(e) => setValidUntil(e.target.value)} 
+                      <input
+                        type="date"
+                        style={styles.dateInput}
+                        value={validUntil}
+                        onChange={(e) => setValidUntil(e.target.value)}
                         min={quotationDate}
                       />
                     </div>
@@ -1377,34 +1407,34 @@ const QuotationPage = () => {
                   {/* Product Search */}
                   <div ref={searchRef} style={styles.searchWrapper}>
                     <div style={styles.searchContainer}>
-                      <input 
-                        style={styles.searchInput} 
-                        placeholder="Search product by name, model or SKU... (min 2 characters)" 
-                        value={search} 
-                        onChange={(e) => setSearch(e.target.value)} 
+                      <input
+                        style={styles.searchInput}
+                        placeholder="Search product by name, model or SKU... (min 2 characters)"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
                       />
                       {searchLoading && <span style={styles.loadingText}>Searching...</span>}
                     </div>
-                    
+
                     {searchError && (
                       <div style={styles.searchError}>
                         {searchError}
                       </div>
                     )}
-                    
+
                     {products.length > 0 && (
                       <div style={styles.dropdown}>
                         {products.map((p) => (
                           <div key={p.id} style={styles.dropdownItem} onClick={() => addProduct(p)}>
                             <div style={styles.productInfo}>
-                              <strong>{p.name}</strong> 
+                              <strong>{p.name}</strong>
                               {p.model && <span style={styles.productModel}>({p.model})</span>}
                               {p.type && <span style={styles.productType}> - {p.type}</span>}
                             </div>
                             <div style={styles.productPrice}>
-                              ₹{p.sellPrice || p.price || 0} 
+                              ₹{p.sellPrice || p.price || 0}
                               {p.stock !== undefined && (
-                                <span style={{...styles.stockInfo, color: p.stock < 5 ? '#ef4444' : '#94a3b8'}}>
+                                <span style={{ ...styles.stockInfo, color: p.stock < 5 ? '#ef4444' : '#94a3b8' }}>
                                   Stock: {p.stock}
                                 </span>
                               )}
@@ -1440,12 +1470,12 @@ const QuotationPage = () => {
                               <td style={styles.td}>{item.hsnCode || "-"}</td>
                               <td style={styles.td}>₹{item.price.toFixed(2)}</td>
                               <td style={styles.td}>
-                                <input 
-                                  type="number" 
-                                  style={styles.qtyInput} 
-                                  value={item.quantity} 
+                                <input
+                                  type="number"
+                                  style={styles.qtyInput}
+                                  value={item.quantity}
                                   min="1"
-                                  onChange={(e) => changeQty(index, parseInt(e.target.value) || 1)} 
+                                  onChange={(e) => changeQty(index, parseInt(e.target.value) || 1)}
                                 />
                               </td>
                               <td style={styles.td}>{item.gst}%</td>
@@ -1466,14 +1496,14 @@ const QuotationPage = () => {
                   {items.length > 0 && (
                     <div style={styles.summarySection}>
                       <h4 style={styles.summaryTitle}>Summary</h4>
-                      
+
                       <div style={styles.summaryRow}>
                         <span>Subtotal:</span>
                         <span>₹{subtotal.toFixed(2)}</span>
                       </div>
-                      
+
                       <div style={styles.discountRow}>
-                        <select 
+                        <select
                           style={styles.discountTypeSelect}
                           value={discountType}
                           onChange={(e) => {
@@ -1484,15 +1514,15 @@ const QuotationPage = () => {
                           <option value="fixed">Fixed (₹)</option>
                           <option value="percentage">Percentage (%)</option>
                         </select>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           style={styles.discountInput}
                           placeholder={discountType === "fixed" ? "Discount amount" : "Discount %"}
-                          value={discount} 
+                          value={discount}
                           min="0"
                           max={discountType === "percentage" ? "100" : subtotal}
                           step={discountType === "fixed" ? "1" : "0.1"}
-                          onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} 
+                          onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                         />
                       </div>
 
@@ -1530,7 +1560,7 @@ const QuotationPage = () => {
                   {/* Notes */}
                   <div style={styles.notesSection}>
                     <label style={styles.label}>Notes / Terms & Conditions:</label>
-                    <textarea 
+                    <textarea
                       style={styles.notesInput}
                       rows="3"
                       value={notes}
@@ -1551,23 +1581,23 @@ const QuotationPage = () => {
             {/* Modal Footer */}
             <div style={styles.modalFooter}>
               {modalStep === 2 && (
-                <button 
+                <button
                   style={styles.backButton}
                   onClick={handleBackStep}
                 >
                   Back
                 </button>
               )}
-              
+
               {modalStep === 1 ? (
-                <button 
+                <button
                   style={styles.nextButton}
                   onClick={handleNextStep}
                 >
                   Next
                 </button>
               ) : (
-                <button 
+                <button
                   style={styles.saveButton}
                   onClick={saveQuotation}
                   disabled={loading || items.length === 0}

@@ -53,7 +53,7 @@ const Warranty = () => {
   
   // Company/Shop Details from Backend
   const [companyDetails, setCompanyDetails] = useState({
-    name: "A3Cars",
+    name: "M3 Cars",
     address: "No.71, M.T.H.road (Opp padi post office)",
     city: "Padi, Chennai - 600 050",
     phone: "98657 09626",
@@ -109,7 +109,7 @@ const Warranty = () => {
         await fetchCompanyDetails(firstCompany.id);
       } else {
         setCompanyDetails({
-          name: "A3Cars",
+          name: "M3 Cars",
           address: "",
           city: "",
           phone: "",
@@ -122,7 +122,7 @@ const Warranty = () => {
     } catch (err) {
       console.error('Error fetching companies:', err);
       setCompanyDetails({
-        name: "A3Cars",
+        name: "M3 Cars",
         address: "",
         city: "",
         phone: "",
@@ -139,7 +139,7 @@ const Warranty = () => {
       const response = await api.get(`/companies/${companyId}`);
       const company = response.data;
       setCompanyDetails({
-        name: company.name || "A3Cars",
+        name: company.name || "M3 Cars",
         address: company.address || "",
         city: company.city || "",
         phone: company.phone || "",
@@ -522,7 +522,9 @@ const Warranty = () => {
         </head>
         <body>
           <div class="header">
-            <h1>Warranty Report</h1>
+            <img src="/m3-logo.jpeg" alt="M3 Cars Logo" style="max-width: 150px; margin-bottom: 10px;">
+            <h1>${companyDetails.name}</h1>
+            <h2 style="color: #6b7280; font-size: 18px; margin-top: 0;">Warranty Report</h2>
           </div>
           
           <div class="bill-info">
