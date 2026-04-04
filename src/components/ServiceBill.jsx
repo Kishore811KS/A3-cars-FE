@@ -55,6 +55,7 @@ const ServiceBill = () => {
   const [lastGeneratedBill, setLastGeneratedBill] = useState(null);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [savedBillId, setSavedBillId] = useState(null);
+  const [fetchingCustomer, setFetchingCustomer] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
 
   // Service categories
@@ -75,7 +76,7 @@ const ServiceBill = () => {
 
   
   const shopDetails = {
-    name: 'A3Cars',
+    name: 'M3 Cars',
     phone: '+91 72993 00400',
     address: 'No.71, M.T.H.road (Opp padi post office), Padi',
     city: 'Chennai - 600 050',
@@ -1308,11 +1309,14 @@ const ServiceBill = () => {
             
             .bill-header {
               text-align: center;
-              margin-bottom: 12px;
-              padding-bottom: 8px;
-              border-bottom: 1px dashed #000;
+              margin-bottom: 20px;
             }
-            
+            .bill-logo {
+              max-width: 120px;
+              max-height: 60px;
+              margin-bottom: 5px;
+              object-fit: contain;
+            }
             .bill-header h1 {
               font-size: 16px;
               letter-spacing: 1px;
@@ -1490,6 +1494,7 @@ const ServiceBill = () => {
         <body>
           <div id="billPaper">
             <div class="bill-header">
+              <img src="/m3-logo.jpeg" class="bill-logo" alt="M3 Cars Logo">
               <h1>${shopDetails.name}</h1>
               <p>${shopDetails.address}</p>
               <p>${shopDetails.city}</p>
@@ -1719,10 +1724,14 @@ const ServiceBill = () => {
               ${billContent}
               <script>
                 window.onload = function() {
+                  // Small delay to ensure styles are applied
                   setTimeout(function() {
                     window.print();
-                    setTimeout(function() { window.close(); }, 500);
-                  }, 200);
+                    // Close after print dialog is handled
+                    setTimeout(function() {
+                      window.close();
+                    }, 500);
+                  }, 300);
                 };
               </script>
             </body>
@@ -1730,7 +1739,8 @@ const ServiceBill = () => {
         `);
         printWindow.document.close();
       } else {
-        window.print();
+        setError('Pop-up blocked! Please allow pop-ups for this site to print.');
+        setTimeout(() => setError(''), 3000);
       }
     }
   };
@@ -1760,7 +1770,7 @@ const ServiceBill = () => {
     const due = calculateDue();
     const activeServices = manualServices.filter(s => s.quantity > 0);
 
-    let message = `*${shopDetails.name} - SERVICE BILL*\n`;
+    let message = `*M3 Cars - SERVICE BILL*\n`;
     message += `${shopDetails.address}\n`;
     message += `${shopDetails.city}\n`;
     message += `Ph: ${shopDetails.phone}\n`;
@@ -1787,7 +1797,7 @@ const ServiceBill = () => {
     message += `Status: ${paymentStatus.toUpperCase()}\n`;
     if (due > 0) message += `Due: ₹${due.toFixed(2)}\n`;
     message += `================\n`;
-    message += `Thank you for choosing ${shopDetails.name}!\n`;
+    message += `Thank you for choosing M3 Cars!\n`;
     message += `For service support, call ${shopDetails.phone}`;
 
     const encodedMessage = encodeURIComponent(message);
@@ -1830,6 +1840,46 @@ const ServiceBill = () => {
     }
   };
 
+  // Fetch customer by phone
+  const fetchCustomerByPhone = async (phone) => {
+    if (phone.length < 10) return;
+    
+    setFetchingCustomer(true);
+    try {
+      const response = await api.get(`/billing/customer/${phone}`);
+      if (response.data && response.data.exists) {
+        const customer = response.data.customer;
+        setCustomerName(customer.name || 'Walk-in Customer');
+        setCustomerEmail(customer.email || '');
+        setCustomerAddress(customer.address || '');
+        setCustomerGST(customer.gst || '');
+        setCustomerType(customer.type || 'regular');
+        setSuccess('Customer found! Details auto-filled.');
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('Error fetching customer:', err);
+    } finally {
+      setFetchingCustomer(false);
+    }
+  };
+
+  // Auto-fetch customer when phone reaches 10 digits
+  useEffect(() => {
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (cleanPhone.length === 10) {
+      fetchCustomerByPhone(cleanPhone);
+    }
+  }, [customerPhone]);
+
+  // Handle phone number input change
+  const handlePhoneChange = (e) => {
+    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+    if (value.length <= 10) {
+      setCustomerPhone(value);
+    }
+  };
+
   // Handle new bill
   const handleNewBill = () => {
     clearBill();
@@ -1869,7 +1919,7 @@ const ServiceBill = () => {
     <div style={baseStyles.container}>
       {/* Left Panel - Manual Service Entry */}
       <div style={baseStyles.productPanel} className="no-print">
-        <h2 style={baseStyles.productPanelTitle}>🔧 Create Service Bill - A3Cars PRINT</h2>
+        <h2 style={baseStyles.productPanelTitle}>🔧 Create Service Bill - M3 Cars</h2>
         
         {error && (
           <div style={{...baseStyles.alert, ...baseStyles.alertError}}>
@@ -2056,6 +2106,7 @@ const ServiceBill = () => {
             ref={billPaperRef}
           >
             <div className="bill-header">
+              <img src="/m3-logo.jpeg" alt="M3 Cars Logo" style={{ maxWidth: '100px', marginBottom: '5px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
               <h1 style={baseStyles.billHeaderH1}>{shopDetails.name}</h1>
               <p style={baseStyles.billHeaderP}>{shopDetails.address}</p>
               <p style={baseStyles.billHeaderP}>{shopDetails.city}</p>
@@ -2089,7 +2140,7 @@ const ServiceBill = () => {
               
               {customerPhone && (
                 <div style={baseStyles.customerRow}>
-                  <span style={baseStyles.customerLabel}>Phone:</span>
+                  <span style={{...baseStyles.customerLabel, color: '#17a2b8'}}>Phone Number:</span>
                   <span style={baseStyles.customerValue}>{customerPhone}</span>
                 </div>
               )}
@@ -2123,10 +2174,15 @@ const ServiceBill = () => {
               
               <input
                 type="text"
-                style={baseStyles.customerInput}
+                style={{
+                  ...baseStyles.customerInput,
+                  borderColor: fetchingCustomer ? '#17a2b8' : '#ddd',
+                  background: fetchingCustomer ? '#f0faff' : 'white'
+                }}
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="Phone Number"
+                onChange={handlePhoneChange}
+                placeholder={fetchingCustomer ? "Searching..." : "Phone Number"}
+                maxLength="10"
               />
               
               <input

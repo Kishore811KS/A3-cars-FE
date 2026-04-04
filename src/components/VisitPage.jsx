@@ -77,7 +77,7 @@ const VisitBillPage = () => {
   
   // Company/Shop Details from Backend
   const [companyDetails, setCompanyDetails] = useState({
-    name: "A3Cars",
+    name: "M3 Cars",
     address: "No.71, M.T.H.road (Opp padi post office)",
     city: "Padi, Chennai - 600 050",
     phone: "98657 09626",
@@ -183,7 +183,7 @@ const VisitBillPage = () => {
       } else {
         // Use default company details
         setCompanyDetails({
-          name: "A3Cars",
+          name: "M3 Cars",
           address: "No.71, M.T.H.road (Opp padi post office)",
           city: "Padi, Chennai - 600 050",
           phone: "98657 09626",
@@ -198,7 +198,7 @@ const VisitBillPage = () => {
       showMessage("error", "❌ Failed to fetch company details");
       // Use default company details
       setCompanyDetails({
-        name: "A3Cars",
+        name: "M3 Cars",
         address: "No.71, M.T.H.road (Opp padi post office)",
         city: "Padi, Chennai - 600 050",
         phone: "98657 09626",
@@ -220,7 +220,7 @@ const VisitBillPage = () => {
       
       const company = response.data;
       setCompanyDetails({
-        name: company.name || "A3Cars",
+        name: company.name || "M3 Cars",
         address: company.address || "No.71, M.T.H.road (Opp padi post office)",
         city: company.city || "Padi, Chennai - 600 050",
         phone: company.phone || "98657 09626",
@@ -1022,7 +1022,7 @@ const VisitBillPage = () => {
         </head>
         <body>
           <div class="header">
-            ${companyDetails.logoUrl ? `<img src="${companyDetails.logoUrl}" class="logo" alt="Logo" />` : ''}
+            <img src="/m3-logo.jpeg" class="logo" alt="M3 Cars Logo" />
             <h1>${companyDetails.name}</h1>
             <p>${companyDetails.address}</p>
             <p>${companyDetails.city}</p>
@@ -1107,7 +1107,7 @@ const VisitBillPage = () => {
             <p>Thank you for your purchase!</p>
             <p>Goods once sold will not be taken back</p>
             <p>** Computer generated bill **</p>
-            ${processedBill.createdBy ? `<p>Created by: ${processedBill.createdBy}</p>` : ''}
+            ${(processedBill.createdByName || processedBill.createdBy) ? `<p>Created by: ${processedBill.createdByName || processedBill.createdBy}</p>` : ''}
           </div>
           
           <script>
