@@ -70,10 +70,11 @@ const Bill = () => {
   const [lastGeneratedBill, setLastGeneratedBill] = useState(null);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [savedBillId, setSavedBillId] = useState(null);
+  const [fetchingCustomer, setFetchingCustomer] = useState(false);
 
   // Shop details (will be overridden by selected company)
   const defaultShopDetails = {
-    name: 'A3Cars',
+    name: 'M3 Cars',
     address: 'No.71, M.T.H.road (Opp padi post office)',
     city: 'Padi, Chennai - 600 050',
     phone: '',
@@ -743,7 +744,8 @@ const Bill = () => {
     if (user) {
       try {
         const userData = JSON.parse(user);
-        setCreatedBy(userData.name || userData.username || 'System');
+        // Set the name for display and the ID for saving
+        setCreatedBy(userData.full_name || userData.name || userData.username || 'System');
       } catch (e) {
         setCreatedBy('System');
       }
@@ -1058,6 +1060,41 @@ const Bill = () => {
     }
   }, [paymentMethod]);
 
+  // Fetch customer by phone
+  const fetchCustomerByPhone = async (phone) => {
+    if (phone.length < 10) return;
+    
+    setFetchingCustomer(true);
+    try {
+      const response = await api.get(`/billing/customer/${phone}`);
+      if (response.data && response.data.exists) {
+        const customer = response.data.customer;
+        setCustomerName(customer.name || 'Walk-in Customer');
+        setCustomerEmail(customer.email || '');
+        setCustomerAddress(customer.address || '');
+        setCustomerGST(customer.gst || '');
+        setCustomerType(customer.type || 'external');
+        setSuccess('Customer found! Details auto-filled.');
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('Error fetching customer:', err);
+    } finally {
+      setFetchingCustomer(false);
+    }
+  };
+
+  // Auto-fetch customer when phone reaches 10 digits
+  useEffect(() => {
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (cleanPhone.length === 10) {
+      fetchCustomerByPhone(cleanPhone);
+    }
+  }, [customerPhone]);
+
+
+
+
   // Search products API call
   const searchProducts = async () => {
     if (!isAuthenticated) return;
@@ -1357,6 +1394,8 @@ const Bill = () => {
         taxType: taxType === 'percentage' ? 'percentage' : 'amount',
         paidAmount: paidAmount,
         paymentMethod: paymentMethod,
+        createdBy: JSON.parse(localStorage.getItem('user'))?.id,
+        createdByName: createdBy, // Using the state variable which now has the correct name
         items: activeProducts.map(p => ({
           productId: p.id,
           quantity: p.quantity
@@ -1438,11 +1477,14 @@ const Bill = () => {
             
             .bill-header {
               text-align: center;
-              margin-bottom: 12px;
-              padding-bottom: 8px;
-              border-bottom: 1px dashed #000;
+              margin-bottom: 20px;
             }
-            
+            .bill-logo {
+              max-width: 120px;
+              max-height: 60px;
+              margin-bottom: 5px;
+              object-fit: contain;
+            }
             .bill-header h1 {
               font-size: 16px;
               letter-spacing: 1px;
@@ -1655,6 +1697,7 @@ const Bill = () => {
         <body>
           <div id="billPaper">
             <div class="bill-header">
+              <img src="/m3-logo.jpeg" class="bill-logo" alt="M3 Cars Logo">
               <h1>${shopDetails.name}</h1>
               <p>${shopDetails.address}</p>
               <p>${shopDetails.city}</p>
@@ -2089,12 +2132,14 @@ const Bill = () => {
               ${billContent}
               <script>
                 window.onload = function() {
+                  // Small delay to ensure styles are applied
                   setTimeout(function() {
                     window.print();
+                    // Close after print dialog is handled
                     setTimeout(function() {
                       window.close();
                     }, 500);
-                  }, 200);
+                  }, 300);
                 };
               </script>
             </body>
@@ -2102,7 +2147,8 @@ const Bill = () => {
         `);
         printWindow.document.close();
       } else {
-        window.print();
+        setError('Pop-up blocked! Please allow pop-ups for this site to print.');
+        setTimeout(() => setError(''), 3000);
       }
     }
   };
@@ -2136,7 +2182,7 @@ const Bill = () => {
     const due = calculateDue();
     const activeProducts = selectedProducts.filter(p => p.quantity > 0);
 
-    let message = `*${shopDetails.name}*\n`;
+    let message = `*M3 Cars*\n`;
     message += `${shopDetails.address}\n`;
     message += `${shopDetails.city}\n`;
     if (shopDetails.phone) message += `Ph: ${shopDetails.phone}\n`;
@@ -2282,6 +2328,14 @@ const Bill = () => {
       </div>
     );
   }
+
+  // Handle phone number input change
+  const handlePhoneChange = (e) => {
+    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+    if (value.length <= 10) {
+      setCustomerPhone(value);
+    }
+  };
 
   return (
     <div style={baseStyles.container}>
@@ -2460,6 +2514,7 @@ const Bill = () => {
             ref={billPaperRef}
           >
             <div className="bill-header">
+              <img src="/m3-logo.jpeg" alt="M3 Cars Logo" style={{ maxWidth: '100px', marginBottom: '5px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
               <h1 style={baseStyles.billHeaderH1}>{shopDetails.name}</h1>
               <p style={baseStyles.billHeaderP}>{shopDetails.address}</p>
               <p style={baseStyles.billHeaderP}>{shopDetails.city}</p>
@@ -2502,7 +2557,7 @@ const Bill = () => {
               
               {customerPhone && (
                 <div style={baseStyles.customerRow}>
-                  <span style={baseStyles.customerLabel}>Phone:</span>
+                  <span style={{...baseStyles.customerLabel, color: '#007bff'}}>Phone Number:</span>
                   <span style={baseStyles.customerValue}>{customerPhone}</span>
                 </div>
               )}
@@ -2579,10 +2634,15 @@ const Bill = () => {
               
               <input
                 type="text"
-                style={baseStyles.customerInput}
+                style={{
+                  ...baseStyles.customerInput,
+                  borderColor: fetchingCustomer ? '#007bff' : '#ddd',
+                  background: fetchingCustomer ? '#f0f7ff' : 'white'
+                }}
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="Phone Number"
+                onChange={handlePhoneChange}
+                placeholder={fetchingCustomer ? "Searching..." : "Phone Number"}
+                maxLength="10"
               />
               
               <input
