@@ -298,12 +298,12 @@ const Sidebar = ({ isOpen }) => {
                 </NavLink>
               )}
 
-              {hasPermission("invoices") && (
+              {/* {hasPermission("invoices") && (
                 <NavLink to="/invoice" style={getLinkStyle}>
                   <FaFileInvoiceDollar style={styles.icon} />
                   <span style={styles.text}>Invoices</span>
                 </NavLink>
-              )}
+              )} */}
 
               {hasPermission("discount") && (
                 <NavLink to="/discount" style={getLinkStyle}>
@@ -353,12 +353,12 @@ const Sidebar = ({ isOpen }) => {
                 </NavLink>
               )}
 
-              {hasPermission("attendance") && (
+              {/* {hasPermission("attendance") && (
                 <NavLink to="/attendance" style={getLinkStyle}>
                   <FaCalendarCheck style={styles.icon} />
                   <span style={styles.text}>Attendance</span>
                 </NavLink>
-              )}
+              )} */}
 
               {hasPermission("company") && (
                 <NavLink to="/company" style={getLinkStyle}>
