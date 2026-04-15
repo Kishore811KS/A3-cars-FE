@@ -13,6 +13,8 @@ import {
   FaBriefcase,
   FaCalendarDay,
   FaBan,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 
 const API = "http://localhost:5000/api";
@@ -599,6 +601,20 @@ const EnquiryPage = () => {
                     <td style={pageStyles.td}>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
+                          style={pageStyles.editBtn}
+                          onClick={() => { setEditTarget(e); setShowModal(true); }}
+                          title="Edit Enquiry"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          style={pageStyles.deleteBtn}
+                          onClick={() => handleDelete(e.id)}
+                          title="Delete Enquiry"
+                        >
+                          <FaTrash />
+                        </button>
+                        <button
                           style={pageStyles.followupBtn}
                           onClick={() => openFollowupModal(e)}
                           title="Set Next Follow-up Date"
@@ -752,6 +768,20 @@ const pageStyles = {
     border: "none", borderRadius: 7,
     color: "#000", cursor: "pointer", padding: "7px 11px", fontSize: 15,
     fontWeight: 700, boxShadow: "0 2px 10px rgba(251,191,36,0.35)",
+    transition: "transform 0.15s, box-shadow 0.15s",
+  },
+  editBtn: {
+    background: "linear-gradient(135deg, #4da6ff, #2563eb)",
+    border: "none", borderRadius: 7,
+    color: "#fff", cursor: "pointer", padding: "7px 11px", fontSize: 15,
+    fontWeight: 700, boxShadow: "0 2px 10px rgba(77,166,255,0.35)",
+    transition: "transform 0.15s, box-shadow 0.15s",
+  },
+  deleteBtn: {
+    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    border: "none", borderRadius: 7,
+    color: "#fff", cursor: "pointer", padding: "7px 11px", fontSize: 15,
+    fontWeight: 700, boxShadow: "0 2px 10px rgba(239,68,68,0.35)",
     transition: "transform 0.15s, box-shadow 0.15s",
   },
   calledBtn: {

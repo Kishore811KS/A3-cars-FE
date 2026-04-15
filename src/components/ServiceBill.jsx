@@ -1267,7 +1267,7 @@ const ServiceBill = () => {
   };
 
   // Generate HTML content for service bill
-  const generateBillHTML = () => {
+  const generateBillHTML = (customBillNumber = null) => {
     const subtotal = calculateSubtotal();
     const totalGST = calculateTotalGST();
     const discountAmount = calculateDiscountAmount();
@@ -1275,12 +1275,13 @@ const ServiceBill = () => {
     const due = calculateDue();
     const change = calculateChange();
     const activeServices = manualServices.filter(s => s.quantity > 0);
+    const displayBillNumber = customBillNumber || billNumber;
 
     return `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Service Bill - ${billNumber}</title>
+          <title>Service Bill - ${displayBillNumber}</title>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
@@ -1506,7 +1507,7 @@ const ServiceBill = () => {
             <div class="bill-info">
               <div class="bill-info-row">
                 <span>Bill No:</span>
-                <span class="bill-number">${billNumber}</span>
+                <span class="bill-number">${displayBillNumber}</span>
               </div>
               <div class="bill-info-row">
                 <span>Date:</span>
@@ -1693,41 +1694,41 @@ const ServiceBill = () => {
     const savedData = await saveBillToDatabase();
     
     if (savedData) {
-      const billContent = billPaperRef.current.outerHTML;
+      // Use the confirmed bill number from backend response
+      const confirmedBillNumber = savedData.billNumber;
       
+      // Generate fresh HTML with the confirmed bill number from backend
+      const printHTML = generateBillHTML(confirmedBillNumber);
+      
+      // Create a new window for printing
       const printWindow = window.open('', '_blank');
       
       if (printWindow) {
+        // Write the HTML and trigger print
         printWindow.document.write(`
           <!DOCTYPE html>
           <html>
             <head>
-              <title>Service Bill - ${billNumber}</title>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Service Bill - ${confirmedBillNumber}</title>
               <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { margin: 0; padding: 0; width: 80mm; font-family: 'Courier New', monospace; }
-                #billPaper { width: 280px; margin: 0 auto; padding: 12px; }
-                .bill-header { text-align: center; border-bottom: 1px dashed #000; }
-                .bill-info { border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
-                .bill-items-header { border-bottom: 1px solid #000; }
-                .bill-item { border-bottom: 1px dotted #000; }
-                .bill-summary { border-top: 1px solid #000; }
-                .bill-footer { border-top: 1px dashed #000; }
-                input, select, button { display: none !important; }
-                .payment-section { display: none !important; }
-                @page { size: 80mm auto; margin: 0; }
+                @page {
+                  size: 80mm auto;
+                  margin: 0;
+                }
+                body {
+                  margin: 0;
+                  padding: 0;
+                }
               </style>
             </head>
             <body>
-              ${billContent}
+              ${printHTML.replace('</html>', '')}
               <script>
                 window.onload = function() {
-                  // Small delay to ensure styles are applied
                   setTimeout(function() {
                     window.print();
-                    // Close after print dialog is handled
                     setTimeout(function() {
                       window.close();
                     }, 500);

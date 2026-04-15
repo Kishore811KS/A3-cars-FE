@@ -1435,7 +1435,7 @@ const Bill = () => {
   };
 
   // Generate HTML content for bill with updated shop details
-  const generateBillHTML = () => {
+  const generateBillHTML = (overrideBillNumber = null) => {
     const subtotal = calculateSubtotal();
     const discountAmount = calculateDiscountAmount();
     const taxAmount = calculateTaxAmount();
@@ -1443,12 +1443,14 @@ const Bill = () => {
     const due = calculateDue();
     const change = calculateChange();
     const activeProducts = selectedProducts.filter(p => p.quantity > 0);
+    // Use provided bill number or fall back to state
+    const displayBillNumber = overrideBillNumber || billNumber;
 
     return `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Bill - ${billNumber}</title>
+          <title>Bill - ${displayBillNumber}</title>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
@@ -1708,7 +1710,7 @@ const Bill = () => {
             <div class="bill-info">
               <div class="bill-info-row">
                 <span>Bill No:</span>
-                <span class="bill-number">${billNumber}</span>
+                <span class="bill-number">${displayBillNumber}</span>
               </div>
               <div class="bill-info-row">
                 <span>Date:</span>
@@ -1948,9 +1950,11 @@ const Bill = () => {
     const savedData = await saveBillToDatabase();
     
     if (savedData) {
-      // Then print
-      // Get the bill content
-      const billContent = billPaperRef.current.outerHTML;
+      // Use the saved bill number from backend response
+      const confirmedBillNumber = savedData.billNumber;
+      
+      // Generate fresh HTML with the confirmed bill number from backend
+      const printHTML = generateBillHTML(confirmedBillNumber);
       
       // Create a new window for printing
       const printWindow = window.open('', '_blank');
@@ -1960,182 +1964,26 @@ const Bill = () => {
           <!DOCTYPE html>
           <html>
             <head>
-              <title>Bill - ${billNumber}</title>
+              <title>Bill - ${confirmedBillNumber}</title>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <style>
-                * {
-                  margin: 0;
-                  padding: 0;
-                  box-sizing: border-box;
-                  border: none;
-                  background: none;
-                  box-shadow: none;
-                  outline: none;
-                }
-                
-                body {
-                  margin: 0;
-                  padding: 0;
-                  width: 80mm;
-                  font-family: 'Courier New', monospace;
-                  font-size: 11px;
-                  line-height: 1.3;
-                  background: white;
-                }
-                
-                #billPaper {
-                  width: 280px;
-                  margin: 0 auto;
-                  padding: 12px;
-                  background: white;
-                  border: none;
-                }
-                
-                .bill-header {
-                  text-align: center;
-                  margin-bottom: 12px;
-                  padding-bottom: 8px;
-                  border-bottom: 1px dashed #000 !important;
-                }
-                
-                .bill-info {
-                  margin: 10px 0;
-                  padding: 6px 0;
-                  border-top: 1px dashed #000 !important;
-                  border-bottom: 1px dashed #000 !important;
-                }
-                
-                .customer-section {
-                  margin: 10px 0;
-                  padding: 6px;
-                  border: 1px solid #ddd !important;
-                }
-                
-                .customer-row {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 3px;
-                  font-size: 10px;
-                }
-                
-                .customer-type-badge {
-                  padding: 2px 6px;
-                  border-radius: 3px;
-                  font-size: 9px;
-                  font-weight: bold;
-                }
-                
-                .internal-badge {
-                  background: #cce5ff !important;
-                  color: #004085 !important;
-                }
-                
-                .external-badge {
-                  background: #fff3cd !important;
-                  color: #856404 !important;
-                }
-                
-                .vehicle-section {
-                  margin: 8px 0;
-                  padding: 6px;
-                  border: 1px solid #ddd !important;
-                }
-                
-                .vehicle-row {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 4px;
-                  font-size: 10px;
-                }
-                
-                .bill-items-header {
-                  display: grid;
-                  grid-template-columns: 2fr 1fr 1fr 1.5fr;
-                  font-weight: bold;
-                  padding: 4px 0;
-                  border-bottom: 1px solid #000 !important;
-                  font-size: 10px;
-                }
-                
-                .bill-item {
-                  display: grid;
-                  grid-template-columns: 2fr 1fr 1fr 1.5fr;
-                  padding: 3px 0;
-                  border-bottom: 1px dotted #000 !important;
-                  font-size: 9px;
-                }
-                
-                .bill-summary {
-                  margin: 10px 0;
-                  padding: 8px 0;
-                  border-top: 1px solid #000 !important;
-                }
-                
-                .summary-row {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 3px;
-                  font-size: 10px;
-                }
-                
-                .summary-row-total {
-                  font-weight: bold;
-                  font-size: 12px;
-                  border-top: 1px dashed #000 !important;
-                  padding-top: 6px;
-                  margin-top: 6px;
-                }
-                
-                .bill-footer {
-                  text-align: center;
-                  margin-top: 15px;
-                  padding-top: 10px;
-                  border-top: 1px dashed #000 !important;
-                  font-size: 8px;
-                }
-                
-                .created-by {
-                  margin-top: 8px;
-                  padding-top: 5px;
-                  border-top: 1px dotted #000 !important;
-                  font-size: 8px;
-                  text-align: center;
-                }
-                
-                input, select, button, textarea {
-                  display: none !important;
-                }
-                
-                .payment-section {
-                  display: none !important;
-                }
-                
-                .discount-section {
-                  display: none !important;
-                }
-                
-                * {
-                  background: white !important;
-                  color: black !important;
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                
                 @page {
                   size: 80mm auto;
                   margin: 0;
                 }
+                body {
+                  margin: 0;
+                  padding: 0;
+                }
               </style>
             </head>
             <body>
-              ${billContent}
+              ${printHTML.replace('</html>', '')}
               <script>
                 window.onload = function() {
-                  // Small delay to ensure styles are applied
                   setTimeout(function() {
                     window.print();
-                    // Close after print dialog is handled
                     setTimeout(function() {
                       window.close();
                     }, 500);
