@@ -256,7 +256,7 @@ const Header = ({ toggleSidebar }) => {
         {/* User */}
         <div style={styles.userSection}>
           <FaUserCircle />
-          <span style={styles.username}>{user?.username || "Admin"}</span>
+          <span style={styles.username}>{user?.username || user?.email || "Admin"}</span>
         </div>
 
         {/* Logout */}

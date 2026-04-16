@@ -880,8 +880,8 @@ const ServiceBill = () => {
         }
         
         @page {
-          size: 80mm auto !important;
-          margin: 0 !important;
+          size: A4 portrait !important;
+          margin: 15mm !important;
         }
         
         .no-print {
@@ -1294,7 +1294,7 @@ const ServiceBill = () => {
             body {
               margin: 0;
               padding: 20px;
-              width: 80mm;
+              width: 100%;
               font-family: 'Courier New', monospace;
               font-size: 11px;
               line-height: 1.3;
@@ -1302,7 +1302,7 @@ const ServiceBill = () => {
             }
             
             #billPaper {
-              width: 280px;
+              width: 100%;
               margin: 0 auto;
               padding: 12px;
               background: white;
@@ -1714,8 +1714,8 @@ const ServiceBill = () => {
               <title>Service Bill - ${confirmedBillNumber}</title>
               <style>
                 @page {
-                  size: 80mm auto;
-                  margin: 0;
+                  size: A4 portrait;
+                  margin: 15mm;
                 }
                 body {
                   margin: 0;

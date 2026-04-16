@@ -74,6 +74,8 @@ const VisitBillPage = () => {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [copiedBillNo, setCopiedBillNo] = useState(null);
   const [whatsappStatus, setWhatsappStatus] = useState({});
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelRemarks, setCancelRemarks] = useState('');
   
   // Company/Shop Details from Backend
   const [companyDetails, setCompanyDetails] = useState({
@@ -143,9 +145,7 @@ const VisitBillPage = () => {
 
   // Load bills on component mount
   useEffect(() => {
-    if (selectedCompanyId) {
-      fetchBills();
-    }
+    fetchBills();
   }, [selectedCompanyId]);
 
   // Apply filters whenever filter criteria change
@@ -643,6 +643,27 @@ const VisitBillPage = () => {
     }, 3000);
   };
 
+  const handleCancelBillImmediate = async (bill) => {
+    const reason = window.prompt("Confirm cancellation? Provide a reason:", "");
+    if (reason === null) return; // User clicked "Cancel" on the prompt
+    
+    try {
+      setLoading(true);
+      const endpoint = `${API_BASE_URL}/billing/bills/${bill.id}/cancel`;
+      const response = await api.post(endpoint, { remarks: reason || "Cancelled without remarks" });
+      
+      if (response.data.success) {
+        showMessage("success", "✅ Bill cancelled successfully!");
+        fetchBills();
+      }
+    } catch (err) {
+      console.error('Error cancelling bill:', err);
+      showMessage("error", "❌ Failed to cancel bill");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const applyFilters = () => {
     let filtered = [...bills];
 
@@ -899,10 +920,14 @@ const VisitBillPage = () => {
         <head>
           <title>Bill - ${processedBill.billNumber}</title>
           <style>
+            @page {
+              size: A4 portrait;
+              margin: 15mm;
+            }
             body { 
               font-family: 'Courier New', monospace; 
               padding: 20px; 
-              max-width: 300px; 
+              max-width: 100%; 
               margin: 0 auto; 
               background: #fff; 
             }
@@ -2065,6 +2090,7 @@ const VisitBillPage = () => {
                       </div>
                     </td>
                     <td style={styles.td}>
+                      <div style={{ display: 'flex', flexDirection: 'row', gap: '4px', whiteSpace: 'nowrap' }}>
                       <button
                         style={{...styles.actionButton, backgroundColor: '#3b82f6', color: 'white', marginRight: '4px'}}
                         onClick={() => fetchBillDetails(bill.id)}
@@ -2126,6 +2152,22 @@ const VisitBillPage = () => {
                           <MessageCircle size={14} />
                         )}
                       </button>
+                      <button
+                        style={{...styles.actionButton, backgroundColor: '#dc3545', color: 'white', marginLeft: '4px'}}
+                        onClick={() => handleCancelBillImmediate(bill)}
+                        title="Cancel Bill"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#c82333';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#dc3545';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -2416,6 +2458,20 @@ const VisitBillPage = () => {
                 title={!selectedBill.customerPhone ? "No phone number available" : "Share on WhatsApp"}
               >
                 <MessageCircle size={16} /> WhatsApp
+              </button>
+              <button
+                style={{...styles.actionButton, backgroundColor: '#dc3545', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
+                onClick={() => setShowCancelModal(true)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#c82333';
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#dc3545';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                Cancel Bill
               </button>
               <button
                 style={{...styles.actionButton, backgroundColor: '#374151', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
