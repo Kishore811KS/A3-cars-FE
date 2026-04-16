@@ -34,6 +34,7 @@ import {
   FaFileContract,
   FaReceipt,
   FaChartLine,
+  FaBan,
 } from "react-icons/fa";
 
 const Sidebar = ({ isOpen }) => {
@@ -41,8 +42,33 @@ const Sidebar = ({ isOpen }) => {
 
   // Get user and permissions from localStorage
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const userPermissions = user?.permissions || [];
+  const rawPermissions = user?.permissions;
+  const userPermissions = Array.isArray(rawPermissions) ? rawPermissions : [];
   const userType = user?.user_type || "";
+
+  // Fallback Role Templates if the matrix isn't configured yet
+  const ROLE_TEMPLATES = {
+    admin: [
+      "dashboard", "products", "category", "stock_in", "stock_out", "low_stock",
+      "warranty", "create_bill", "bill_reports", "service_bill", "service_bills", 
+      "sales_bills", "quotations", "invoices", "discount", "add_supplier", 
+      "supplier_list", "payment_tracking", "employee", "user_type", "attendance", 
+      "company", "enquiries", "customer_details", "usersettings"
+    ],
+    manager: [
+      "dashboard", "products", "category", "stock_in", "stock_out", "low_stock",
+      "warranty", "create_bill", "bill_reports", "service_bill", "service_bills", 
+      "sales_bills", "quotations", "invoices", "discount", "add_supplier", 
+      "supplier_list", "payment_tracking", "employee", "attendance", "company", 
+      "enquiries", "customer_details"
+    ],
+    staff: [
+      "dashboard", "products", "stock_in", "stock_out", "create_bill", 
+      "service_bill", "service_bills", "sales_bills", "warranty"
+    ],
+    hr: ["dashboard", "employee", "user_type", "attendance", "company"],
+    supplier: ["dashboard", "supplier_list", "payment_tracking"]
+  };
 
   // Helper to check if a submodule is permitted
   const hasPermission = (submodule_id) => {
@@ -51,11 +77,16 @@ const Sidebar = ({ isOpen }) => {
 
     if (isAdmin) return true;
 
-    // For other roles, check the permissions array
-    if (!Array.isArray(userPermissions)) return false;
+    // Use specific assigned permissions if they exist
+    if (userPermissions.length > 0) {
+      const perm = userPermissions.find(p => p.submodule_id === submodule_id);
+      return perm ? perm.view === true : false;
+    }
 
-    const perm = userPermissions.find(p => p.submodule_id === submodule_id);
-    return perm ? perm.view === true : false;
+    // Default template fallback if no permissions have been saved yet
+    const roleKey = userType?.toLowerCase();
+    const template = ROLE_TEMPLATES[roleKey] || ["dashboard"]; // fallback to at least dashboard
+    return template.includes(submodule_id);
   };
 
   // Helper to check if a section should be visible
@@ -264,10 +295,16 @@ const Sidebar = ({ isOpen }) => {
               )}
 
               {hasPermission("bill_reports") && (
-                <NavLink to="/billreport" style={getLinkStyle}>
-                  <FaChartLine style={styles.icon} />
-                  <span style={styles.text}>Bill Reports</span>
-                </NavLink>
+                <>
+                  <NavLink to="/billreport" style={getLinkStyle}>
+                    <FaChartLine style={styles.icon} />
+                    <span style={styles.text}>Bill Reports</span>
+                  </NavLink>
+                  <NavLink to="/cancelbills" style={getLinkStyle}>
+                    <FaBan style={styles.icon} />
+                    <span style={styles.text}>Cancel Bills</span>
+                  </NavLink>
+                </>
               )}
 
               {hasPermission("service_bill") && (

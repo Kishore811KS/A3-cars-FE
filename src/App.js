@@ -14,6 +14,7 @@ import Sidebar from "./components/Sidebar";
 import Product from "./components/Product";
 import Bill from "./components/Bill";
 import VisitBillPage from "./components/VisitPage";
+import CancelBills from "./components/CancelBills";
 import SupplierPage from "./components/Supplier";
 import SupplierDuplicatePage from "./components/SupplierList";
 import ItemsPage from "./components/SuppliedItemLIst";
@@ -76,6 +77,7 @@ function Layout() {
           <Route path="/product" element={<Product />} />
           <Route path="/Bill" element={<Bill />} />
           <Route path="/billreport" element={<VisitBillPage />} />
+          <Route path="/cancelbills" element={<CancelBills />} />
           <Route path="/supplier" element={<SupplierPage />} />
           <Route path="/supplierList" element={<SupplierDuplicatePage />} />
           <Route path="/itemlist" element={<ItemsPage />} />

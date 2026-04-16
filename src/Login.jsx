@@ -94,13 +94,15 @@ const Login = () => {
         id: userData.id || userData.user_id,
         employee_id: userData.employee_id || userData.emp_id || null,
         full_name: userData.full_name || userData.name || userData.username,
+        username: userData.username || userData.name,
         email: userData.email,
         user_type: userData.user_type || userData.role || "user",
         department: userData.department || null,
         designation: userData.designation || null,
         current_company: userData.current_company || userData.company || null,
         phone_number: userData.phone_number || userData.phone || null,
-        blood_group: userData.blood_group || null
+        blood_group: userData.blood_group || null,
+        permissions: userData.permissions || []
       };
 
       localStorage.setItem("user", JSON.stringify(userToStore));
