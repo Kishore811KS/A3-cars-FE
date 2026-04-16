@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, memo } from "react";
 
 const fmt = (n) => {
   if (n === null) return "∞";
@@ -7,6 +7,61 @@ const fmt = (n) => {
     maximumFractionDigits: 2,
   });
 };
+
+// Memoized EditField component to prevent unnecessary re-renders
+const EditField = memo(({ fieldKey, placeholder, width = 100, rowId, editVals, onEditChange, onKeyDown }) => {
+  const inputRef = useRef(null);
+  
+  useEffect(() => {
+    if (inputRef.current && fieldKey === "min" && editVals[fieldKey] !== undefined) {
+      // Only focus once when entering edit mode for min field
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [fieldKey, editVals]);
+
+  return (
+    <div className="dp-field">
+      {(fieldKey === "min" || fieldKey === "max") && (
+        <span className="dp-sym">₹</span>
+      )}
+      <input
+        ref={inputRef}
+        className="dp-inp"
+        style={{ width }}
+        type="number"
+        min="0"
+        max={fieldKey === "discount" ? 100 : undefined}
+        step={fieldKey === "discount" ? "1" : "0.01"}
+        placeholder={placeholder}
+        value={editVals[fieldKey] === null ? "" : editVals[fieldKey]}
+        onChange={(e) => onEditChange(fieldKey, e.target.value)}
+        onKeyDown={(e) => onKeyDown(e, fieldKey, rowId)}
+        disabled={fieldKey === "max" && editVals.isInfinite}
+      />
+      {fieldKey === "discount" && <span className="dp-sym dp-sym-r">%</span>}
+      {fieldKey === "max" && (
+        <button
+          type="button"
+          className="dp-infinity-toggle"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEditChange("isInfinite", !editVals.isInfinite);
+            if (!editVals.isInfinite) {
+              onEditChange("max", "");
+            }
+          }}
+          title={editVals.isInfinite ? "Set finite max" : "Set infinite max"}
+        >
+          {editVals.isInfinite ? "∞" : "↗"}
+        </button>
+      )}
+    </div>
+  );
+});
+
+EditField.displayName = "EditField";
 
 const DiscountPage = () => {
   const [ranges, setRanges] = useState([]);
@@ -234,66 +289,25 @@ const DiscountPage = () => {
     }
   };
 
-  const handleEditChange = (fieldKey, value) => {
-    setEditVals((v) => ({ ...v, [fieldKey]: value }));
-  };
-
   const handleKeyDown = (e, fieldKey, id) => {
     if (e.key === "Enter") {
       saveEdit(id);
+      e.preventDefault();
     } else if (e.key === "Escape") {
       setEditId(null);
     }
   };
 
-  const EditField = ({ fieldKey, placeholder, width = 100, rowId }) => {
-    const inputRef = useRef(null);
-    
-    useEffect(() => {
-      if (inputRef.current && fieldKey === "min") {
-        inputRef.current.focus();
-      }
-    }, [fieldKey]);
-
-    return (
-      <div className="dp-field">
-        {(fieldKey === "min" || fieldKey === "max") && (
-          <span className="dp-sym">₹</span>
-        )}
-        <input
-          ref={inputRef}
-          className="dp-inp"
-          style={{ width }}
-          type="number"
-          min="0"
-          max={fieldKey === "discount" ? 100 : undefined}
-          step={fieldKey === "discount" ? "1" : "0.01"}
-          placeholder={placeholder}
-          value={editVals[fieldKey] === null ? "" : editVals[fieldKey]}
-          onChange={(e) => handleEditChange(fieldKey, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, fieldKey, rowId)}
-          disabled={fieldKey === "max" && editVals.isInfinite}
-        />
-        {fieldKey === "discount" && <span className="dp-sym dp-sym-r">%</span>}
-        {fieldKey === "max" && (
-          <button
-            type="button"
-            className="dp-infinity-toggle"
-            onClick={(e) => {
-              e.preventDefault();
-              setEditVals((v) => ({
-                ...v,
-                max: v.isInfinite ? (v.max || "") : null,
-                isInfinite: !v.isInfinite,
-              }));
-            }}
-            title={editVals.isInfinite ? "Set finite max" : "Set infinite max"}
-          >
-            {editVals.isInfinite ? "∞" : "↗"}
-          </button>
-        )}
-      </div>
-    );
+  const handleEditChange = (fieldKey, value) => {
+    if (fieldKey === "isInfinite") {
+      setEditVals((v) => ({ 
+        ...v, 
+        isInfinite: value,
+        max: value ? null : (v.max || "")
+      }));
+    } else {
+      setEditVals((v) => ({ ...v, [fieldKey]: value }));
+    }
   };
 
   if (loading) {
@@ -367,6 +381,9 @@ const DiscountPage = () => {
                               placeholder="0" 
                               width={110} 
                               rowId={row.id}
+                              editVals={editVals}
+                              onEditChange={handleEditChange}
+                              onKeyDown={handleKeyDown}
                             />
                           ) : (
                             <span className="dp-val">{fmt(row.min)}</span>
@@ -379,6 +396,9 @@ const DiscountPage = () => {
                               placeholder={row.isInfinite ? "∞" : "1000"}
                               width={110}
                               rowId={row.id}
+                              editVals={editVals}
+                              onEditChange={handleEditChange}
+                              onKeyDown={handleKeyDown}
                             />
                           ) : (
                             <span className="dp-val">
@@ -393,6 +413,9 @@ const DiscountPage = () => {
                               placeholder="0"
                               width={72}
                               rowId={row.id}
+                              editVals={editVals}
+                              onEditChange={handleEditChange}
+                              onKeyDown={handleKeyDown}
                             />
                           ) : (
                             <div className="dp-disc-cell">
@@ -770,3 +793,36 @@ input[type=number] { -moz-appearance: textfield; }
 `;
 
 export default DiscountPage;
+
+// Utility function for other components to use discount ranges
+export const getApplicableDiscount = async (amount) => {
+  try {
+    const response = await fetch('http://localhost:5000/api/discounts');
+    if (!response.ok) throw new Error('Failed to load discount ranges');
+    const ranges = await response.json();
+    
+    const range = ranges.find((r) => {
+      if (r.isInfinite) {
+        return amount >= r.min;
+      }
+      return amount >= r.min && amount <= r.max;
+    });
+    
+    return range ? range.discount : 0;
+  } catch (error) {
+    console.error('Error fetching discount:', error);
+    return 0;
+  }
+};
+
+// Utility function to get all discount ranges
+export const getDiscountRanges = async () => {
+  try {
+    const response = await fetch('http://localhost:5000/api/discounts');
+    if (!response.ok) throw new Error('Failed to load discount ranges');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching discount ranges:', error);
+    return [];
+  }
+};

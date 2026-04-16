@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  FaUsers,
   FaShoppingCart,
   FaMoneyBillWave,
   FaChartLine,
@@ -8,17 +7,17 @@ import {
   FaExclamationTriangle,
   FaSpinner,
   FaArrowRight,
-  FaEye,
 } from "react-icons/fa";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-const Dashboard = () => {
+const EmployeeDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [bills, setBills] = useState([]);
   const [stats, setStats] = useState({
     products: {
       total: 0,
@@ -26,77 +25,115 @@ const Dashboard = () => {
       lowStock: 0,
     },
     billing: {
-      today: {
+      lastTwoDays: {
         bills: 0,
         sales: 0,
         average: 0,
       },
-      thisWeek: {
-        bills: 0,
-        sales: 0,
-      },
-      thisMonth: {
-        bills: 0,
-        sales: 0,
-      },
-      pendingItems: 0,
     },
     lowStockProducts: [],
     paymentMethods: [],
   });
 
-  // Check if user is employee and redirect to employee dashboard
+  // Check user type and load data
   useEffect(() => {
-    const userType = localStorage.getItem("userType");
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    
-    if (userType === "Employee" || userType === "employee" || user.user_type === "Employee" || user.user_type === "employee") {
-      navigate("/employee-dashboard");
-      return;
-    }
+    const checkUserType = async () => {
+      try {
+        const storedUserType = localStorage.getItem("userType");
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        
+        const userRole = storedUserType || user.user_type;
+
+        // Redirect non-employees back to main dashboard
+        if (userRole && userRole !== "Employee" && userRole !== "employee") {
+          navigate("/dashboard");
+          return;
+        }
+
+        // Fetch dashboard data for employees
+        await fetchEmployeeDashboardData();
+      } catch (err) {
+        console.error("Error checking user type:", err);
+        setError("Error loading employee dashboard");
+        setLoading(false);
+      }
+    };
+
+    checkUserType();
   }, [navigate]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchEmployeeDashboardData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
+      // Calculate date range (last 2 days)
+      const today = new Date();
+      const twoDaysAgo = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000);
+
+      const formatDate = (date) => {
+        return date.toISOString().split("T")[0];
+      };
+
       // Fetch product statistics
       const productStatsResponse = await axios.get(
         `${API_BASE_URL}/api/products/statistics`
       );
-      
-      // Fetch billing statistics
-      const billingStatsResponse = await axios.get(
-        `${API_BASE_URL}/api/billing/statistics`
-      );
-      
-      // Fetch low stock products (quantity < 10)
+
+      // Fetch low stock products
       const lowStockResponse = await axios.get(
         `${API_BASE_URL}/api/products?per_page=100`
       );
-      
+
+      // Fetch bills for last 2 days
+      let billsData = [];
+      try {
+        const billsResponse = await axios.get(
+          `${API_BASE_URL}/api/bills?from_date=${formatDate(
+            twoDaysAgo
+          )}&to_date=${formatDate(today)}`,
+          { withCredentials: true }
+        );
+        billsData = billsResponse.data.bills || billsResponse.data.data || billsResponse.data || [];
+      } catch (err) {
+        // Try alternative endpoint
+        try {
+          const billsResponse = await axios.get(
+            `${API_BASE_URL}/api/billing/bills`,
+            { withCredentials: true }
+          );
+          billsData = billsResponse.data.bills || billsResponse.data.data || billsResponse.data || [];
+        } catch {
+          billsData = [];
+        }
+      }
+
       // Process data
       const productStats = productStatsResponse.data;
-      const billingStats = billingStatsResponse.data;
-      
-      // Filter low stock products
       const allProducts = lowStockResponse.data.items || [];
+
+      // Filter low stock products (quantity < 10)
       const lowStockProducts = allProducts
-        .filter(product => product.quantity < 10)
+        .filter((product) => product.quantity < 10)
         .sort((a, b) => a.quantity - b.quantity)
-        .slice(0, 10); // Show top 10 lowest stock
-      
-      // Calculate total payments from payment methods
-      const totalPayments = (billingStats.paymentMethods || []).reduce(
-        (sum, method) => sum + (method.total || 0), 
+        .slice(0, 10);
+
+      // Filter bills from last 2 days
+      const billsArray = Array.isArray(billsData) ? billsData : [];
+      const filteredBills = billsArray.filter((bill) => {
+        const billDate = new Date(bill.created_at || bill.date || bill.bill_date);
+        return billDate >= twoDaysAgo && billDate <= today;
+      });
+
+      // Calculate statistics for last 2 days
+      const totalSales = filteredBills.reduce(
+        (sum, bill) => sum + (bill.total_amount || bill.total || Number(bill.amount) || 0),
         0
       );
-      
+      const totalBills = filteredBills.length;
+      const averageBill = totalBills > 0 ? totalSales / totalBills : 0;
+
+      setBills(filteredBills);
       setStats({
         products: {
           total: productStats.total_products || 0,
@@ -104,16 +141,15 @@ const Dashboard = () => {
           lowStock: lowStockProducts.length,
         },
         billing: {
-          today: billingStats.today || { bills: 0, sales: 0, average: 0 },
-          thisWeek: billingStats.thisWeek || { bills: 0, sales: 0 },
-          thisMonth: billingStats.thisMonth || { bills: 0, sales: 0 },
-          pendingItems: billingStats.pendingItems || 0,
-          totalPayments: totalPayments,
+          lastTwoDays: {
+            bills: totalBills,
+            sales: totalSales,
+            average: averageBill,
+          },
         },
         lowStockProducts: lowStockProducts,
-        paymentMethods: billingStats.paymentMethods || [],
+        paymentMethods: [],
       });
-      
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
       setError("Failed to load dashboard data. Please try again.");
@@ -131,8 +167,23 @@ const Dashboard = () => {
     }).format(amount);
   };
 
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
   const handleViewAllLowStock = () => {
-    navigate('/lowstock'); // Updated to match your NavLink path
+    navigate('/lowstock');
   };
 
   const styles = {
@@ -156,6 +207,9 @@ const Dashboard = () => {
       color: "#ffffff",
       fontSize: "28px",
       fontWeight: "600",
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
     },
     subtitle: {
       color: "#94a3b8",
@@ -175,13 +229,10 @@ const Dashboard = () => {
       alignItems: "center",
       gap: "8px",
       transition: "all 0.2s",
-      ':hover': {
-        backgroundColor: "#1d4ed8",
-      }
     },
     cards: {
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
       gap: "20px",
       marginBottom: "30px",
     },
@@ -194,7 +245,6 @@ const Dashboard = () => {
       alignItems: "center",
       gap: "16px",
       transition: "transform 0.2s, box-shadow 0.2s",
-      cursor: "pointer",
       border: "1px solid #334155",
     },
     icon: {
@@ -302,6 +352,11 @@ const Dashboard = () => {
       color: "#fca5a5",
       border: "1px solid #7f1d1d",
     },
+    emptyState: {
+      textAlign: "center",
+      padding: "40px",
+      color: "#94a3b8",
+    },
     loadingContainer: {
       display: "flex",
       justifyContent: "center",
@@ -321,49 +376,6 @@ const Dashboard = () => {
     spinner: {
       animation: "spin 1s linear infinite",
     },
-    paymentGrid: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-      gap: "16px",
-      marginTop: "16px",
-    },
-    paymentCard: {
-      backgroundColor: "#0f172a",
-      padding: "16px",
-      borderRadius: "12px",
-      border: "1px solid #334155",
-    },
-    paymentMethod: {
-      color: "#94a3b8",
-      fontSize: "14px",
-      textTransform: "capitalize",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-    },
-    paymentAmount: {
-      fontSize: "20px",
-      fontWeight: "600",
-      color: "#ffffff",
-      marginTop: "8px",
-    },
-    paymentCount: {
-      color: "#94a3b8",
-      fontSize: "13px",
-      marginTop: "4px",
-    },
-    viewAllText: {
-      color: "#3b82f6", 
-      cursor: "pointer",
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "4px",
-      fontSize: "13px",
-      transition: "all 0.2s",
-      ':hover': {
-        color: "#60a5fa",
-      }
-    },
   };
 
   if (loading) {
@@ -371,7 +383,7 @@ const Dashboard = () => {
       <div style={styles.container}>
         <div style={styles.loadingContainer}>
           <FaSpinner style={{ ...styles.spinner, fontSize: "40px", color: "#3b82f6" }} />
-          <p>Loading dashboard data...</p>
+          <p>Loading employee dashboard...</p>
         </div>
       </div>
     );
@@ -401,7 +413,7 @@ const Dashboard = () => {
       {/* Header */}
       <div style={styles.header}>
         <div>
-          <h2 style={styles.title}>Dashboard</h2>
+          <h2 style={styles.title}>Employee Dashboard</h2>
           <p style={styles.subtitle}>
             {new Date().toLocaleDateString("en-IN", {
               weekday: "long",
@@ -413,7 +425,7 @@ const Dashboard = () => {
         </div>
         <button 
           style={styles.refreshButton}
-          onClick={fetchDashboardData}
+          onClick={fetchEmployeeDashboardData}
         >
           <FaChartLine /> Refresh Data
         </button>
@@ -443,12 +455,12 @@ const Dashboard = () => {
         <div className="card" style={styles.card}>
           <FaShoppingCart style={{ ...styles.icon, color: "#f59e0b" }} />
           <div style={styles.cardContent}>
-            <div style={styles.cardLabel}>Today's Sales</div>
+            <div style={styles.cardLabel}>Last 2 Days Sales</div>
             <div style={styles.cardValue}>
-              {formatCurrency(stats.billing.today.sales)}
+              {formatCurrency(stats.billing.lastTwoDays.sales)}
             </div>
             <div style={styles.cardSmallValue}>
-              {stats.billing.today.bills} bills · Avg {formatCurrency(stats.billing.today.average)}
+              {stats.billing.lastTwoDays.bills} bills · Avg {formatCurrency(stats.billing.lastTwoDays.average)}
             </div>
           </div>
         </div>
@@ -456,12 +468,12 @@ const Dashboard = () => {
         <div className="card" style={styles.card}>
           <FaMoneyBillWave style={{ ...styles.icon, color: "#10b981" }} />
           <div style={styles.cardContent}>
-            <div style={styles.cardLabel}>Total Payments</div>
+            <div style={styles.cardLabel}>Total Bills</div>
             <div style={styles.cardValue}>
-              {formatCurrency(stats.billing.totalPayments || 0)}
+              {stats.billing.lastTwoDays.bills}
             </div>
             <div style={styles.cardSmallValue}>
-              All time payments received
+              Last 2 days
             </div>
           </div>
         </div>
@@ -469,12 +481,12 @@ const Dashboard = () => {
         <div className="card" style={styles.card}>
           <FaChartLine style={{ ...styles.icon, color: "#8b5cf6" }} />
           <div style={styles.cardContent}>
-            <div style={styles.cardLabel}>This Month</div>
+            <div style={styles.cardLabel}>Average Bill</div>
             <div style={styles.cardValue}>
-              {formatCurrency(stats.billing.thisMonth.sales)}
+              {formatCurrency(stats.billing.lastTwoDays.average)}
             </div>
             <div style={styles.cardSmallValue}>
-              {stats.billing.thisMonth.bills} bills · {stats.billing.pendingItems} pending items
+              Per transaction
             </div>
           </div>
         </div>
@@ -482,6 +494,52 @@ const Dashboard = () => {
 
       {/* Main Content Grid */}
       <div style={styles.grid2}>
+        {/* Recent Bills */}
+        <div style={styles.tableContainer}>
+          <div style={styles.tableHeader}>
+            <h3 style={styles.tableTitle}>
+              <FaShoppingCart color="#f59e0b" />
+              Recent Bills (Last 2 Days)
+            </h3>
+          </div>
+          {bills.length > 0 ? (
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Bill #</th>
+                  <th style={styles.th}>Date</th>
+                  <th style={styles.th}>Customer</th>
+                  <th style={styles.th}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bills.slice(0, 5).map((bill) => (
+                  <tr key={bill.id || bill.bill_number}>
+                    <td style={styles.td}>
+                      <strong>#{bill.bill_number || bill.id}</strong>
+                    </td>
+                    <td style={styles.td}>
+                      {formatDate(bill.created_at || bill.date || bill.bill_date).split(",")[0]}
+                    </td>
+                    <td style={styles.td}>
+                      {bill.customer_name || bill.customer || "Walk-in"}
+                    </td>
+                    <td style={styles.td}>
+                      <strong style={{ color: "#10b981" }}>
+                        {formatCurrency(bill.total_amount || bill.total || bill.amount || 0)}
+                      </strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div style={styles.emptyState}>
+              <p>No bills in the last 2 days</p>
+            </div>
+          )}
+        </div>
+
         {/* Low Stock Products */}
         <div style={styles.tableContainer}>
           <div style={styles.tableHeader}>
@@ -510,128 +568,38 @@ const Dashboard = () => {
               {stats.lowStockProducts.length > 0 ? (
                 stats.lowStockProducts.slice(0, 5).map((product) => (
                   <tr key={product.id}>
+                    <td style={styles.td}>{product.name}</td>
+                    <td style={styles.td}>{product.model || "-"}</td>
                     <td style={styles.td}>
-                      <div style={{ fontWeight: "500" }}>{product.name}</div>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={{ color: "#94a3b8" }}>{product.model || '-'}</span>
-                    </td>
-                    <td style={styles.td}>
-                      <span style={{ 
-                        fontWeight: "600",
-                        color: product.quantity === 0 ? "#ef4444" : "#f59e0b"
-                      }}>
-                        {product.quantity}
-                      </span>
+                      <strong>{product.quantity}</strong>
                     </td>
                     <td style={styles.td}>
                       <span
                         style={{
                           ...styles.statusBadge,
-                          ...(product.quantity === 0 
-                            ? styles.criticalStock 
+                          ...(product.quantity < 5
+                            ? styles.criticalStock
                             : styles.lowStock),
                         }}
                       >
-                        {product.quantity === 0 ? "Out of Stock" : "Low Stock"}
+                        {product.quantity < 5 ? "Critical" : "Low"}
                       </span>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" style={{ ...styles.td, textAlign: "center", padding: "40px" }}>
-                    <FaBoxes size={32} style={{ opacity: 0.5, marginBottom: "12px" }} />
-                    <div>All products are well stocked ✓</div>
-                    <div style={{ fontSize: "13px", color: "#6b7280", marginTop: "8px" }}>
-                      No items with quantity less than 10
-                    </div>
-                  </td>
-                </tr>
-              )}
-              
-              {stats.lowStockProducts.length > 5 && (
-                <tr>
-                  <td colSpan="4" style={{ ...styles.td, textAlign: "center", backgroundColor: "#0f172a" }}>
-                    <span 
-                      onClick={handleViewAllLowStock}
-                      style={styles.viewAllText}
-                      className="view-all-text"
-                    >
-                      <FaEye size={12} /> View all {stats.lowStockProducts.length} low stock items
-                    </span>
+                  <td colSpan="4" style={{ ...styles.td, textAlign: "center" }}>
+                    No low stock items
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Payment Methods Summary */}
-        <div style={styles.tableContainer}>
-          <div style={styles.tableHeader}>
-            <h3 style={styles.tableTitle}>
-              <FaMoneyBillWave color="#10b981" />
-              Payment Methods
-            </h3>
-          </div>
-          
-          {stats.paymentMethods.length > 0 ? (
-            <div style={styles.paymentGrid}>
-              {stats.paymentMethods.map((method, index) => (
-                <div key={index} style={styles.paymentCard}>
-                  <div style={styles.paymentMethod}>
-                    <span style={{ 
-                      width: "8px", 
-                      height: "8px", 
-                      borderRadius: "50%",
-                      backgroundColor: 
-                        method.method === 'cash' ? '#10b981' :
-                        method.method === 'card' ? '#3b82f6' :
-                        method.method === 'upi' ? '#8b5cf6' : '#f59e0b'
-                    }} />
-                    {method.method}
-                  </div>
-                  <div style={styles.paymentAmount}>
-                    {formatCurrency(method.total)}
-                  </div>
-                  <div style={styles.paymentCount}>
-                    {method.count} {method.count === 1 ? 'transaction' : 'transactions'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ textAlign: "center", padding: "40px 20px" }}>
-              <FaMoneyBillWave size={32} style={{ opacity: 0.5, marginBottom: "12px" }} />
-              <p style={{ color: "#94a3b8" }}>No payment data available</p>
-            </div>
-          )}
-          
-          {/* Total Payments Summary */}
-          {stats.paymentMethods.length > 0 && (
-            <div style={{ 
-              marginTop: "20px", 
-              padding: "16px", 
-              backgroundColor: "#0f172a",
-              borderRadius: "12px",
-              border: "1px solid #334155"
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ color: "#94a3b8" }}>Total Payments</span>
-                <span style={{ fontSize: "20px", fontWeight: "600", color: "#10b981" }}>
-                  {formatCurrency(stats.billing.totalPayments || 0)}
-                </span>
-              </div>
-              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
-                All time total
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default EmployeeDashboard;

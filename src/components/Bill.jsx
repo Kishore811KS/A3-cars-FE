@@ -1,6 +1,7 @@
 // Bill.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { getApplicableDiscount } from './DiscountPage';
 
 const Bill = () => {
   // State management
@@ -39,6 +40,7 @@ const Bill = () => {
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState('percentage'); // 'percentage' or 'fixed'
   const [manualDiscount, setManualDiscount] = useState(false); // Track if discount is manually set
+  const [useAutoDiscount, setUseAutoDiscount] = useState(true); // Auto-apply discount ranges from DiscountPage
   
   // Tax information
   const [tax, setTax] = useState(0);
@@ -887,6 +889,24 @@ const Bill = () => {
       }
     }
   }, [customerType, manualDiscount]);
+
+  // Auto-apply discount ranges based on subtotal
+  useEffect(() => {
+    if (!manualDiscount && useAutoDiscount && selectedProducts.length > 0) {
+      const subtotal = calculateSubtotal();
+      if (subtotal > 0) {
+        getApplicableDiscount(subtotal).then((discountPct) => {
+          if (discountPct > 0) {
+            setDiscount(discountPct);
+            setDiscountType('percentage');
+          }
+        }).catch((error) => {
+          console.error('Error getting applicable discount:', error);
+        });
+      }
+    }
+  }, [selectedProducts, manualDiscount, useAutoDiscount]);
+
 
   // Add thermal print styles
   useEffect(() => {

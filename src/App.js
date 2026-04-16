@@ -8,6 +8,7 @@ import {
 import "./App.css";
 import Login from "./Login";
 import Dashboard from "./components/Dashboard";
+import EmployeeDashboard from "./components/EmployeeDashboard";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Product from "./components/Product";
@@ -71,6 +72,7 @@ function Layout() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
           <Route path="/product" element={<Product />} />
           <Route path="/Bill" element={<Bill />} />
           <Route path="/billreport" element={<VisitBillPage />} />
