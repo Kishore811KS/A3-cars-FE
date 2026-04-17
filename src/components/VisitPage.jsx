@@ -4,10 +4,10 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { 
-  Search, 
-  Eye, 
-  Printer, 
+import {
+  Search,
+  Eye,
+  Printer,
   RefreshCw,
   X,
   ChevronLeft,
@@ -49,15 +49,15 @@ import {
 
 // Crown icon component for VIP customers
 const Crown = (props) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={props.size || 24} 
-    height={props.size || 24} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={props.size || 24}
+    height={props.size || 24}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
     strokeLinejoin="round"
   >
     <path d="M2 4l3 12h14l3-12-6 3-4-6-4 3-6-3z" />
@@ -76,7 +76,7 @@ const VisitBillPage = () => {
   const [whatsappStatus, setWhatsappStatus] = useState({});
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelRemarks, setCancelRemarks] = useState('');
-  
+
   // Company/Shop Details from Backend
   const [companyDetails, setCompanyDetails] = useState({
     name: "M3 Cars",
@@ -88,16 +88,16 @@ const VisitBillPage = () => {
     logo: null,
     logoUrl: null
   });
-  
+
   const [selectedCompanyId, setSelectedCompanyId] = useState(null);
   const [companies, setCompanies] = useState([]);
   const [showCompanySelector, setShowCompanySelector] = useState(false);
   const [loadingCompany, setLoadingCompany] = useState(false);
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPaymentMethod, setFilterPaymentMethod] = useState('all');
@@ -173,7 +173,7 @@ const VisitBillPage = () => {
     try {
       const response = await api.get('/companies/list');
       console.log('Companies response:', response.data);
-      
+
       if (response.data && response.data.length > 0) {
         setCompanies(response.data);
         // Auto-select first company
@@ -217,7 +217,7 @@ const VisitBillPage = () => {
     try {
       const response = await api.get(`/companies/${companyId}`);
       console.log('Company details:', response.data);
-      
+
       const company = response.data;
       setCompanyDetails({
         name: company.name || "M3 Cars",
@@ -247,7 +247,7 @@ const VisitBillPage = () => {
   const fetchBills = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       // Try different possible endpoints
       const endpoints = [
@@ -256,10 +256,10 @@ const VisitBillPage = () => {
         `${API_BASE_URL}/visit-bills`,
         `${API_BASE_URL}/billing/visit-bills`
       ];
-      
+
       let response = null;
       let success = false;
-      
+
       for (const endpoint of endpoints) {
         try {
           console.log('Trying endpoint:', endpoint);
@@ -273,16 +273,16 @@ const VisitBillPage = () => {
           console.log(`Endpoint ${endpoint} failed:`, err.message);
         }
       }
-      
+
       if (!success || !response) {
         throw new Error('Could not fetch bills from any endpoint');
       }
-      
+
       console.log('API Response:', response.data);
-      
+
       // Extract bills data from response
       let billsData = [];
-      
+
       if (Array.isArray(response.data)) {
         billsData = response.data;
       } else if (response.data.data && Array.isArray(response.data.data)) {
@@ -300,7 +300,7 @@ const VisitBillPage = () => {
           }
         }
       }
-      
+
       if (billsData.length === 0) {
         console.log('No bills data found in response');
         setBills([]);
@@ -309,20 +309,20 @@ const VisitBillPage = () => {
         setLoading(false);
         return;
       }
-      
+
       // Process bills to ensure all fields are properly mapped
       const processedBills = billsData.map(bill => {
         // Handle discount - it could be amount or percentage
         let discountValue = parseFloat(bill.discount || bill.discount_amount || 0);
         let discountType = bill.discountType || bill.discount_type || 'amount';
         let subtotal = parseFloat(bill.subtotal || bill.sub_total || 0);
-        
+
         // Calculate actual discount amount
         let discountAmount = discountValue;
         if (discountType === 'percentage' && subtotal > 0) {
           discountAmount = (subtotal * discountValue) / 100;
         }
-        
+
         return {
           id: bill.id || bill._id || Math.random().toString(),
           billNumber: bill.billNumber || bill.bill_number || bill.billNo || bill.invoiceNo || `BILL-${Date.now()}`,
@@ -367,23 +367,23 @@ const VisitBillPage = () => {
           })) : []
         };
       });
-      
+
       // Calculate item count and due amount for each bill
       processedBills.forEach(bill => {
         bill.itemCount = bill.items ? bill.items.length : 0;
         bill.dueAmount = bill.total - bill.paidAmount;
       });
-      
+
       // Filter to show only bills with bill numbers starting with "BT"
-      const btBills = processedBills.filter(bill => 
+      const btBills = processedBills.filter(bill =>
         bill.billNumber && bill.billNumber.toUpperCase().startsWith('BT')
       );
-      
+
       console.log('Processed Bills (BT only):', btBills);
-      
+
       setBills(btBills);
       setFilteredBills(btBills);
-      
+
       showMessage("success", `✅ Loaded ${btBills.length} BT bills successfully!`);
     } catch (err) {
       console.error('Error fetching bills:', err);
@@ -397,7 +397,7 @@ const VisitBillPage = () => {
   const fetchBillDetails = async (billId) => {
     try {
       setLoading(true);
-      
+
       // First check if we already have the bill in state
       const existingBill = bills.find(b => b.id === billId);
       if (existingBill && existingBill.items && existingBill.items.length > 0) {
@@ -407,7 +407,7 @@ const VisitBillPage = () => {
         setLoading(false);
         return;
       }
-      
+
       // Try different endpoints for single bill
       const endpoints = [
         `${API_BASE_URL}/billing/bills/${billId}`,
@@ -415,10 +415,10 @@ const VisitBillPage = () => {
         `${API_BASE_URL}/visit-bills/${billId}`,
         `${API_BASE_URL}/billing/visit-bills/${billId}`
       ];
-      
+
       let response = null;
       let success = false;
-      
+
       for (const endpoint of endpoints) {
         try {
           console.log('Trying details endpoint:', endpoint);
@@ -432,7 +432,7 @@ const VisitBillPage = () => {
           console.log(`Endpoint ${endpoint} failed:`, err.message);
         }
       }
-      
+
       if (!success || !response) {
         // If API fails, use the existing bill data
         const billFromList = bills.find(b => b.id === billId);
@@ -445,23 +445,23 @@ const VisitBillPage = () => {
         }
         throw new Error('Could not fetch bill details');
       }
-      
+
       console.log('Bill Details Response:', response.data);
-      
+
       // Process the bill data
       const billData = response.data;
-      
+
       // Handle discount - it could be amount or percentage
       let discountValue = parseFloat(billData.discount || billData.discount_amount || 0);
       let discountType = billData.discountType || billData.discount_type || 'amount';
       let subtotal = parseFloat(billData.subtotal || billData.sub_total || 0);
-      
+
       // Calculate actual discount amount
       let discountAmount = discountValue;
       if (discountType === 'percentage' && subtotal > 0) {
         discountAmount = (subtotal * discountValue) / 100;
       }
-      
+
       const processedBill = {
         id: billData.id || billData._id || billId,
         billNumber: billData.billNumber || billData.bill_number || billData.billNo || 'N/A',
@@ -505,18 +505,18 @@ const VisitBillPage = () => {
           createdAt: payment.createdAt || payment.created_at
         })) : []
       };
-      
+
       // Calculate item count and due amount
       processedBill.itemCount = processedBill.items.length;
       processedBill.dueAmount = processedBill.total - processedBill.paidAmount;
-      
+
       console.log('Processed Bill Details:', processedBill);
-      
+
       setSelectedBill(processedBill);
       setShowBillModal(true);
     } catch (err) {
       console.error('Error fetching bill details:', err);
-      
+
       // Try to use the bill from the list as fallback
       const billFromList = bills.find(b => b.id === billId);
       if (billFromList) {
@@ -543,7 +543,7 @@ const VisitBillPage = () => {
 
     // Clean phone number (remove non-digits)
     const cleanPhone = bill.customerPhone.replace(/\D/g, '');
-    
+
     // Check if phone number is valid
     if (cleanPhone.length < 10) {
       showMessage("error", "❌ Please enter a valid 10-digit phone number");
@@ -560,7 +560,7 @@ const VisitBillPage = () => {
     // Create message with company details
     const dueAmount = (bill.total || 0) - (bill.paidAmount || 0);
     const items = bill.items || [];
-    
+
     let message = `*${companyDetails.name}*\n`;
     message += `${companyDetails.address}\n`;
     message += `${companyDetails.city}\n`;
@@ -575,14 +575,14 @@ const VisitBillPage = () => {
     message += `*Time:* ${new Date(bill.createdAt).toLocaleTimeString()}\n`;
     message += `*Customer:* ${bill.customerName || 'Walk-in Customer'}\n`;
     message += `*Type:* ${(bill.customerType || 'external').toUpperCase()}\n`;
-    
+
     if (bill.customerPhone) {
       message += `*Phone:* ${bill.customerPhone}\n`;
     }
-    
+
     message += `═══════════════════════\n`;
     message += `*ITEMS PURCHASED:*\n`;
-    
+
     items.slice(0, 5).forEach(item => {
       const productName = item.productName || item.product_name || 'Unknown';
       const qty = item.quantity || 0;
@@ -591,14 +591,14 @@ const VisitBillPage = () => {
       message += `• ${productName.substring(0, 20)}${productName.length > 20 ? '...' : ''}\n`;
       message += `  ${qty} x ₹${price.toFixed(2)} = ₹${total.toFixed(2)}\n`;
     });
-    
+
     if (items.length > 5) {
       message += `  ...and ${items.length - 5} more items\n`;
     }
-    
+
     message += `═══════════════════════\n`;
     message += `*Subtotal:* ₹${(bill.subtotal || 0).toFixed(2)}\n`;
-    
+
     if (bill.discountAmount > 0) {
       if (bill.discountType === 'percentage') {
         message += `*Discount:* ${bill.discountValue}% (₹${bill.discountAmount.toFixed(2)})\n`;
@@ -606,22 +606,22 @@ const VisitBillPage = () => {
         message += `*Discount:* ₹${bill.discountAmount.toFixed(2)}\n`;
       }
     }
-    
+
     if (bill.tax > 0) {
       message += `*Tax:* ₹${(bill.tax || 0).toFixed(2)}\n`;
     }
-    
+
     message += `*TOTAL AMOUNT:* ₹${(bill.total || 0).toFixed(2)}\n`;
     message += `*Paid:* ₹${(bill.paidAmount || 0).toFixed(2)}\n`;
-    
+
     if (dueAmount > 0) {
       message += `*Due:* ₹${dueAmount.toFixed(2)}\n`;
     }
-    
+
     if (bill.changeAmount > 0) {
       message += `*Change:* ₹${bill.changeAmount.toFixed(2)}\n`;
     }
-    
+
     message += `*Payment Method:* ${(bill.paymentMethod || 'cash').toUpperCase()}\n`;
     message += `═══════════════════════\n`;
     message += `Thank you for shopping with us!\n`;
@@ -630,14 +630,14 @@ const VisitBillPage = () => {
 
     // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
-    
+
     // Open WhatsApp
     window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, '_blank');
-    
+
     // Update status
     setWhatsappStatus(prev => ({ ...prev, [bill.id]: 'sent' }));
     showMessage("success", "✅ WhatsApp opened successfully!");
-    
+
     setTimeout(() => {
       setWhatsappStatus(prev => ({ ...prev, [bill.id]: null }));
     }, 3000);
@@ -646,12 +646,12 @@ const VisitBillPage = () => {
   const handleCancelBillImmediate = async (bill) => {
     const reason = window.prompt("Confirm cancellation? Provide a reason:", "");
     if (reason === null) return; // User clicked "Cancel" on the prompt
-    
+
     try {
       setLoading(true);
       const endpoint = `${API_BASE_URL}/billing/bills/${bill.id}/cancel`;
       const response = await api.post(endpoint, { remarks: reason || "Cancelled without remarks" });
-      
+
       if (response.data.success) {
         showMessage("success", "✅ Bill cancelled successfully!");
         fetchBills();
@@ -670,7 +670,7 @@ const VisitBillPage = () => {
     // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(bill => 
+      filtered = filtered.filter(bill =>
         (bill.billNumber?.toLowerCase().includes(term)) ||
         (bill.customerName?.toLowerCase().includes(term)) ||
         (bill.customerPhone?.toLowerCase().includes(term)) ||
@@ -681,14 +681,14 @@ const VisitBillPage = () => {
 
     // Payment method filter
     if (filterPaymentMethod !== 'all') {
-      filtered = filtered.filter(bill => 
+      filtered = filtered.filter(bill =>
         bill.paymentMethod?.toLowerCase() === filterPaymentMethod.toLowerCase()
       );
     }
 
     // Customer type filter
     if (filterCustomerType !== 'all') {
-      filtered = filtered.filter(bill => 
+      filtered = filtered.filter(bill =>
         bill.customerType?.toLowerCase() === filterCustomerType.toLowerCase()
       );
     }
@@ -699,7 +699,7 @@ const VisitBillPage = () => {
       start.setHours(0, 0, 0, 0);
       const end = new Date(dateRange.end);
       end.setHours(23, 59, 59, 999);
-      
+
       filtered = filtered.filter(bill => {
         const billDate = new Date(bill.createdAt);
         return billDate >= start && billDate <= end;
@@ -708,7 +708,7 @@ const VisitBillPage = () => {
 
     // Sorting
     filtered.sort((a, b) => {
-      switch(sortBy) {
+      switch (sortBy) {
         case 'newest':
           return new Date(b.createdAt) - new Date(a.createdAt);
         case 'oldest':
@@ -783,7 +783,7 @@ const VisitBillPage = () => {
 
       const date = new Date().toISOString().split('T')[0];
       saveAs(file, `Bills_${date}.xlsx`);
-      
+
       showMessage("success", `✅ Exported ${filteredBills.length} bills to Excel`);
     } catch (err) {
       console.error("Export error:", err);
@@ -794,11 +794,11 @@ const VisitBillPage = () => {
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF();
-      
+
       doc.setFontSize(20);
       doc.setTextColor(99, 102, 241);
       doc.text('Bills Report', 14, 22);
-      
+
       // Add company details to PDF header
       doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
@@ -806,10 +806,10 @@ const VisitBillPage = () => {
       doc.text(`${companyDetails.address}, ${companyDetails.city}`, 14, 35);
       if (companyDetails.phone) doc.text(`Ph: ${companyDetails.phone}`, 14, 40);
       if (companyDetails.gst) doc.text(`GST: ${companyDetails.gst}`, 14, 45);
-      
+
       doc.setFontSize(10);
       doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 52);
-      
+
       let filterY = 59;
       if (searchTerm) {
         doc.text(`Search: "${searchTerm}"`, 14, filterY);
@@ -827,12 +827,12 @@ const VisitBillPage = () => {
         doc.text(`Date Range: ${dateRange.start} to ${dateRange.end}`, 14, filterY);
         filterY += 5;
       }
-      
+
       const totalAmount = filteredBills.reduce((sum, bill) => sum + (bill.total || 0), 0);
       const totalPaid = filteredBills.reduce((sum, bill) => sum + (bill.paidAmount || 0), 0);
       const totalDue = totalAmount - totalPaid;
       const totalDiscount = filteredBills.reduce((sum, bill) => sum + (bill.discountAmount || 0), 0);
-      
+
       doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
       doc.text(`Total Bills: ${filteredBills.length}`, 14, filterY + 5);
@@ -840,12 +840,12 @@ const VisitBillPage = () => {
       doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`, 14, filterY + 19);
       doc.text(`Total Paid: ₹${totalPaid.toFixed(2)}`, 14, filterY + 26);
       doc.text(`Total Due: ₹${totalDue.toFixed(2)}`, 14, filterY + 33);
-      
+
       const tableColumn = [
         'Bill No', 'Date', 'Customer', 'Type', 'Items', 'Subtotal', 'Discount',
         'Total (₹)', 'Paid (₹)', 'Due (₹)', 'Method'
       ];
-      
+
       const tableRows = filteredBills.map(bill => {
         // Format discount display
         let discountDisplay = '';
@@ -854,7 +854,7 @@ const VisitBillPage = () => {
         } else {
           discountDisplay = `₹${bill.discountAmount.toFixed(2)}`;
         }
-        
+
         return [
           bill.billNumber || '',
           new Date(bill.createdAt).toLocaleDateString(),
@@ -869,9 +869,9 @@ const VisitBillPage = () => {
           (bill.paymentMethod || 'cash').substring(0, 3).toUpperCase()
         ];
       });
-      
+
       const startY = filterY + 42;
-      
+
       doc.autoTable({
         head: [tableColumn],
         body: tableRows,
@@ -880,10 +880,10 @@ const VisitBillPage = () => {
         headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255] },
         alternateRowStyles: { fillColor: [240, 240, 240] },
       });
-      
+
       const date = new Date().toISOString().split('T')[0];
       doc.save(`Bills_Report_${date}.pdf`);
-      
+
       showMessage("success", `✅ Exported ${filteredBills.length} bills to PDF`);
     } catch (err) {
       console.error("PDF export error:", err);
@@ -893,7 +893,7 @@ const VisitBillPage = () => {
 
   const handlePrintBill = (bill) => {
     const printWindow = window.open('', '_blank');
-    
+
     const processedBill = {
       ...bill,
       subtotal: parseFloat(bill.subtotal) || 0,
@@ -906,7 +906,7 @@ const VisitBillPage = () => {
       changeAmount: parseFloat(bill.changeAmount) || 0,
       dueAmount: (parseFloat(bill.total) || 0) - (parseFloat(bill.paidAmount) || 0)
     };
-    
+
     // Format discount display
     let discountDisplay = '';
     if (processedBill.discountType === 'percentage') {
@@ -914,7 +914,7 @@ const VisitBillPage = () => {
     } else {
       discountDisplay = `₹${processedBill.discountAmount.toFixed(2)}`;
     }
-    
+
     printWindow.document.write(`
       <html>
         <head>
@@ -1100,13 +1100,13 @@ const VisitBillPage = () => {
               <span>Total</span>
             </div>
             ${processedBill.items && processedBill.items.length > 0 ? processedBill.items.map(item => {
-              const productName = item.productName || item.product_name || 'Unknown';
-              const productModel = item.productModel || item.product_model || '';
-              const sellPrice = parseFloat(item.sellPrice || item.sell_price || 0);
-              const quantity = item.quantity || 0;
-              const total = parseFloat(item.total || 0);
-              
-              return `
+      const productName = item.productName || item.product_name || 'Unknown';
+      const productModel = item.productModel || item.product_model || '';
+      const sellPrice = parseFloat(item.sellPrice || item.sell_price || 0);
+      const quantity = item.quantity || 0;
+      const total = parseFloat(item.total || 0);
+
+      return `
                 <div class="item">
                   <span>${productName} ${productModel ? `(${productModel})` : ''}</span>
                   <span>₹${sellPrice.toFixed(2)}</span>
@@ -1114,7 +1114,7 @@ const VisitBillPage = () => {
                   <span>₹${total.toFixed(2)}</span>
                 </div>
               `;
-            }).join('') : '<div class="item"><span colspan="4">No items found</span></div>'}
+    }).join('') : '<div class="item"><span colspan="4">No items found</span></div>'}
           </div>
           
           <div class="summary">
@@ -1698,9 +1698,9 @@ const VisitBillPage = () => {
       <div style={styles.shopHeader}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           {companyDetails.logoUrl && (
-            <img 
-              src={companyDetails.logoUrl} 
-              alt="Company Logo" 
+            <img
+              src={companyDetails.logoUrl}
+              alt="Company Logo"
               style={styles.shopLogo}
               onError={(e) => {
                 e.target.style.display = 'none';
@@ -1734,11 +1734,11 @@ const VisitBillPage = () => {
             </p>
           </div>
         </div>
-        
+
         {/* Company Selector */}
         {companies.length > 0 && (
           <div style={{ position: 'relative' }}>
-            <div 
+            <div
               style={styles.companySelector}
               onClick={() => setShowCompanySelector(!showCompanySelector)}
               onMouseEnter={(e) => {
@@ -1754,7 +1754,7 @@ const VisitBillPage = () => {
               {companies.find(c => c.id === selectedCompanyId)?.name || 'Select Company'}
               <span style={{ marginLeft: '8px' }}>{showCompanySelector ? '▲' : '▼'}</span>
             </div>
-            
+
             {showCompanySelector && (
               <div style={styles.companyDropdown}>
                 {companies.map(company => (
@@ -1787,9 +1787,9 @@ const VisitBillPage = () => {
       {message.text && (
         <div style={{
           ...styles.message,
-          ...(message.type === "success" ? styles.successMessage : 
-             message.type === "error" ? styles.errorMessage : 
-             styles.infoMessage)
+          ...(message.type === "success" ? styles.successMessage :
+            message.type === "error" ? styles.errorMessage :
+              styles.infoMessage)
         }}>
           {message.type === "success" && <CheckCircle size={18} />}
           {message.type === "error" && <AlertCircle size={18} />}
@@ -1805,7 +1805,7 @@ const VisitBillPage = () => {
             <Receipt size={32} color="#6366f1" />
             Visit Bills (BT Series)
           </h1>
-          <button 
+          <button
             style={styles.refreshButton}
             onClick={fetchBills}
             title="Refresh"
@@ -1833,16 +1833,16 @@ const VisitBillPage = () => {
         </div>
 
         <div style={styles.buttonGroup}>
-          <button 
-            style={{...styles.button, ...styles.infoButton}} 
+          <button
+            style={{ ...styles.button, ...styles.infoButton }}
             onClick={handleExportExcel}
             onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
             onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
             <FileSpreadsheet size={16} /> Excel
           </button>
-          <button 
-            style={{...styles.button, ...styles.successButton}} 
+          <button
+            style={{ ...styles.button, ...styles.successButton }}
             onClick={handleExportPDF}
             onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
             onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
@@ -1896,7 +1896,7 @@ const VisitBillPage = () => {
           type="date"
           style={styles.dateInput}
           value={dateRange.start}
-          onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+          onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
           placeholder="From Date"
         />
 
@@ -1904,7 +1904,7 @@ const VisitBillPage = () => {
           type="date"
           style={styles.dateInput}
           value={dateRange.end}
-          onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+          onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
           placeholder="To Date"
         />
 
@@ -1919,7 +1919,7 @@ const VisitBillPage = () => {
           <option value="lowest">Lowest Amount</option>
         </select>
 
-        <button 
+        <button
           style={styles.filterButton}
           onClick={resetFilters}
           onMouseEnter={(e) => {
@@ -1937,8 +1937,8 @@ const VisitBillPage = () => {
 
       {/* Bills Table */}
       <div style={styles.tableContainer}>
-        {error && <div style={{padding: '30px', color: '#f87171', textAlign: 'center'}}>{error}</div>}
-        
+        {error && <div style={{ padding: '30px', color: '#f87171', textAlign: 'center' }}>{error}</div>}
+
         <table style={styles.table}>
           <thead>
             <tr>
@@ -1962,35 +1962,35 @@ const VisitBillPage = () => {
             {currentBills.length === 0 ? (
               <tr>
                 <td colSpan="14" style={styles.noData}>
-                  {searchTerm || filterPaymentMethod !== 'all' || filterCustomerType !== 'all' || dateRange.start 
+                  {searchTerm || filterPaymentMethod !== 'all' || filterCustomerType !== 'all' || dateRange.start
                     ? <div>
-                        <Filter size={30} style={{marginBottom: '10px', opacity: 0.5}} />
-                        <div>No BT bills match your filters</div>
-                        <button 
-                          onClick={resetFilters}
-                          style={{...styles.button, marginTop: '15px', display: 'inline-flex'}}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#2d3748';
-                            e.currentTarget.style.borderColor = '#4b5563';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#1f2937';
-                            e.currentTarget.style.borderColor = '#374151';
-                          }}
-                        >
-                          <X size={14} /> Clear Filters
-                        </button>
-                      </div>
+                      <Filter size={30} style={{ marginBottom: '10px', opacity: 0.5 }} />
+                      <div>No BT bills match your filters</div>
+                      <button
+                        onClick={resetFilters}
+                        style={{ ...styles.button, marginTop: '15px', display: 'inline-flex' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#2d3748';
+                          e.currentTarget.style.borderColor = '#4b5563';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#1f2937';
+                          e.currentTarget.style.borderColor = '#374151';
+                        }}
+                      >
+                        <X size={14} /> Clear Filters
+                      </button>
+                    </div>
                     : <div>
-                        <Receipt size={30} style={{marginBottom: '10px', opacity: 0.5}} />
-                        <div>No BT bills found</div>
-                      </div>}
+                      <Receipt size={30} style={{ marginBottom: '10px', opacity: 0.5 }} />
+                      <div>No BT bills found</div>
+                    </div>}
                 </td>
               </tr>
             ) : (
               currentBills.map((bill) => {
                 const dueAmount = (bill.total || 0) - (bill.paidAmount || 0);
-                
+
                 // Format discount display
                 let discountDisplay = '';
                 if (bill.discountType === 'percentage') {
@@ -1998,11 +1998,11 @@ const VisitBillPage = () => {
                 } else {
                   discountDisplay = formatCurrency(bill.discountAmount);
                 }
-                
+
                 return (
                   <tr key={bill.id}>
                     <td style={styles.td}>
-                      <div style={{display: 'flex', alignItems: 'center'}}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
                         <strong>{bill.billNumber}</strong>
                         <button
                           style={styles.copyButton}
@@ -2017,17 +2017,17 @@ const VisitBillPage = () => {
                     </td>
                     <td style={styles.td}>
                       <div>{new Date(bill.createdAt).toLocaleDateString()}</div>
-                      <small style={{color: '#9ca3af', fontSize: '11px'}}>
+                      <small style={{ color: '#9ca3af', fontSize: '11px' }}>
                         {new Date(bill.createdAt).toLocaleTimeString()}
                       </small>
                     </td>
                     <td style={styles.td}>
-                      <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <User size={12} color="#9ca3af" />
                         <span>{bill.customerName || 'Walk-in'}</span>
                       </div>
                       {bill.customerEmail && (
-                        <small style={{color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px'}}>
+                        <small style={{ color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px' }}>
                           <Mail size={10} /> {bill.customerEmail}
                         </small>
                       )}
@@ -2040,18 +2040,18 @@ const VisitBillPage = () => {
                         border: `1px solid ${getCustomerTypeColor(bill.customerType)}40`
                       }}>
                         {getCustomerTypeIcon(bill.customerType)}
-                        <span style={{textTransform: 'capitalize'}}>{bill.customerType || 'external'}</span>
+                        <span style={{ textTransform: 'capitalize' }}>{bill.customerType || 'external'}</span>
                       </span>
                     </td>
                     <td style={styles.td}>
                       {bill.customerPhone && (
-                        <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Phone size={10} color="#9ca3af" />
                           <span>{bill.customerPhone}</span>
                         </div>
                       )}
                       {bill.customerGst && (
-                        <small style={{color: '#9ca3af', fontSize: '10px'}}>
+                        <small style={{ color: '#9ca3af', fontSize: '10px' }}>
                           GST: {bill.customerGst}
                         </small>
                       )}
@@ -2062,7 +2062,7 @@ const VisitBillPage = () => {
                       <span title={`${bill.discountType === 'percentage' ? 'Percentage' : 'Fixed'} discount`}>
                         {discountDisplay}
                         {bill.discountType === 'percentage' && (
-                          <small style={{color: '#9ca3af', marginLeft: '4px', fontSize: '10px'}}>
+                          <small style={{ color: '#9ca3af', marginLeft: '4px', fontSize: '10px' }}>
                             (₹{bill.discountAmount.toFixed(2)})
                           </small>
                         )}
@@ -2086,87 +2086,87 @@ const VisitBillPage = () => {
                         border: `1px solid ${getPaymentColor(bill.paymentMethod)}30`
                       }}>
                         {getPaymentIcon(bill.paymentMethod)}
-                        <span style={{textTransform: 'capitalize'}}>{bill.paymentMethod}</span>
+                        <span style={{ textTransform: 'capitalize' }}>{bill.paymentMethod}</span>
                       </div>
                     </td>
                     <td style={styles.td}>
                       <div style={{ display: 'flex', flexDirection: 'row', gap: '4px', whiteSpace: 'nowrap' }}>
-                      <button
-                        style={{...styles.actionButton, backgroundColor: '#3b82f6', color: 'white', marginRight: '4px'}}
-                        onClick={() => fetchBillDetails(bill.id)}
-                        title="View Details"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#2563eb';
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#3b82f6';
-                          e.currentTarget.style.transform = 'scale(1)';
-                        }}
-                      >
-                        <Eye size={14} />
-                      </button>
-                      <button
-                        style={{...styles.actionButton, backgroundColor: '#059669', color: 'white', marginRight: '4px'}}
-                        onClick={() => handlePrintBill(bill)}
-                        title="Print Bill"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#047857';
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#059669';
-                          e.currentTarget.style.transform = 'scale(1)';
-                        }}
-                      >
-                        <Printer size={14} />
-                      </button>
-                      <button
-                        style={{
-                          ...styles.whatsappButton,
-                          opacity: whatsappStatus[bill.id] === 'sending' ? 0.7 : 1,
-                          cursor: whatsappStatus[bill.id] === 'sending' ? 'wait' : 'pointer',
-                          backgroundColor: whatsappStatus[bill.id] === 'sent' ? '#059669' : '#25D366'
-                        }}
-                        onClick={() => handleWhatsAppShare(bill)}
-                        title="Share on WhatsApp"
-                        disabled={whatsappStatus[bill.id] === 'sending'}
-                        onMouseEnter={(e) => {
-                          if (!whatsappStatus[bill.id]) {
-                            e.currentTarget.style.backgroundColor = '#128C7E';
+                        <button
+                          style={{ ...styles.actionButton, backgroundColor: '#3b82f6', color: 'white', marginRight: '4px' }}
+                          onClick={() => fetchBillDetails(bill.id)}
+                          title="View Details"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#2563eb';
                             e.currentTarget.style.transform = 'scale(1.05)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!whatsappStatus[bill.id]) {
-                            e.currentTarget.style.backgroundColor = '#25D366';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#3b82f6';
                             e.currentTarget.style.transform = 'scale(1)';
-                          }
-                        }}
-                      >
-                        {whatsappStatus[bill.id] === 'sending' ? (
-                          <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                        ) : whatsappStatus[bill.id] === 'sent' ? (
-                          <CheckCircle size={14} />
-                        ) : (
-                          <MessageCircle size={14} />
-                        )}
-                      </button>
-                      <button
-                        style={{...styles.actionButton, backgroundColor: '#dc3545', color: 'white', marginLeft: '4px'}}
-                        onClick={() => handleCancelBillImmediate(bill)}
-                        title="Cancel Bill"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#c82333';
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#dc3545';
-                          e.currentTarget.style.transform = 'scale(1)';
-                        }}
-                      >
-                        <X size={14} />
-                      </button>
+                          }}
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          style={{ ...styles.actionButton, backgroundColor: '#059669', color: 'white', marginRight: '4px' }}
+                          onClick={() => handlePrintBill(bill)}
+                          title="Print Bill"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#047857';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#059669';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                        >
+                          <Printer size={14} />
+                        </button>
+                        <button
+                          style={{
+                            ...styles.whatsappButton,
+                            opacity: whatsappStatus[bill.id] === 'sending' ? 0.7 : 1,
+                            cursor: whatsappStatus[bill.id] === 'sending' ? 'wait' : 'pointer',
+                            backgroundColor: whatsappStatus[bill.id] === 'sent' ? '#059669' : '#25D366'
+                          }}
+                          onClick={() => handleWhatsAppShare(bill)}
+                          title="Share on WhatsApp"
+                          disabled={whatsappStatus[bill.id] === 'sending'}
+                          onMouseEnter={(e) => {
+                            if (!whatsappStatus[bill.id]) {
+                              e.currentTarget.style.backgroundColor = '#128C7E';
+                              e.currentTarget.style.transform = 'scale(1.05)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!whatsappStatus[bill.id]) {
+                              e.currentTarget.style.backgroundColor = '#25D366';
+                              e.currentTarget.style.transform = 'scale(1)';
+                            }
+                          }}
+                        >
+                          {whatsappStatus[bill.id] === 'sending' ? (
+                            <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                          ) : whatsappStatus[bill.id] === 'sent' ? (
+                            <CheckCircle size={14} />
+                          ) : (
+                            <MessageCircle size={14} />
+                          )}
+                        </button>
+                        <button
+                          style={{ ...styles.actionButton, backgroundColor: '#dc3545', color: 'white', marginLeft: '4px' }}
+                          onClick={() => handleCancelBillImmediate(bill)}
+                          title="Cancel Bill"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#c82333';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#dc3545';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -2183,7 +2183,7 @@ const VisitBillPage = () => {
           <div style={styles.paginationInfo}>
             Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredBills.length)} of {filteredBills.length} BT bills
           </div>
-          
+
           <div style={styles.paginationControls}>
             <button
               onClick={goToPreviousPage}
@@ -2207,7 +2207,7 @@ const VisitBillPage = () => {
             >
               <ChevronLeft size={16} />
             </button>
-            
+
             <div style={styles.pageNumbers}>
               {[...Array(totalPages)].map((_, index) => {
                 const pageNumber = index + 1;
@@ -2249,7 +2249,7 @@ const VisitBillPage = () => {
                 return null;
               })}
             </div>
-            
+
             <button
               onClick={goToNextPage}
               disabled={currentPage === totalPages}
@@ -2280,8 +2280,8 @@ const VisitBillPage = () => {
       {showBillModal && selectedBill && (
         <div style={styles.modal} onClick={() => setShowBillModal(false)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button 
-              style={styles.modalClose} 
+            <button
+              style={styles.modalClose}
               onClick={() => setShowBillModal(false)}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = '#f9fafb';
@@ -2294,14 +2294,14 @@ const VisitBillPage = () => {
             >
               <X size={20} />
             </button>
-            
+
             <h2 style={styles.modalTitle}>
               <Receipt size={24} color="#6366f1" />
               Bill Details - {selectedBill.billNumber}
             </h2>
-            
+
             <div style={styles.modalSection}>
-              <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px'}}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
                 <div>
                   <p style={styles.modalText}>
                     <strong>Bill Number:</strong> {selectedBill.billNumber}
@@ -2338,7 +2338,7 @@ const VisitBillPage = () => {
                   )}
                 </div>
               </div>
-              
+
               {selectedBill.customerAddress && (
                 <p style={styles.modalText}>
                   <strong>Address:</strong> {selectedBill.customerAddress}
@@ -2351,10 +2351,10 @@ const VisitBillPage = () => {
               )}
             </div>
 
-            <h3 style={{color: '#f9fafb', marginBottom: '10px', fontSize: '16px'}}>
+            <h3 style={{ color: '#f9fafb', marginBottom: '10px', fontSize: '16px' }}>
               Items ({selectedBill.items?.length || 0})
             </h3>
-            
+
             <table style={styles.modalTable}>
               <thead>
                 <tr>
@@ -2373,7 +2373,7 @@ const VisitBillPage = () => {
                     const sellPrice = parseFloat(item.sellPrice || item.sell_price || 0);
                     const quantity = item.quantity || 0;
                     const total = parseFloat(item.total || 0);
-                    
+
                     return (
                       <tr key={index}>
                         <td style={styles.modalTd}>
@@ -2390,7 +2390,7 @@ const VisitBillPage = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="5" style={{...styles.modalTd, textAlign: 'center', color: '#9ca3af'}}>
+                    <td colSpan="5" style={{ ...styles.modalTd, textAlign: 'center', color: '#9ca3af' }}>
                       No items found
                     </td>
                   </tr>
@@ -2400,9 +2400,9 @@ const VisitBillPage = () => {
 
             {/* Payment History if available */}
             {selectedBill.payments && selectedBill.payments.length > 0 && (
-              <div style={{marginTop: '20px'}}>
-                <h4 style={{color: '#f9fafb', marginBottom: '10px', fontSize: '14px'}}>Payment History</h4>
-                <div style={{backgroundColor: '#111827', borderRadius: '6px', padding: '10px'}}>
+              <div style={{ marginTop: '20px' }}>
+                <h4 style={{ color: '#f9fafb', marginBottom: '10px', fontSize: '14px' }}>Payment History</h4>
+                <div style={{ backgroundColor: '#111827', borderRadius: '6px', padding: '10px' }}>
                   {selectedBill.payments.map((payment, index) => (
                     <div key={index} style={{
                       display: 'flex',
@@ -2410,10 +2410,10 @@ const VisitBillPage = () => {
                       padding: '5px 0',
                       borderBottom: index < selectedBill.payments.length - 1 ? '1px solid #374151' : 'none'
                     }}>
-                      <span style={{color: '#d1d5db', fontSize: '12px'}}>
+                      <span style={{ color: '#d1d5db', fontSize: '12px' }}>
                         {new Date(payment.createdAt).toLocaleTimeString()} - {payment.method?.toUpperCase()}
                       </span>
-                      <span style={{color: '#f9fafb', fontWeight: '500'}}>
+                      <span style={{ color: '#f9fafb', fontWeight: '500' }}>
                         ₹{payment.amount.toFixed(2)}
                       </span>
                     </div>
@@ -2424,7 +2424,7 @@ const VisitBillPage = () => {
 
             <div style={styles.modalFooter}>
               <button
-                style={{...styles.actionButton, backgroundColor: '#059669', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
+                style={{ ...styles.actionButton, backgroundColor: '#059669', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500' }}
                 onClick={() => {
                   setShowBillModal(false);
                   handlePrintBill(selectedBill);
@@ -2441,7 +2441,7 @@ const VisitBillPage = () => {
                 <Printer size={16} /> Print Bill
               </button>
               <button
-                style={{...styles.actionButton, backgroundColor: '#25D366', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
+                style={{ ...styles.actionButton, backgroundColor: '#25D366', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500' }}
                 onClick={() => {
                   setShowBillModal(false);
                   handleWhatsAppShare(selectedBill);
@@ -2460,7 +2460,7 @@ const VisitBillPage = () => {
                 <MessageCircle size={16} /> WhatsApp
               </button>
               <button
-                style={{...styles.actionButton, backgroundColor: '#dc3545', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
+                style={{ ...styles.actionButton, backgroundColor: '#dc3545', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500' }}
                 onClick={() => setShowCancelModal(true)}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#c82333';
@@ -2474,7 +2474,7 @@ const VisitBillPage = () => {
                 Cancel Bill
               </button>
               <button
-                style={{...styles.actionButton, backgroundColor: '#374151', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500'}}
+                style={{ ...styles.actionButton, backgroundColor: '#374151', color: 'white', padding: '12px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '6px', fontSize: '14px', fontWeight: '500' }}
                 onClick={() => setShowBillModal(false)}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#4b5563';
